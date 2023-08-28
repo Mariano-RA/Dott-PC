@@ -1,0 +1,9 @@
+[submodule "dott-front"]
+	path = dott-front
+	url = https://github.com/Mariano-RA/DottPc-Front.git
+[submodule "dott-back"]
+	path = dott-back
+	url = https://github.com/Mariano-RA/Dott-API.git
+[submodule "dott-pythonExcel"]
+	path = dott-pythonExcel
+	url = https://github.com/Mariano-RA/Repo-Python-DB-DottAPI.git
