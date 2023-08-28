@@ -1,13 +1,9 @@
 version: "3"
 services:
   mysql:
-    image: mysql/mysql-server:latest
-    container_name: mysql-container
-    environment:
-      MYSQL_ROOT_PASSWORD: marianonano12
-      MYSQL_DATABASE: dottpc
-      MYSQL_USER: do0tt
-      MYSQL_PASSWORD: Depor420
+    build:
+      dockerfile: ./Dockerfile
+      context: ./dott-database
     ports:
       - "3306:3306"
     volumes:
@@ -44,7 +40,7 @@ services:
     ports:
       - "5000:5000" # Ajusta el puerto según tu proyecto
     environment:
-      - APP_URL=http://backend:3000
+      - APP_URL=http://localhost:3000/api/productos
 
 volumes:
   mysql-data:
