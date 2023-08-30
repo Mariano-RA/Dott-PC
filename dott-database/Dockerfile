@@ -1,9 +1,8 @@
 # Utiliza la imagen oficial de MySQL como punto de partida
-FROM mysql/mysql-server:latest
+FROM mysql:latest
 
 # Variables de entorno para configurar la base de datos
 ENV MYSQL_ROOT_PASSWORD=marianonano12
-ENV MYSQL_DATABASE=dottpc
 ENV MYSQL_USER=do0tt
 ENV MYSQL_PASSWORD=Depor420
 

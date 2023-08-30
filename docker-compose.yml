@@ -8,6 +8,8 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=dottdb
 
   backend:
     build:
@@ -16,6 +18,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - DATABASE_HOST=mysql
       - ISSUER_BASE_URL=https://dev-3hmy3galmqfty1xt.us.auth0.com
       - AUDIENCE=https://dott-pc-server.com
       - CLIENT_ORIGIN_URL=http://frontend:90/

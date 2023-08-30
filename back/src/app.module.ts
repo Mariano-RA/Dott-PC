@@ -35,11 +35,11 @@ import { LoggerModule } from "nestjs-pino";
     ProductosModule,
     TypeOrmModule.forRoot({
       type: "mysql",
-      host: "mysql", // Nombre del servicio definido en docker-compose.yml
+      host: process.env.DATABASE_HOST, // Nombre del servicio definido en docker-compose.yml
       port: 3306,
       username: "do0tt",
       password: "Depor420",
-      database: "dottpc",
+      database: "dottdb",
       entities: [Dolar, User, Cuota, Producto],
       synchronize: true, // ¡Cuidado! No usar esto en producción
     }),

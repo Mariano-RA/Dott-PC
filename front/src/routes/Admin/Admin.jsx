@@ -49,7 +49,6 @@ const Admin = () => {
         "Content-Type": "multipart/form-data",
         Authorization: `Bearer ${state.userToken}`,
       },
-      referrerPolicy: "strict-origin-when-cross-origin", // Set the Referrer Policy
     };
     config.data = formData;
     axios

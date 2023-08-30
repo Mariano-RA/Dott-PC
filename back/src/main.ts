@@ -6,7 +6,12 @@ import { urlencoded } from "express";
 import { Logger } from "nestjs-pino";
 
 function checkEnvironment(configService: ConfigService) {
-  const requiredEnvVars = ["ISSUER_BASE_URL", "AUDIENCE", "CLIENT_ORIGIN_URL"];
+  const requiredEnvVars = [
+    "ISSUER_BASE_URL",
+    "AUDIENCE",
+    "CLIENT_ORIGIN_URL",
+    "DATABASE_HOST",
+  ];
 
   requiredEnvVars.forEach((envVar) => {
     if (!configService.get<string>(envVar)) {
