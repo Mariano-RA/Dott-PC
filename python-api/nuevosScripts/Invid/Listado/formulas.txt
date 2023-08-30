@@ -1,0 +1,40 @@
+Cambiar el formato del excel a la version mas nueva
+
+Borrar las filas que no sirven y dejar la de la primera categoria de auriculares
+Verificar los espacios en blanco
+agregar la columna categoria y en la primer celda pegar la siguiente formula
+
+=SI(LARGO(H3)<2;""; SI(Y(LARGO(A1)<2; LARGO(C1)<2); B1;I1))
+=IF(LEN(H3)<2,"", IF(AND(LEN(A1)<2, LEN(C1)<2), B1,I1))
+
+Para el resto de celdas pegar la siguiente
+
+=SI(LARGO(H4)<2;""; SI(Y(LARGO(A2)<2; LARGO(C2)<2); B2;I3))
+=IF(LEN(H4)<2,"",IF(AND(LEN(A2)<2,LEN(C2)<2),B2,I3))
+
+=SI(
+    LARGO(H4)<2;
+    "";
+    SI(
+        Y(
+            LARGO(A2)<2;
+            LARGO(C2)<2
+        );
+        B2;
+        I3)
+    )
+
+result = ""
+        if (value1 is None or len(value1) <= 1) and (value2 is None or len(value2) <= 1):
+            result = f"{value3} - {value4}"
+        elif (value5 is None or len(value5) <= 1):
+            result = ""
+        elif (value2 is None or len(value2) <= 1):
+            if (value6 is not None):
+                posicion = value6.find(" - ")
+                if posicion != -1:
+                    parte_izquierda = value6[:posicion]
+                    result = f"{parte_izquierda} - {value4}"
+        else:
+            result = f"{value7}"
+        return result

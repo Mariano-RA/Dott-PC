@@ -1,0 +1,96 @@
+@use "sass:math";
+@import "../node_modules/bootstrap/scss/functions";
+@import "../node_modules/bootstrap/scss/variables";
+
+$custom-colors: (
+  "verdedott": #142617,
+  "verdedottclaro": #386b41,
+  "fondoOscuro": #c9cfcf,
+  "fondoClaro": #f4f4f6,
+  "rojodott": #9d2222,
+);
+$theme-colors: map-merge($theme-colors, $custom-colors);
+
+// Definición de las variables
+$input-custom-color: #386b41;
+
+.custom-input {
+  // Estilos generales del input
+  background-color: white;
+  border: 1px solid $input-custom-color;
+  color: $input-custom-color;
+  padding: 10px;
+  transition: border-color 0.3s ease-in-out;
+
+  &::placeholder {
+    color: $input-custom-color;
+  }
+
+  &:focus {
+    border-color: #4b8f58;
+    box-shadow: 0 1px 1px #286d35 inset, 0 0 8px #286d35;
+    outline: none;
+  }
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+  color: #fff !important;
+  background-color: #142617 !important;
+}
+
+@import "../node_modules/bootstrap/scss/bootstrap";
+
+body {
+  background-color: #f4f4f6;
+}
+p {
+  color: #142617 !important;
+}
+
+.borderCategory {
+  border: 1px #142617 solid;
+}
+
+.achicarLetra {
+  font-size: 0.9rem !important;
+}
+
+@media (max-width: 990px) {
+  .mostrar {
+    display: flex !important;
+  }
+
+  .ocultar {
+    display: none !important;
+  }
+
+  .addMarginTop {
+    margin-top: 1.2rem;
+  }
+}
+
+@media (max-width: 610px) {
+  .sizingResponsive {
+    width: 350px !important;
+  }
+  .makeColumn {
+    flex-direction: column;
+  }
+
+  .addMarginTop {
+    margin-top: 1.2rem;
+  }
+
+  .achicarCard {
+    width: 11.5rem !important;
+  }
+
+  .expandContainer {
+    width: 100% !important;
+  }
+
+  .contractContainer {
+    width: 75% !important;
+  }
+}

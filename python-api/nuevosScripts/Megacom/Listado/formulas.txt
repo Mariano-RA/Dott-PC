@@ -1,0 +1,47 @@
+Cambiar el formato del excel a la version mas nueva
+
+Borrar las filas que no sirven y dejar la de la primera categoria de auriculares
+Verificar los espacios en blanco
+agregar la columna categoria y en la primer celda pegar la siguiente formula
+
+=SI(
+    Y(
+        ESBLANCO(B1);
+        ESBLANCO(B2)
+    );
+    CONCAT(A1;" - ";A2);
+    SI(
+        ESBLANCO(E3);
+        "";
+        SI(
+            LARGO(B2)<2;
+            CONCAT(
+                IZQUIERDA(
+                    G1;
+                    ENCONTRAR(" - "; G1) - 1
+                    );
+                " - ";
+                A2);
+            G2)
+    )
+    )
+
+
+=IF(AND(ISBLANK(B1), ISBLANK(B2)),CONCAT(A1," - ",A2),IF(ISBLANK(E3),"",IF(LEN(B2)<2, CONCAT(LEFT(G1, FIND(" - ", G1) - 1)," - ",A2),G2)))
+
+
+=IF(AND(ISBLANK(B2), ISBLANK(B3)), CONCATENATE(A2, " - ", A3), IF(ISBLANK(E4), "", IF(LEN(B3) < 2, CONCATENATE(LEFT(G2, FIND(" - ", G2) - 1), " - ", A3), G3)))
+
+=IF(
+    AND(ISBLANK(B1), ISBLANK(B2)),
+    CONCAT(A1, " - ", A2),
+    IF(
+        ISBLANK(E3),
+        "",
+        IF(
+            LEN(B2) < 2,
+            CONCAT(LEFT(G1, FIND(" - ", G1) - 1), " - ", A2),
+            G2
+        )
+    )
+)
