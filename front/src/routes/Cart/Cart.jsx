@@ -79,7 +79,7 @@ const Cart = () => {
   }
 
   return (
-    <div className="d-flex flex-column w-100 justify-content-around">
+    <div className="d-flex flex-column w-100 justify-content-around px-5">
       <div className="pb-3">
         <p className="fw-bold fs-3 text-verdeoscurodott m-0 p-0">
           Productos en el carrito:
