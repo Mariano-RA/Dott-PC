@@ -14,7 +14,7 @@ const Profile = () => {
           src={user.picture}
           alt={user.name}
         />
-        <div className="d-flex flex-lg-column justify-content-lg-center justify-content-around flex-fill align-items-center me-1">
+        <div className="d-flex flex-lg-column justify-content-lg-center justify-content-around flex-fill align-items-center mb-lg-1 mb-0">
           {/* <p className="m-0 p-0 text-center flex-fill">{user.given_name}</p> */}
           <LogoutButton />
           <Link to="/admin" style={{ textDecoration: "none" }}>
