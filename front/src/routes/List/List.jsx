@@ -127,7 +127,7 @@ const List = () => {
           style={{ height: "50px" }}
         >
           <div className="d-flex align-items-center justify-content-between">
-            <p className="fw-bold fs-5 text-verdeoscurodott m-0 p-0 ">
+            <p className="fw-bold fs-5 text-dottoscuro m-0 p-0 ">
               {id ? id : "Todos los productos"}
             </p>
           </div>

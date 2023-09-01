@@ -2,6 +2,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import CartCard from "../../components/CartCard/CartCard";
 import { ContextGlobal } from "../../components/utils/global.context";
+import { WhatsAppWidget } from "react-whatsapp-widget";
 
 const Cart = () => {
   const { state } = useContext(ContextGlobal);
@@ -56,6 +57,27 @@ const Cart = () => {
     handletotal();
   }, [arrSubtotal, setTotalCart]);
 
+  function handlePresupuesto() {
+    let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n${products
+      .map((item) => `${item.producto} - $${item.precioEfectivo}`)
+      .join("\n")}`;
+
+    // Agregar precios de las cuotas al mensaje
+    message += "\n\nPrecios de Cuotas";
+    valorCuota.forEach((cuota, index) => {
+      const cuotaPrice = calcularCuota(totalCart, cuota.valorTarjeta, cuota.id);
+      message += `\n${cuota.id} cuotas de: $${cuotaPrice}`;
+    });
+
+    // Agregar el total de la compra al mensaje
+    message += `\ntotal en efectivo: $${totalCart}`;
+    const whatsappLink = `https://wa.me/5493512861992?text=${encodeURIComponent(
+      message
+    )}`;
+    // window.location.href = whatsappLink;
+    window.open(whatsappLink, "_blank");
+  }
+
   return (
     <div className="d-flex flex-column w-100 justify-content-around">
       <div className="pb-3">
@@ -78,7 +100,7 @@ const Cart = () => {
           ))}
         </div>
         <div
-          className="d-flex flex-column border border-dottoscuro rounded-3 mt-3"
+          className="d-flex flex-column border border-dottoscuro rounded-3 mt-3 ms-2"
           style={{ height: "fit-content" }}
         >
           <div className="px-3 py-2">
@@ -99,6 +121,14 @@ const Cart = () => {
               </p>
             </div>
           ))}
+          <div className="px-3 py-2 border-top border-dottoscuro">
+            <button
+              className="btn btn-outline-dottclaro"
+              onClick={handlePresupuesto}
+            >
+              Enviar presupuesto
+            </button>
+          </div>
         </div>
       </div>
     </div>
