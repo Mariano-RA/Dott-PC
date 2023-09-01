@@ -8,13 +8,13 @@ function App() {
   // const { state } = useContext(ContextGlobal);
   return (
     <div
-      className={`App`}
+      className={`App bg-fondoClaro`}
       style={{
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         alignItems: "center",
-        height: "100vh",
+        minHeight: "100vh",
       }}
     >
       <div style={{ marginBottom: "100px" }}>

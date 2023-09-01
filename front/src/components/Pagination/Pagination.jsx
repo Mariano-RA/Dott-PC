@@ -7,7 +7,7 @@ const Pagination = ({ parametrosPaginado, paginaActual }) => {
       <ul className="pagination">
         <li className="page-item">
           <a
-            className="page-link text-success"
+            className="page-link text-dottoscuro"
             href="#"
             aria-label="Previous"
             onClick={() => parametrosPaginado("reducir", 1)}
@@ -17,7 +17,7 @@ const Pagination = ({ parametrosPaginado, paginaActual }) => {
         </li>
         <li className="page-item">
           <a
-            className="page-link text-success"
+            className="page-link text-dottoscuro"
             href="#"
             onClick={() => parametrosPaginado("cambiar", 1)}
           >
@@ -26,7 +26,7 @@ const Pagination = ({ parametrosPaginado, paginaActual }) => {
         </li>
         <li className="page-item ">
           <a
-            className="page-link text-success"
+            className="page-link text-dottoscuro"
             href="#"
             onClick={() => parametrosPaginado("cambiar", 2)}
           >
@@ -35,7 +35,7 @@ const Pagination = ({ parametrosPaginado, paginaActual }) => {
         </li>
         <li className="page-item">
           <a
-            className="page-link text-success"
+            className="page-link text-dottoscuro"
             href="#"
             onClick={() => parametrosPaginado("cambiar", 3)}
           >
@@ -45,13 +45,13 @@ const Pagination = ({ parametrosPaginado, paginaActual }) => {
         {paginaActual > 3 && (
           <>
             <li className="page-item">
-              <a className="page-link text-success" href="#">
+              <a className="page-link text-dottoscuro" href="#">
                 ...
               </a>
             </li>
             <li className="page-item">
               <a
-                className="page-link text-success"
+                className="page-link text-dottoscuro"
                 href="#"
                 onClick={() => parametrosPaginado("cambiar", paginaActual)}
               >
@@ -62,7 +62,7 @@ const Pagination = ({ parametrosPaginado, paginaActual }) => {
         )}
         <li className="page-item">
           <a
-            className="page-link text-success"
+            className="page-link text-dottoscuro"
             href="#"
             aria-label="Next"
             onClick={() => parametrosPaginado("aumentar", 1)}

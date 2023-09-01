@@ -57,7 +57,7 @@ const Cart = () => {
   }, [arrSubtotal, setTotalCart]);
 
   return (
-    <div className="d-flex w-100 justify-content-around">
+    <div className="d-flex flex-column w-100 justify-content-around">
       <div className="pb-3">
         <p className="fw-bold fs-3 text-verdeoscurodott m-0 p-0">
           Productos en el carrito:
@@ -67,32 +67,32 @@ const Cart = () => {
         <div className="d-flex flex-column">
           {products.map((item, index) => (
             <div key={item.id}>
-              {index == 0 ? <hr className="text-verdedott fs-4" /> : ""}
+              {index == 0 ? <hr className="text-dottoscuro fs-4" /> : ""}
               <CartCard
                 product={item}
                 subTotalProduct={handleSubtotal}
                 removeFromArr={handleRemoveFromCart}
               />
-              <hr className="text-verdedott fs-3" />
+              <hr className="text-dottoscuro fs-3" />
             </div>
           ))}
         </div>
         <div
-          className="d-flex flex-column border border-verdedott rounded-3 mt-3"
+          className="d-flex flex-column border border-dottoscuro rounded-3 mt-3"
           style={{ height: "fit-content" }}
         >
           <div className="px-3 py-2">
             <p className="fs-5 ">Total:</p>
-            <p className="fw-bold fs-4 text-verdedottclaro">${totalCart}</p>
+            <p className="fw-bold fs-4 text-dottclaro">${totalCart}</p>
           </div>
           {valorCuota.map((cuota, index) => (
             <div
               key={cuota.id}
-              className="border-top border-verdedott px-3 py-2"
+              className="border-top border-dottoscuro px-3 py-2"
             >
               <p className="fs-6">{cuota.id} cuotas de:</p>
               <p
-                className="fw-bold text-verdedottclaro p-0 m-0"
+                className="fw-bold text-dottclaro p-0 m-0"
                 style={{ fontSize: "1.1rem" }}
               >
                 ${calcularCuota(totalCart, cuota.valorTarjeta, cuota.id)}

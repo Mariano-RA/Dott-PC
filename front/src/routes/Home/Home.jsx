@@ -35,7 +35,7 @@ const Home = () => {
   return (
     <div className="d-flex flex-column align-items-center">
       <div className="d-flex flex-column align-items-center my-3 contractContainer">
-        <p className="display-1 fw-bold">Dott PC</p>
+        <p className="display-1 fw-semibold">Dott PC</p>
         <p className="fs-lg-4 fs-sm-6">
           Sumérgete en un mundo de posibilidades infinitas con nuestra exclusiva
           selección de equipos y accesorios gamer. Desde componentes de

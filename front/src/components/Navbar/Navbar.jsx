@@ -55,10 +55,10 @@ const Navbar = () => {
   return (
     <nav className="navbar navbar-expand-lg bg-fondoOscuro fixed-top py-3">
       <div className="container-fluid">
-        <Link className="navbar-brand text-verdedott" to={"/home"}>
+        <Link className="navbar-brand text-dottoscuro" to={"/home"}>
           <img
             className="img-fluid rounded-3"
-            src="/logo/dottpc.jpg"
+            src="/logo/logoLetras.png"
             alt=""
             style={{ maxHeight: "55px" }}
           />
@@ -68,13 +68,13 @@ const Navbar = () => {
           style={{ display: "none" }}
         >
           <Link
-            className="nav-link active text-verdedott position-relative btnCartContainerResponsive"
+            className="nav-link active text-dottoscuro position-relative btnCartContainerResponsive"
             aria-current="page"
             to={"/cart"}
           >
             <button
               type="button"
-              className="btn btn-outline-verdedottclaro position-relative"
+              className="btn btn-outline-dottclaro position-relative"
               onMouseEnter={handleHover}
               onMouseLeave={handleMouseLeave}
             >
@@ -113,7 +113,7 @@ const Navbar = () => {
           <ul className="navbar-nav mb-2 mb-lg-0">
             <li className="nav-item dropdown">
               <a
-                className="nav-link dropdown-toggle active text-verdedott"
+                className="nav-link dropdown-toggle active text-dottoscuro"
                 href="#"
                 role="button"
                 data-bs-toggle="dropdown"
@@ -122,7 +122,7 @@ const Navbar = () => {
                 Categorias
               </a>
               <ul
-                className="dropdown-menu overflow-y-auto overflow-x-hidden bg-fondoClaro "
+                className="dropdown-menu overflow-y-auto overflow-x-hidden bg-fondoClaro"
                 style={{ height: "700px" }}
               >
                 {categorys.map((category, index) => {
@@ -130,7 +130,7 @@ const Navbar = () => {
                     "No existe una categoria para este producto" ? (
                     <li key={index}>
                       <Link
-                        className="dropdown-item text-verdedott"
+                        className="dropdown-item text-dottoscuro"
                         to={`/category/${category}`}
                       >
                         {category}
@@ -143,7 +143,7 @@ const Navbar = () => {
               </ul>
             </li>
             <li className="nav-item">
-              <Link className="nav-link active text-verdedott" to={"/list"}>
+              <Link className="nav-link active text-dottoscuro" to={"/list"}>
                 Productos
               </Link>
             </li>
@@ -177,13 +177,13 @@ const Navbar = () => {
           </form>
           <div className="d-flex align-items-center">
             <Link
-              className="nav-link active text-verdedott position-relative ocultar me-2"
+              className="nav-link active text-dottoscuro position-relative ocultar me-2"
               aria-current="page"
               to={"/cart"}
             >
               <button
                 type="button"
-                className="btn btn-outline-verdedottclaro position-relative"
+                className="btn btn-outline-dottclaro position-relative"
                 onMouseEnter={handleHover}
                 onMouseLeave={handleMouseLeave}
               >

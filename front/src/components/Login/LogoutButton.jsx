@@ -14,7 +14,7 @@ export const LogoutButton = () => {
 
   return (
     <button
-      className="btn btn-outline-verdedottclaro d-flex align-items-center"
+      className="btn btn-outline-dottclaro d-flex align-items-center w-100 justify-content-center mb-1"
       style={{
         height: "20px",
       }}

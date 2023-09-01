@@ -36,7 +36,7 @@ const Categorys = () => {
                 to={`/category/${category}`}
                 style={{ textDecoration: "none" }}
               >
-                <p className="text-verdedottclaro m-0 px-4">{category}</p>
+                <p className="text-dottclaro m-0 px-4">{category}</p>
               </Link>
             </div>
           ) : (

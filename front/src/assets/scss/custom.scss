@@ -3,16 +3,20 @@
 @import "../node_modules/bootstrap/scss/variables";
 
 $custom-colors: (
-  "verdedott": #142617,
-  "verdedottclaro": #386b41,
-  "fondoOscuro": #c9cfcf,
-  "fondoClaro": #f4f4f6,
-  "rojodott": #9d2222,
+  // "dottoscuro": #142617,
+  "dottoscuro": #260104,
+  // "dottclaro": #386b41,
+  "dottclaro": #73030d,
+  // "fondoOscuro": #c9cfcf,
+  "fondoOscuro": #cfcfcf,
+  // "fondoClaro": #f4f4f6,
+  "fondoClaro": #f1f1f1,
+  "rojodott": #73030d
 );
 $theme-colors: map-merge($theme-colors, $custom-colors);
 
 // Definición de las variables
-$input-custom-color: #386b41;
+$input-custom-color: #73030d;
 
 .custom-input {
   // Estilos generales del input
@@ -27,29 +31,28 @@ $input-custom-color: #386b41;
   }
 
   &:focus {
-    border-color: #4b8f58;
-    box-shadow: 0 1px 1px #286d35 inset, 0 0 8px #286d35;
+    border-color: #73030d;
+    box-shadow: 0 1px 1px #73030d inset, 0 0 8px #73030d;
     outline: none;
   }
 }
 
 .dropdown-item.active,
 .dropdown-item:active {
-  color: #fff !important;
-  background-color: #142617 !important;
+  color: #f1f1f1 !important;
+  background-color: #260104 !important;
 }
 
 @import "../node_modules/bootstrap/scss/bootstrap";
 
-body {
-  background-color: #f4f4f6;
-}
 p {
-  color: #142617 !important;
+  // color: #142617 !important;
+  color: #260104 !important;
 }
 
 .borderCategory {
-  border: 1px #142617 solid;
+  // border: 1px #142617 solid;
+  border: 1px #260104 solid;
 }
 
 .achicarLetra {

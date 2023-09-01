@@ -3,12 +3,12 @@ import { useParams } from "react-router-dom";
 import { Card } from "../../components/Card/Card";
 import Pagination from "../../components/Pagination/Pagination";
 import Categorys from "../../components/Category/Categorys";
-import { ContextGlobal } from "../../components/utils/global.context";
 
 const List = () => {
   const { id, keyword } = useParams();
   const state = JSON.parse(localStorage.getItem("appState"));
-
+  const [category, setCategory] = useState("");
+  const [keywords, setKeywords] = useState("");
   const [productList, setProductList] = useState([]);
   const [pagina, setPagination] = useState(1);
   const [orderBy, setorderBy] = useState("");
@@ -98,8 +98,16 @@ const List = () => {
 
   useEffect(() => {
     if (id != null && id != undefined) {
+      if (id != category) {
+        setCategory(id);
+        handlePagination("cambiar", 1);
+      }
       getProductListByCategory();
     } else if (keyword != null && keyword != undefined && keyword != "") {
+      if (keyword != keywords) {
+        setKeywords(keyword);
+        handlePagination("cambiar", 1);
+      }
       getProductListByKeywords();
     } else {
       getProductList();
@@ -125,7 +133,7 @@ const List = () => {
           </div>
           <div className="d-flex flex-md-row align-items-center justify-content-center flex-column">
             <button
-              className="btn btn-outline-verdedottclaro dropdown-toggle"
+              className="btn btn-outline-dottclaro dropdown-toggle"
               type="button"
               data-bs-toggle="dropdown"
               aria-expanded="false"
@@ -171,7 +179,7 @@ const List = () => {
                 </a>
               </li>
             </ul>
-            <p className="text-verdedottclaro p-0 m-0 ms-2">
+            <p className="text-dottclaro p-0 m-0 ms-2">
               {ordenadoPor ? ordenadoPor : "-"}
             </p>
           </div>

@@ -8,18 +8,18 @@ const Profile = () => {
 
   return (
     isAuthenticated && (
-      <div className="d-flex align-items-center bg-fondoClaro rounded-3 w-100">
+      <div className="d-flex align-items-center bg-fondoClaro rounded-3 w-100 badge">
         <img
           className="img-fluid rounded me-2"
           src={user.picture}
           alt={user.name}
         />
         <div className="d-flex flex-lg-column justify-content-lg-center justify-content-around flex-fill align-items-center me-1">
-          <p className="m-0 p-0 text-center flex-fill">{user.given_name}</p>
+          {/* <p className="m-0 p-0 text-center flex-fill">{user.given_name}</p> */}
           <LogoutButton />
           <Link to="/admin" style={{ textDecoration: "none" }}>
             <button
-              className="btn btn-outline-verdedottclaro d-flex align-items-center ms-2"
+              className="btn btn-outline-dottclaro d-flex align-items-center w-100"
               style={{
                 height: "20px",
               }}

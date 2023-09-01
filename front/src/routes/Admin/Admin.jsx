@@ -64,7 +64,7 @@ const Admin = () => {
   return (
     <div className="d-flex flex-column w-75 align-items-center">
       <label
-        className="text-verdedott display-4 d-flex justify-content-center my-4"
+        className="text-dottoscuro display-4 d-flex justify-content-center my-4"
         htmlFor=""
       >
         Datos
@@ -79,7 +79,7 @@ const Admin = () => {
           onChange={handleValorDolar}
         />
         <button
-          className="btn btn-outline-verdedott"
+          className="btn btn-outline-dottoscuro"
           type="button"
           onClick={handleActualizarDolar}
         >
@@ -110,7 +110,7 @@ const Admin = () => {
           aria-label="Upload"
         />
         <button
-          className="btn btn-outline-verdedott"
+          className="btn btn-outline-dottoscuro"
           type="button"
           id="inputGroupFileAddon04"
           onClick={handleUpdateProvider}
