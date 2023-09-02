@@ -23,7 +23,7 @@ const Profile = () => {
             style={{ textDecoration: "none" }}
           >
             <button
-              className="btn btn-outline-dottclaro d-flex align-items-center w-100"
+              className="btn btn-outline-dottclaro d-flex align-items-center justify-content-center w-100"
               style={{
                 height: "20px",
               }}
