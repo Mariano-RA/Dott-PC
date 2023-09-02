@@ -47,10 +47,10 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
   return (
     <div className="d-flex justify-content-between py-3 my-2 flex-md-row flex-sm-column flex-column">
       <div
-        className="d-flex align-items-center me-3 sizingResponsive"
+        className="d-flex align-items-center sizingResponsive"
         style={{ width: "500px" }}
       >
-        <p className="m-0">{product.producto}</p>
+        <p className="m-0 me-md-0 me-3">{product.producto}</p>
       </div>
       <div
         className="d-flex align-items-center me-2 ocultar"
