@@ -19,6 +19,7 @@ RUN npm prune --production
 FROM node:18 AS production
 WORKDIR /app
 COPY --from=builderBack /app/package.json ./
+COPY --from=builderBack /app/client/. /client/
 RUN npm install
 
 COPY --from=builderBack /app/dist ./dist
