@@ -39,9 +39,9 @@ import { LoggerModule } from "nestjs-pino";
       entities: [Dolar, Producto, Cuota, User],
       synchronize: true,
     }),
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, "..", "client"),
-    // }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, "..", "client"),
+    }),
     // TypeOrmModule.forRoot({
     //   type: "mysql",
     //   host: process.env.DATABASE_HOST, // Nombre del servicio definido en docker-compose.yml
