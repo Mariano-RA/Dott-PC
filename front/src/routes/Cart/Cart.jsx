@@ -121,7 +121,7 @@ const Cart = () => {
               </p>
             </div>
           ))}
-          <div className="px-3 py-2 border-top border-dottoscuro">
+          <div className="px-3 py-2 border-top border-dottoscuro d-flex justify-content-center">
             <button
               className="btn btn-outline-dottclaro"
               onClick={handlePresupuesto}
