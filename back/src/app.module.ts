@@ -46,9 +46,9 @@ import { LoggerModule } from "nestjs-pino";
       type: "mysql",
       host: process.env.DATABASE_HOST, // Nombre del servicio definido en docker-compose.yml
       port: 3306,
-      username: "do0tt",
-      password: "Depor420",
-      database: "dottdb",
+      username: "nanovc_dottdb",
+      password: "M@riano1820",
+      database: "nanovc_dottdb",
       entities: [Dolar, User, Cuota, Producto],
       synchronize: true, // ¡Cuidado! No usar esto en producción
     }),
