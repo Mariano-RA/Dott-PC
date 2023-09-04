@@ -14,7 +14,6 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import Admin from "./routes/Admin/Admin";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-
 root.render(
   <BrowserRouter>
     <Auth0ProviderWithNavigate>

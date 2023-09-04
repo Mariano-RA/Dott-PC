@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router-dom";
 import { LogoutButton } from "../Login/LogoutButton";
@@ -17,6 +17,7 @@ const Profile = () => {
         <div className="d-flex flex-column justify-content-lg-center justify-content-around flex-fill align-items-center mb-lg-1 mb-0">
           {/* <p className="m-0 p-0 text-center flex-fill">{user.given_name}</p> */}
           <LogoutButton />
+
           <Link
             to="/admin"
             className="w-100 d-flex justify-content-center"

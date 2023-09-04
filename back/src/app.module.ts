@@ -33,25 +33,25 @@ import { LoggerModule } from "nestjs-pino";
     }),
     CuotasModule,
     ProductosModule,
-    TypeOrmModule.forRoot({
-      type: "sqlite",
-      database: "./database/productosDB.sqlite",
-      entities: [Dolar, Producto, Cuota, User],
-      synchronize: true,
-    }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, "..", "client"),
-    }),
     // TypeOrmModule.forRoot({
-    //   type: "mysql",
-    //   host: process.env.DATABASE_HOST, // Nombre del servicio definido en docker-compose.yml
-    //   port: 3306,
-    //   username: "do0tt",
-    //   password: "Depor420",
-    //   database: "dottdb",
-    //   entities: [Dolar, User, Cuota, Producto],
-    //   synchronize: true, // ¡Cuidado! No usar esto en producción
+    //   type: "sqlite",
+    //   database: "./database/productosDB.sqlite",
+    //   entities: [Dolar, Producto, Cuota, User],
+    //   synchronize: true,
     // }),
+    // ServeStaticModule.forRoot({
+    //   rootPath: join(__dirname, "..", "client"),
+    // }),
+    TypeOrmModule.forRoot({
+      type: "mysql",
+      host: process.env.DATABASE_HOST, // Nombre del servicio definido en docker-compose.yml
+      port: 3306,
+      username: "do0tt",
+      password: "Depor420",
+      database: "dottdb",
+      entities: [Dolar, User, Cuota, Producto],
+      synchronize: true, // ¡Cuidado! No usar esto en producción
+    }),
   ],
   controllers: [AppController],
   providers: [

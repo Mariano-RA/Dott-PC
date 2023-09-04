@@ -13,7 +13,7 @@ const Footer = () => {
           <p className="m-0 text-dottclaro">Lunes a Viernes de 8 a 18hs.</p>
         </div>
       </div>
-      <div className="d-flex flex-column align-items-center justify-content-around mt-md-0 mt-2">
+      <div className="d-flex flex-column align-items-center justify-content-around mt-md-0 mt-4">
         <div className="fw-bold">
           <p className="text-dottclaro">RETIRO DE PEDIDOS:</p>
         </div>
