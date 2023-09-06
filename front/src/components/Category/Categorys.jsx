@@ -29,7 +29,7 @@ const Categorys = () => {
         </p>
       </div>
       <div>
-        {categorys.map((category, index) => {
+        {categorys?.map((category, index) => {
           return category != "No existe una categoria para este producto" ? (
             <div key={index}>
               <Link

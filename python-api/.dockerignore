@@ -1,1 +1,15 @@
 Repo-Python-DB-DottAPI
+archivosPorCargar\archivosJson\*.json
+archivosPorCargar\csv\*.csv
+archivosPorCargar\temporales\*.csv
+archivosPorCargar\temporales\*.xlsx
+nuevosScripts\Air
+nuevosScripts\Eik
+nuevosScripts\Elit
+nuevosScripts\Hdc
+nuevosScripts\Invid
+nuevosScripts\Megacom
+nuevosScripts\Nb
+productosDB.sqlite
+test.py
+FILTROS PARA LISTAS.ods

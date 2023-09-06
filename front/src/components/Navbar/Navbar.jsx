@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, redirect } from "react-router-dom";
 import { ContextGlobal } from "../utils/global.context";
 import LoginButton from "../Login/LoginButton";
 
@@ -37,14 +37,12 @@ const Navbar = () => {
     handleCart();
   }, [state]);
 
-  const navigate = useNavigate();
-
   function handleSubmit(e) {
     e.preventDefault();
     if (keywords.length > 0 && keywords != "") {
-      navigate(`/list/keywords/${keywords}`);
+      redirect(`/list/keywords/${keywords}`);
     } else {
-      navigate(`/list`);
+      redirect(`/list`);
     }
   }
 
@@ -125,21 +123,22 @@ const Navbar = () => {
                 className="dropdown-menu overflow-y-auto overflow-x-hidden bg-fondoClaro"
                 style={{ height: "700px" }}
               >
-                {categorys.map((category, index) => {
-                  return category !=
-                    "No existe una categoria para este producto" ? (
-                    <li key={index}>
-                      <Link
-                        className="dropdown-item text-dottoscuro"
-                        to={`/category/${category}`}
-                      >
-                        {category}
-                      </Link>
-                    </li>
-                  ) : (
-                    ""
-                  );
-                })}
+                {categorys.length > 0 &&
+                  categorys.map((category, index) => {
+                    return category !=
+                      "No existe una categoria para este producto" ? (
+                      <li key={index}>
+                        <Link
+                          className="dropdown-item text-dottoscuro"
+                          to={`/category/${category}`}
+                        >
+                          {category}
+                        </Link>
+                      </li>
+                    ) : (
+                      ""
+                    );
+                  })}
               </ul>
             </li>
             <li className="nav-item">

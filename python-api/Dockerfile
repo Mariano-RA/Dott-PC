@@ -1,5 +1,5 @@
 # Utiliza una imagen base de Python
-FROM python:3.8
+FROM python:3.8-slim
 
 # Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
@@ -7,7 +7,12 @@ WORKDIR /app
 # Copia el archivo de requisitos e instala las dependencias
 COPY /requeriments.txt requeriments.txt
 
-RUN pip install -r requeriments.txt
+# RUN pip install -r requeriments.txt
+RUN pip install -r requeriments.txt && \
+    rm -rf /root/.cache && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /tmp/*
 
 # Copia el código de la aplicación a la imagen
 COPY . .
