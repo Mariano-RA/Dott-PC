@@ -5,7 +5,7 @@ FROM mysql:latest
 ENV MYSQL_ROOT_PASSWORD=marianonano12
 ENV MYSQL_USER=do0tt
 ENV MYSQL_PASSWORD=Depor420
-
+    
 COPY modify-authentication.sql /docker-entrypoint-initdb.d/
 
 # Puerto en el que MySQL estará escuchando
