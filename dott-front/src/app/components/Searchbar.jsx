@@ -9,9 +9,10 @@ const Searchbar = () => {
     setSearchValue(e.target.value);
   }
 
-  function searchProduct() {
+  function searchProduct(e) {
+    e.preventDefault();
     if (searchValue) {
-      router.push("/products/keywords/" + searchValue);
+      router.push(`/products/keywords/${searchValue}`);
     } else {
       router.push("/products/list");
     }

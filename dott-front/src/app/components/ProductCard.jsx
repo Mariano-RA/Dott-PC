@@ -26,7 +26,9 @@ const ProductCard = ({ product }) => {
           {product?.producto.toUpperCase()}
         </h2>
         <div className="mt-2 flex flex-wrap justify-center text-sm leading-6 text-red-950 flex-col items-center sm:flex-row">
-          <dd className="flex items-center">$ {product?.precioEfectivo}</dd>
+          <dd className="flex items-center">
+            $ {new Intl.NumberFormat("es-AR").format(product?.precioEfectivo)}
+          </dd>
         </div>
         <div className="flex w-full mt-3 justify-evenly">
           <button
@@ -39,7 +41,7 @@ const ProductCard = ({ product }) => {
           <button
             className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800"
             style={{ width: "50px", height: "30px" }}
-            // onClick={() => handleProductOverview(product)}
+            onClick={() => handleCart()}
           >
             Add
           </button>

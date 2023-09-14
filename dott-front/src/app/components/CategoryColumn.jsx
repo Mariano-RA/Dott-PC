@@ -1,20 +1,19 @@
+"use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { ContextGlobal } from "./utils/global.context";
 
 export default function CategoryColumn() {
   const [categorys, setCategorys] = useState([]);
-
-  async function handleLoadCategorys() {
-    const response = await fetch(
-      `http://vps-3587040-x.dattaweb.com:3000/api/productos/categorias`
-    );
-    const data = await response.json();
-    setCategorys(data);
-  }
+  const { state } = useContext(ContextGlobal);
 
   useEffect(() => {
-    handleLoadCategorys();
-  }, []);
+    const handleCategorys = () => {
+      setCategorys(state.data);
+    };
+    handleCategorys();
+  }, [state]);
+
   return (
     <ul role="list" className="mx-24 hidden lg:flex flex-col">
       <p className="text-xl font-bold text-center py-5 text-red-950">

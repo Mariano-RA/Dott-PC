@@ -1,21 +1,19 @@
-import { Fragment, useEffect, useState } from "react";
+"use client";
+import { Fragment, useContext, useEffect, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import Link from "next/link";
+import { ContextGlobal } from "./utils/global.context";
 
 export default function Category() {
   const [categorys, setCategorys] = useState([]);
-
-  async function handleLoadCategorys() {
-    const response = await fetch(
-      `http://vps-3587040-x.dattaweb.com:3000/api/productos/categorias`
-    );
-    const data = await response.json();
-    setCategorys(data);
-  }
+  const { state } = useContext(ContextGlobal);
 
   useEffect(() => {
-    handleLoadCategorys();
-  }, []);
+    const handleCategorys = () => {
+      setCategorys(state.data);
+    };
+    handleCategorys();
+  }, [state]);
 
   return (
     <Menu as="div" className="relative inline-block text-left">
