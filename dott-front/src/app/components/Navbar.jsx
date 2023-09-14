@@ -10,6 +10,8 @@ import {
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import Category from "./Category";
+import Cart from "./Cart";
+import Searchbar from "./Searchbar";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -18,10 +20,18 @@ function classNames(...classes) {
 export default function Navbar() {
   const [navigation, setNavigation] = useState([
     { name: "Productos", href: "/products/list/", current: false },
-    { name: "Contacto", href: "/contact", current: false },
   ]);
 
   const [modifyNavigation, setModifyNavigation] = useState([...navigation]);
+  const [show, setShow] = useState(false);
+
+  const handleCart = () => {
+    setShow(true);
+  };
+
+  function handleClose(action) {
+    setShow(action);
+  }
 
   function handlePageChange(name) {
     const newArr = modifyNavigation.map((obj) => {
@@ -38,7 +48,7 @@ export default function Navbar() {
   }
 
   return (
-    <Disclosure as="nav" className="bg-red-950">
+    <Disclosure as="nav" className="bg-red-950 w-full fixed z-10">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
@@ -75,7 +85,7 @@ export default function Navbar() {
                           item.current
                             ? "bg-red-800 text-white"
                             : "text-gray-300 hover:bg-red-700 hover:text-white",
-                          "rounded-md px-3 py-2 text-sm font-medium"
+                          "rounded-md px-3 py-2 font-medium"
                         )}
                         onClick={() => handlePageChange(item.name)}
                         aria-current={item.current ? "page" : undefined}
@@ -86,18 +96,20 @@ export default function Navbar() {
                     <Category />
                   </div>
                 </div>
+                <div className="w-full justify-center hidden sm:flex items-center ">
+                  <Searchbar />
+                </div>
               </div>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                <Link href={"/cart"}>
-                  <button
-                    type="button"
-                    className="relative rounded-full bg-red-800 p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-red-800"
-                  >
-                    <span className="absolute -inset-1.5" />
-                    <span className="sr-only">View notifications</span>
-                    <ShoppingCartIcon className="h-6 w-6" aria-hidden="true" />
-                  </button>
-                </Link>
+                <button
+                  type="button"
+                  className="relative rounded-full bg-red-800 p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-red-800"
+                  onClick={() => handleCart()}
+                >
+                  <span className="absolute -inset-1.5" />
+                  <span className="sr-only">View notifications</span>
+                  <ShoppingCartIcon className="h-6 w-6" aria-hidden="true" />
+                </button>
 
                 {/* Profile dropdown */}
                 <Menu as="div" className="relative ml-3">
@@ -186,8 +198,10 @@ export default function Navbar() {
                   {item.name}
                 </Disclosure.Button>
               ))}
+              <Category />
             </div>
           </Disclosure.Panel>
+          <Cart action={show} handleCloseCart={handleClose} />
         </>
       )}
     </Disclosure>

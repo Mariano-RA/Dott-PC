@@ -1,16 +1,16 @@
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
-import { ChevronDownIcon } from "@heroicons/react/20/solid";
-
-function classNames(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
+import Link from "next/link";
 
 export default function Category() {
+  const [categorys, setCategorys] = useState([]);
 
-
-  function handleLoadCategorys(){
-    fetch("handleLoadCategorys"
+  async function handleLoadCategorys() {
+    const response = await fetch(
+      `http://vps-3587040-x.dattaweb.com:3000/api/productos/categorias`
+    );
+    const data = await response.json();
+    setCategorys(data);
   }
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function Category() {
   return (
     <Menu as="div" className="relative inline-block text-left">
       <div>
-        <Menu.Button className="inline-flex w-full justify-center rounded-md bg-red-950 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-red-700 hover:text-white">
+        <Menu.Button className="inline-flex w-full justify-center rounded-md bg-red-950 px-3 py-2 font-medium text-gray-300 hover:bg-red-700 hover:text-white">
           Category
         </Menu.Button>
       </div>
@@ -34,21 +34,17 @@ export default function Category() {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-          <div className="py-1">
-            <Menu.Item>
-              {({ active }) => (
-                <a
-                  href="#"
-                  className={classNames(
-                    active ? "bg-gray-200 text-red-800" : "text-red-800",
-                    "block px-4 py-2 text-sm"
-                  )}
-                >
-                  Account settings
-                </a>
-              )}
-            </Menu.Item>
+        <Menu.Items className="absolute  z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+          <div className="overflow-y-scroll h-96">
+            {categorys?.map((category, index) => (
+              <Link
+                href={`/products/category/${category}`}
+                className="bg-gray-200 hover:bg-gray-50 text-red-800 block px-4 py-2 text-sm"
+                key={index}
+              >
+                {category}
+              </Link>
+            ))}
           </div>
         </Menu.Items>
       </Transition>

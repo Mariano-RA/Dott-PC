@@ -8,6 +8,7 @@ import { CuotasService } from "src/cuota/cuota.service";
 import { valorCuotaDto } from "./dto/valorCuotaDto";
 import { createProductoDto } from "./dto/createProductDto";
 import { Logger } from "@nestjs/common";
+import { ListDto } from "./dto/list.dto";
 
 function obtenerPrecioEfectivo(monto, dolar) {
   return Math.round(monto * dolar);
@@ -121,7 +122,10 @@ export class ProductosService {
       listadoProductos.push(dto);
     });
 
-    return pagination(skip, take, listadoProductos);
+    let listDto = new ListDto();
+    listDto.cantResultados = productosSorted.length;
+    listDto.productos = pagination(skip, take, listadoProductos);
+    return listDto;
   }
 
   async findAllCategories() {
@@ -175,7 +179,10 @@ export class ProductosService {
         );
         listadoProductos.push(dto);
       });
-    return pagination(skip, take, listadoProductos);
+    let listDto = new ListDto();
+    listDto.cantResultados = listadoProductos.length;
+    listDto.productos = pagination(skip, take, listadoProductos);
+    return listDto;
   }
 
   async findByCategory(
@@ -210,7 +217,10 @@ export class ProductosService {
         listadoProductos.push(dto);
       });
 
-    return pagination(skip, take, listadoProductos);
+    let listDto = new ListDto();
+    listDto.cantResultados = listadoProductos.length;
+    listDto.productos = pagination(skip, take, listadoProductos);
+    return listDto;
   }
 
   async findByKeyWordAndCategory(
@@ -251,6 +261,9 @@ export class ProductosService {
         listadoProductos.push(dto);
       });
 
-    return pagination(skip, take, listadoProductos);
+    let listDto = new ListDto();
+    listDto.cantResultados = listadoProductos.length;
+    listDto.productos = pagination(skip, take, listadoProductos);
+    return listDto;
   }
 }

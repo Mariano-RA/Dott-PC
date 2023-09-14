@@ -7,7 +7,12 @@ import Dropdown from "@/app/components/Dropdown";
 
 const take = 20;
 
-const page = () => {
+const page = ({ params }) => {
+  useEffect(() => {
+    console.log("Entro a la busqueda");
+    handleLoadProducts();
+  }, [params]);
+
   const [products, setProducts] = useState([]);
   const [sortType, setSortType] = useState("nombreAsc");
   const [productLength, setProductLength] = useState(0);
@@ -23,7 +28,7 @@ const page = () => {
 
   async function handleLoadProducts() {
     const response = await fetch(
-      `http://vps-3587040-x.dattaweb.com:3000/api/productos?skip=${page}&take=${take}&orderBy=${sortType}`
+      `http://vps-3587040-x.dattaweb.com:3000/api/productos/categoria?category=${params.id}&skip=${page}&take=${take}&orderBy=${sortType}`
     );
     const data = await response.json();
     setProducts(data.productos);

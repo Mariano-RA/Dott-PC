@@ -15,10 +15,10 @@ export default function RootLayout({
       <head>
         <title>Dott PC</title>
       </head>
-      <body className="flex flex-col h-screen justify-between">
+      <body className="flex flex-col w-full h-screen justify-between">
         <Navbar />
 
-        {children}
+        <div className="mt-16">{children}</div>
         <Footer />
       </body>
     </html>
