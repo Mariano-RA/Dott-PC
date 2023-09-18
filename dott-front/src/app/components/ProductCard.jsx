@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import ProductOverview from "@/app/components/ProductOverview";
+import { ContextGlobal } from "./utils/global.context";
+import { TrashIcon, ShoppingBagIcon } from "@heroicons/react/24/outline";
 
 const ProductCard = ({ product }) => {
   const [show, setShow] = useState(false);
   const [productDetail, setProductDetail] = useState({});
+  const { state, addCart, removeCart } = useContext(ContextGlobal);
+  const [IsSelected, setIsSelected] = useState(false);
 
   const handleProductOverview = (product) => {
     setProductDetail(product);
@@ -12,8 +16,36 @@ const ProductCard = ({ product }) => {
   function close(action) {
     setShow(action);
   }
+
+  function handleCart() {
+    if (
+      state.productCart.filter((prodCart) => prodCart.id === product.id)
+        .length > 0
+    ) {
+      removeCart(product.id);
+      setIsSelected(false);
+    } else {
+      addCart(product);
+      setIsSelected(true);
+    }
+  }
+
+  useEffect(() => {
+    const handleSelected = () => {
+      if (
+        state.productCart.filter((prodCart) => prodCart.id === product.id)
+          .length > 0
+      ) {
+        setIsSelected(true);
+      } else {
+        setIsSelected(false);
+      }
+    };
+    handleSelected();
+  }, [product]);
+
   return (
-    <article className="flex justify-between flex-col p-3 sm:p-6 ring-1 rounded-md ring-red-950 w-40 sm:w-80 mb-5 h-40">
+    <article className="flex justify-between flex-col p-3 sm:p-6 ring-1 rounded-md ring-red-950 w-40 sm:w-80 mb-5 h-44 sm:h-40">
       {/* <img
         src={movie.image}
         alt=""
@@ -32,18 +64,22 @@ const ProductCard = ({ product }) => {
         </div>
         <div className="flex w-full mt-3 justify-evenly">
           <button
-            className=" text-xs text-white bg-red-950 rounded-md p-1 hover:bg-red-800"
-            style={{ width: "50px", height: "30px" }}
+            className=" text-xs text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto sm:w-1/2 me-1"
+            style={{ height: "40px" }}
             onClick={() => handleProductOverview(product)}
           >
-            Detalle
+            Ver más información
           </button>
           <button
-            className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800"
-            style={{ width: "50px", height: "30px" }}
-            onClick={() => handleCart()}
+            className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto "
+            style={{ height: "40px" }}
+            onClick={() => handleCart(product)}
           >
-            Add
+            {IsSelected == false ? (
+              <ShoppingBagIcon className="h-6 w-6" aria-hidden="true" />
+            ) : (
+              <TrashIcon className="h-6 w-6" aria-hidden="true" />
+            )}
           </button>
         </div>
       </div>

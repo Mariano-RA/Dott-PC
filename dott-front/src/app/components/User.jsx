@@ -1,4 +1,5 @@
-import { Fragment, useState } from "react";
+"use client";
+import { Fragment, useEffect, useState } from "react";
 import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { useUser } from "@auth0/nextjs-auth0/client";
 
@@ -8,6 +9,7 @@ function classNames(...classes) {
 
 const User = () => {
   const { user } = useUser();
+
   return (
     <Menu as="div" className="relative ml-3">
       <div>
@@ -30,7 +32,7 @@ const User = () => {
           <Menu.Item>
             {({ active }) => (
               <a
-                href="#"
+                href="/admin"
                 className={classNames(
                   active ? "bg-gray-100" : "",
                   "block px-4 py-2 text-sm text-red-700"

@@ -1,10 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-
+const { getAccessTokenSilently } = useAuth0();
 const Admin = () => {
   const [valorDolar, setValorDolar] = useState(0);
   const [proveedor, setProveedor] = useState("");
   const state = JSON.parse(localStorage.getItem("appState"));
+
+  useEffect(() => {
+    const fetchProtectedResource = async () => {
+      try {
+        const accessToken = await getAccessTokenSilently();
+        dispatch({ type: "set_userToken", data: accessToken });
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    };
+
+    fetchProtectedResource();
+  }, []);
 
   function handleSelectOption(e) {
     setProveedor(e.target.value);
@@ -88,7 +101,7 @@ const Admin = () => {
       </div>
       <div className="input-group">
         <select
-          class="form-select"
+          className="form-select"
           id="inputGroupSelect04"
           aria-label="Example select with button addon"
           onChange={handleSelectOption}

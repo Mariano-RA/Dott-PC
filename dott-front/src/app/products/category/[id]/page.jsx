@@ -47,7 +47,9 @@ const page = ({ params }) => {
       <CategoryColumn />
       <div className="flex-grow w-full">
         <div className="flex w-full justify-between items-center py-8 px-14">
-          <p className="text-red-950 font-bold text-lg">{params.id}</p>
+          <p className="text-red-950 font-bold text-lg">
+            {params.id.replace("%20", " ")}
+          </p>
           <Dropdown handleSort={handleSelectedSort} />
         </div>
         <div className="flex flex-wrap justify-evenly w-full items-center px-0 md:px-14">

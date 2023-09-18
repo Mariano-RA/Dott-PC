@@ -60,6 +60,20 @@ export const ContextProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
+    const storedState = localStorage.getItem("appState");
+    if (storedState) {
+      dispatch({
+        type: "set_state",
+        state: JSON.parse(storedState),
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("appState", JSON.stringify(state));
+  }, [state]);
+
+  useEffect(() => {
     dispatch({ type: "set_apiUrl", data: apiUrl });
   }, []);
 

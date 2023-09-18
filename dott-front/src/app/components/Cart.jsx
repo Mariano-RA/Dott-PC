@@ -1,38 +1,16 @@
 "use client";
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState, useEffect, useContext } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { ContextGlobal } from "./utils/global.context";
+import CartCard from "./CartCard";
 
-const products = [
-  {
-    id: 1,
-    name: "Throwback Hip Bag",
-    href: "#",
-    color: "Salmon",
-    price: "$90.00",
-    quantity: 1,
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/shopping-cart-page-04-product-01.jpg",
-    imageAlt:
-      "Salmon orange fabric pouch with match zipper, gray zipper pull, and adjustable hip belt.",
-  },
-  {
-    id: 2,
-    name: "Medium Stuff Satchel",
-    href: "#",
-    color: "Blue",
-    price: "$32.00",
-    quantity: 1,
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/shopping-cart-page-04-product-02.jpg",
-    imageAlt:
-      "Front of satchel with blue canvas body, black straps and handle, drawstring top, and front zipper pouch.",
-  },
-  // More products...
-];
-
-export default function Example({ action, handleCloseCart }) {
+export default function Cart({ action, handleCloseCart }) {
   const [open, setOpen] = useState(false);
+  const { state, removeCart } = useContext(ContextGlobal);
+  const [totalCart, setTotalCart] = useState(0);
+  const [arrSubtotal, setArrSubtotal] = useState([]);
+  const [valorCuota, setValorCuota] = useState([]);
 
   useEffect(() => {
     const handleShow = () => {
@@ -53,6 +31,68 @@ export default function Example({ action, handleCloseCart }) {
     };
     handleClose();
   }, [open]);
+
+  function handleValorCuota() {
+    setValorCuota(state.valorCuotas);
+  }
+
+  function handleRemoveFromCart(productId) {
+    const updatedSubtotals = arrSubtotal.filter((sub) => sub.id !== productId);
+    setArrSubtotal(updatedSubtotals);
+  }
+
+  const calcularCuota = (precio, interes, cuota) => {
+    return Math.round(precio / interes / cuota);
+  };
+
+  function handleSubtotal(data) {
+    if (!arrSubtotal.find((prod) => prod.id === data.id)) {
+      setArrSubtotal((arr) => [...arr, data]);
+    } else {
+      const newArr = arrSubtotal.map((product) => {
+        if (product.id === data.id) {
+          return { ...product, subtotal: data.subtotal };
+        }
+        return product;
+      });
+      console.log(newArr);
+      setArrSubtotal(newArr);
+    }
+  }
+
+  function handletotal() {
+    const total = arrSubtotal.reduce((acc, item) => acc + item.subtotal, 0);
+    setTotalCart(total);
+  }
+
+  useEffect(() => {
+    handleValorCuota();
+  }, [state]);
+
+  useEffect(() => {
+    handletotal();
+  }, [arrSubtotal, setTotalCart]);
+
+  function handlePresupuesto() {
+    let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n${state.productCart
+      .map((item) => `${item.producto} - $${item.precioEfectivo}`)
+      .join("\n")}`;
+
+    // Agregar precios de las cuotas al mensaje
+    message += "\n\nPrecios de Cuotas";
+    valorCuota.forEach((cuota, index) => {
+      const cuotaPrice = calcularCuota(totalCart, cuota.valorTarjeta, cuota.id);
+      message += `\n${cuota.id} cuotas de: $${cuotaPrice}`;
+    });
+
+    // Agregar el total de la compra al mensaje
+    message += `\ntotal en efectivo: $${totalCart}`;
+    const whatsappLink = `https://wa.me/5493512861992?text=${encodeURIComponent(
+      message
+    )}`;
+    // window.location.href = whatsappLink;
+    window.open(whatsappLink, "_blank");
+  }
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -86,7 +126,7 @@ export default function Example({ action, handleCloseCart }) {
                     <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
                       <div className="flex items-start justify-between">
                         <Dialog.Title className="text-lg font-medium text-gray-900">
-                          Shopping cart
+                          Carrito de compras
                         </Dialog.Title>
                         <div className="ml-3 flex h-7 items-center">
                           <button
@@ -107,47 +147,24 @@ export default function Example({ action, handleCloseCart }) {
                             role="list"
                             className="-my-6 divide-y divide-gray-200"
                           >
-                            {products.map((product) => (
-                              <li key={product.id} className="flex py-6">
-                                <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
-                                  <img
-                                    src={product.imageSrc}
-                                    alt={product.imageAlt}
-                                    className="h-full w-full object-cover object-center"
+                            {state.productCart &&
+                              state.productCart.map((product) => (
+                                <li key={product.id} className="flex py-6">
+                                  {/* <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                                    <img
+                                      src={product.imageSrc}
+                                      alt={product.imageAlt}
+                                      className="h-full w-full object-cover object-center"
+                                    />
+                                  </div> */}
+
+                                  <CartCard
+                                    product={product}
+                                    subTotalProduct={handleSubtotal}
+                                    removeFromArr={handleRemoveFromCart}
                                   />
-                                </div>
-
-                                <div className="ml-4 flex flex-1 flex-col">
-                                  <div>
-                                    <div className="flex justify-between text-base font-medium text-gray-900">
-                                      <h3>
-                                        <a href={product.href}>
-                                          {product.name}
-                                        </a>
-                                      </h3>
-                                      <p className="ml-4">{product.price}</p>
-                                    </div>
-                                    <p className="mt-1 text-sm text-gray-500">
-                                      {product.color}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-1 items-end justify-between text-sm">
-                                    <p className="text-gray-500">
-                                      Qty {product.quantity}
-                                    </p>
-
-                                    <div className="flex">
-                                      <button
-                                        type="button"
-                                        className="font-medium text-indigo-600 hover:text-indigo-500"
-                                      >
-                                        Remove
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </li>
-                            ))}
+                                </li>
+                              ))}
                           </ul>
                         </div>
                       </div>
@@ -156,17 +173,20 @@ export default function Example({ action, handleCloseCart }) {
                     <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
                       <div className="flex justify-between text-base font-medium text-gray-900">
                         <p>Subtotal</p>
-                        <p>$262.00</p>
+                        <p>
+                          ${new Intl.NumberFormat("es-AR").format(totalCart)}
+                        </p>
                       </div>
                       <p className="mt-0.5 text-sm text-gray-500">
-                        Shipping and taxes calculated at checkout.
+                        Gastos de envío calculados al pagar.
                       </p>
                       <div className="mt-6">
                         <a
                           href="#"
-                          className="flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700"
+                          className="flex items-center justify-center rounded-md border border-transparent bg-green-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-green-700"
+                          onClick={handlePresupuesto}
                         >
-                          Checkout
+                          Enviar pedido
                         </a>
                       </div>
                       <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
@@ -174,10 +194,10 @@ export default function Example({ action, handleCloseCart }) {
                           or
                           <button
                             type="button"
-                            className="font-medium text-indigo-600 hover:text-indigo-500"
+                            className="font-medium text-red-600 hover:text-red-500 ms-1"
                             onClick={() => setOpen(false)}
                           >
-                            Continue Shopping
+                            Continuar comprando
                             <span aria-hidden="true"> &rarr;</span>
                           </button>
                         </p>
