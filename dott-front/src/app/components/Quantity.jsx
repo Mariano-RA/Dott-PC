@@ -13,6 +13,10 @@ const Quantity = ({ handleQuantity }) => {
     setCantidad(cantidad + 1);
   }
 
+  function handleInputQuantity(e) {
+    setCantidad(e.target.value);
+  }
+
   useEffect(() => {
     handleQuantity(cantidad);
   }, [cantidad, setCantidad]);
@@ -31,6 +35,7 @@ const Quantity = ({ handleQuantity }) => {
         type="number"
         id="Quantity"
         value={cantidad}
+        onChange={handleInputQuantity}
         className="h-10 w-16 rounded border-red-950 border  text-center [-moz-appearance:_textfield] sm:text-sm [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
       />
 

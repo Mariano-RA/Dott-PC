@@ -8,7 +8,7 @@ import { ContextGlobal } from "@/app/components/utils/global.context";
 
 const take = 20;
 
-const page = ({ params }) => {
+const Page = ({ params }) => {
   useEffect(() => {
     handleLoadProducts();
   }, [params]);
@@ -66,4 +66,4 @@ const page = ({ params }) => {
   );
 };
 
-export default page;
+export default Page;

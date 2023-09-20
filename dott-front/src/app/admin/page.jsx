@@ -16,7 +16,7 @@ export default withPageAuthRequired(function Admin() {
 
   const [accToken, setAccToken] = useState("");
 
-  const [valorDolar, setValorDolar] = useState();
+  const [valorDolar, setValorDolar] = useState(0);
   const [proveedor, setProveedor] = useState("");
   const [arrayCuotas, setArrayCuotas] = useState([]);
   const state = useContext(ContextGlobal);
@@ -28,7 +28,7 @@ export default withPageAuthRequired(function Admin() {
         setArrayCuotas(state.state.valorCuotas);
       }
     }
-  }, []);
+  }, [data]);
 
   function handleSelectOption(e) {
     setProveedor(e.target.value);

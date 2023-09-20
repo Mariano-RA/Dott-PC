@@ -1,9 +1,12 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, useContext } from "react";
 import { Dialog, RadioGroup, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { ContextGlobal } from "./utils/global.context";
 
 export default function ProductOverview({ action, close, product }) {
   const [open, setOpen] = useState(false);
+  const { state, addCart, removeCart } = useContext(ContextGlobal);
+  const [IsSelected, setIsSelected] = useState(false);
 
   useEffect(() => {
     const handleShow = () => {
@@ -24,6 +27,33 @@ export default function ProductOverview({ action, close, product }) {
     };
     handleClose();
   }, [open]);
+
+  function handleCart() {
+    if (
+      state.productCart.filter((prodCart) => prodCart.id === product.id)
+        .length > 0
+    ) {
+      removeCart(product.id);
+      setIsSelected(false);
+    } else {
+      addCart(product);
+      setIsSelected(true);
+    }
+  }
+
+  useEffect(() => {
+    const handleSelected = () => {
+      if (
+        state.productCart.filter((prodCart) => prodCart.id === product.id)
+          .length > 0
+      ) {
+        setIsSelected(true);
+      } else {
+        setIsSelected(false);
+      }
+    };
+    handleSelected();
+  }, [product]);
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -107,25 +137,38 @@ export default function ProductOverview({ action, close, product }) {
                                 role="list"
                                 className="divide-y divide-gray-100 rounded-md border border-gray-200"
                               >
-                                <li className="flex items-center justify-between py-4 pl-4 pr-5 text-sm leading-6">
-                                  <div className="flex w-0 flex-1 items-center">
-                                    <div className="ml-4 flex min-w-0 flex-1 gap-2">
-                                      <span className="truncate font-medium">
-                                        3 cuotas de :
-                                      </span>
-                                      <span className="flex-shrink-0 text-gray-400">
-                                        2.4mb
-                                      </span>
+                                {product.precioCuotas?.map((datoCuota) => (
+                                  <li
+                                    className="flex items-center justify-between py-4 pl-4 pr-5 text-sm leading-6"
+                                    key={datoCuota.CantidadCuotas}
+                                  >
+                                    <div className="flex w-0 flex-1 items-center">
+                                      <div className="ml-4 flex min-w-0 flex-1 gap-2">
+                                        <span className="truncate font-medium">
+                                          {datoCuota.CantidadCuotas} cuotas de
+                                        </span>
+                                        <span className="flex-shrink-0 text-gray-400">
+                                          ${" "}
+                                          {new Intl.NumberFormat(
+                                            "es-AR"
+                                          ).format(datoCuota.Total)}
+                                        </span>
+                                      </div>
                                     </div>
-                                  </div>
-                                </li>
+                                  </li>
+                                ))}
                               </ul>
                             </dd>
                           </div>
 
-                          <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                            <button className="w-full truncate text-xs leading-5 text-white bg-red-950 rounded-md p-1">
-                              Agregar al carrito
+                          <div className="px-4 w-full py-6 sm:gap-4 sm:px-0 flex justify-center">
+                            <button
+                              className="text-xs leading-5 text-white bg-red-950 hover:bg-red-700 rounded-md p-2"
+                              onClick={() => handleCart(product)}
+                            >
+                              {IsSelected
+                                ? "Eliminar del carrito"
+                                : " Agregar al carrito"}
                             </button>
                           </div>
                         </dl>

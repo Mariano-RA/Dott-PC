@@ -8,7 +8,7 @@ import { ContextGlobal } from "@/app/components/utils/global.context";
 
 const take = 20;
 
-const page = () => {
+const Page = () => {
   const [products, setProducts] = useState([]);
   const [sortType, setSortType] = useState("nombreAsc");
   const [productLength, setProductLength] = useState(0);
@@ -62,4 +62,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;
