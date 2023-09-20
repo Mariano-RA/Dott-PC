@@ -1,8 +1,4 @@
-import {
-  withApiAuthRequired,
-  getAccessToken,
-  getSession,
-} from "@auth0/nextjs-auth0";
+import { withApiAuthRequired, getSession } from "@auth0/nextjs-auth0";
 import { NextResponse } from "next/server";
 
 const GET = withApiAuthRequired(async (req, res) => {

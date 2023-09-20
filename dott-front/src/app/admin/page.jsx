@@ -16,7 +16,7 @@ export default withPageAuthRequired(function Admin() {
 
   const [accToken, setAccToken] = useState("");
 
-  const [valorDolar, setValorDolar] = useState(0);
+  const [valorDolar, setValorDolar] = useState();
   const [proveedor, setProveedor] = useState("");
   const [arrayCuotas, setArrayCuotas] = useState([]);
   const state = useContext(ContextGlobal);
