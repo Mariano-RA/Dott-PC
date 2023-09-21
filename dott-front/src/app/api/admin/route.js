@@ -7,20 +7,13 @@ import { NextResponse } from "next/server";
 
 const GET = withApiAuthRequired(async (req, res) => {
   try {
-    // const { accessToken } = await getAccessToken(req, res, {
-    //   authorizationParams: {
-    //     scope: "create:tablas",
-    //   },
-    // });
-
-    const { accessToken, user } = await getSession(req, res, {
+    const { accessToken } = await getSession(req, res, {
       authorizationParams: {
         scope: "create:tablas",
       },
     });
-    const roles = user["http://localhost:3000/roles"];
 
-    return NextResponse.json({ token: accessToken, roles: roles });
+    return NextResponse.json({ token: accessToken });
   } catch (error) {
     const message = "Something went wrong";
 
