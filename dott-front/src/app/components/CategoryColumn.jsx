@@ -1,14 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getCategorys } from "../api/nest/categorys/route";
+import { GET } from "../api/nest/categorys/route";
 
 export default function CategoryColumn() {
   const [categorys, setCategorys] = useState([]);
 
   useEffect(() => {
     const handleCategorys = async () => {
-      const categorias = await getCategorys();
+      const categorias = await GET();
       setCategorys(categorias);
     };
     handleCategorys();
