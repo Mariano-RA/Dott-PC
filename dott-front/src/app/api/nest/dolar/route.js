@@ -23,7 +23,6 @@ export async function POST(request) {
     headers: {
       Accept: "application/json",
       "Access-Control-Allow-Origin": "*",
-      "Content-Type": "application/json", // Agregar el Content-Type aquí
       Authorization: accessToken,
     },
     body: JSON.stringify({
@@ -33,6 +32,7 @@ export async function POST(request) {
 
   await axios.post(`${apiUrl}/api/dolar`, {
     headers: {
+      "Access-Control-Allow-Origin": "*",
       Authorization: accessToken,
     },
     body: JSON.stringify({
