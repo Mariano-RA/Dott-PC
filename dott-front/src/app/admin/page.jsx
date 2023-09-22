@@ -61,6 +61,7 @@ export default withPageAuthRequired(function Admin() {
       fetch(`/api/nest/dolar`, {
         method: "POST",
         headers: {
+          "Access-Control-Allow-Origin": "*",
           Authorization: `Bearer ${accToken}`,
         },
         body: JSON.stringify({
