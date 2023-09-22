@@ -22,6 +22,7 @@ export async function POST(request) {
     url: `${apiUrl}/api/dolar`,
     headers: {
       Accept: "application/json",
+      "Access-Control-Allow-Origin": "*",
       "Content-Type": "application/json", // Agregar el Content-Type aquí
       Authorization: accessToken,
     },
@@ -30,8 +31,7 @@ export async function POST(request) {
     }),
   };
 
-  await fetch(`${apiUrl}/api/dolar`, {
-    method: "POST",
+  await axios.post(`${apiUrl}/api/dolar`, {
     headers: {
       Authorization: accessToken,
     },
