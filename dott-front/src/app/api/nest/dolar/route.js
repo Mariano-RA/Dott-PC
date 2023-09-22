@@ -30,7 +30,8 @@ export async function POST(request) {
     }),
   };
 
-  await axios.post(`${apiUrl}/api/dolar`, {
+  await fetch(`${apiUrl}/api/dolar`, {
+    method: "POST",
     headers: {
       Authorization: accessToken,
     },
