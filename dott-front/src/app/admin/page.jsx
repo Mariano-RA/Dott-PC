@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
 import { redirect } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
+import { GET } from "../api/nest/quote/route";
 
 const fetcher = async (uri) => {
   const response = await fetch(uri);
@@ -16,11 +17,11 @@ export default withPageAuthRequired(function Admin() {
   const { data, error } = useSWR("/api/admin", fetcher);
 
   const [accToken, setAccToken] = useState("");
+  const [cuotas, setCuotas] = useState([]);
 
   const [valorDolar, setValorDolar] = useState(0);
   const [proveedor, setProveedor] = useState("");
   const [arrayCuotas, setArrayCuotas] = useState([]);
-  const state = useContext(ContextGlobal);
 
   const [usrRoles, setUsrRoles] = useState([]);
   const { user } = useUser();
@@ -29,6 +30,13 @@ export default withPageAuthRequired(function Admin() {
     const roles = user["http://localhost:3000/roles"];
     setUsrRoles(roles);
   }, [user]);
+
+  useEffect(() => {
+    const getCuotas = async () => {
+      setCuotas(await GET());
+    };
+    getCuotas();
+  }, []);
 
   useEffect(() => {
     if (data != undefined) {
@@ -73,7 +81,7 @@ export default withPageAuthRequired(function Admin() {
 
   const handleCuotaChange = (id, valorTarjeta) => {
     // Actualiza el nombre del usuario con el ID dado
-    const nuevasCuotas = state.state.valorCuotas.map((cuota) => {
+    const nuevasCuotas = cuotas.map((cuota) => {
       if (cuota.id === id) {
         return { ...cuota, valorTarjeta };
       }
