@@ -4,7 +4,7 @@ import {
   getSession,
 } from "@auth0/nextjs-auth0";
 import axios from "axios";
-import { apiUrl } from "../utils/route";
+import { apiUrl } from "../utils/utils";
 import { NextResponse } from "next/server";
 
 export async function POST(request) {

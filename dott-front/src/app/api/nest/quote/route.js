@@ -1,12 +1,12 @@
-import { apiUrl } from "../utils/route";
+import { apiUrl } from "../utils/utils";
 
-export async function getCuotas() {
+export async function GET() {
   const cuotas = await fetch(`${apiUrl}/api/cuota`);
   const arrCuotas = await cuotas.json();
   return arrCuotas;
 }
 
-export async function updateCuotas(arrCuotas, accessToken) {
+export async function POST(arrCuotas, accessToken) {
   let config = {
     method: "post",
     url: `${apiUrl}/api/cuota`,

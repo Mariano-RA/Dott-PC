@@ -1,7 +1,5 @@
 "use client";
 import { createContext, useReducer, useMemo, useEffect } from "react";
-import { getCuotas } from "@/app/api/nest/quote/route";
-import { GET } from "@/app/api/nest/categorys/route";
 
 export const initialState = {
   productCart: [],

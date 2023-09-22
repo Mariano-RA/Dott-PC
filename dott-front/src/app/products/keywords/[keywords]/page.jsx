@@ -5,7 +5,7 @@ import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import Dropdown from "@/app/components/Dropdown";
 import { ContextGlobal } from "@/app/components/utils/global.context";
-import { getProductsByKeywords } from "@/app/api/nest/products/route";
+import { GET } from "@/app/api/nest/products/keywords/route";
 
 const take = 20;
 
@@ -29,12 +29,7 @@ const Page = ({ params }) => {
   }
 
   async function handleLoadProducts() {
-    const data = await getProductsByKeywords(
-      page,
-      take,
-      sortType,
-      params.keywords
-    );
+    const data = await GET(page, take, sortType, params.keywords);
     setProducts(data.productos);
     setProductLength(data.cantResultados);
   }

@@ -1,4 +1,4 @@
-import { apiUrl } from "../utils/route";
+import { apiUrl } from "../utils/utils";
 
 export async function GET() {
   const categorys = await fetch(`${apiUrl}/api/productos/categorias`);
