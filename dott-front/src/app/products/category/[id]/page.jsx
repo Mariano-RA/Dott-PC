@@ -5,6 +5,7 @@ import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import Dropdown from "@/app/components/Dropdown";
 import { ContextGlobal } from "@/app/components/utils/global.context";
+import { getProductsByCategory } from "@/app/api/nest/products/route";
 
 const take = 20;
 
@@ -29,14 +30,9 @@ const Page = ({ params }) => {
   }
 
   async function handleLoadProducts() {
-    if (state.apiUrl) {
-      const response = await fetch(
-        `${state.apiUrl}/api/productos/categoria?category=${params.id}&skip=${page}&take=${take}&orderBy=${sortType}`
-      );
-      const data = await response.json();
-      setProducts(data.productos);
-      setProductLength(data.cantResultados);
-    }
+    const data = await getProductsByCategory(page, take, sortType, params.id);
+    setProducts(data.productos);
+    setProductLength(data.cantResultados);
   }
 
   useEffect(() => {

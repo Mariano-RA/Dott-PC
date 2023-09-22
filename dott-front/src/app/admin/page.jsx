@@ -17,7 +17,7 @@ export default withPageAuthRequired(function Admin() {
 
   const [accToken, setAccToken] = useState("");
 
-  const [valorDolar, setValorDolar] = useState();
+  const [valorDolar, setValorDolar] = useState(0);
   const [proveedor, setProveedor] = useState("");
   const [arrayCuotas, setArrayCuotas] = useState([]);
   const state = useContext(ContextGlobal);
@@ -34,7 +34,6 @@ export default withPageAuthRequired(function Admin() {
     if (data != undefined) {
       if (data.token != "") {
         setAccToken(data.token);
-        setArrayCuotas(state.state.valorCuotas);
       }
     }
   }, [data]);
@@ -48,25 +47,27 @@ export default withPageAuthRequired(function Admin() {
   }
 
   async function handleActualizarDolar() {
-    let config = {
-      method: "post",
-      url: `${state.state.apiUrl}/api/dolar`,
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${accToken}`,
-      },
-      data: {
-        precioDolar: valorDolar,
-      },
-    };
-    await axios
-      .request(config)
-      .then((response) => {
-        console.log(JSON.stringify(response.data));
-      })
-      .catch((error) => {
-        console.log(error);
+    // let config = {
+    //   method: "post",
+    //   url: `/api/nest/dolar`,
+    //   data: JSON.stringify({
+    //     precioDolar: valorDolar,
+    //   }),
+    // };
+    // await axios.request(config).catch((error) => {
+    //   console.log(error);
+    // });
+    if (valorDolar > 0) {
+      fetch(`/api/nest/dolar`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accToken}`,
+        },
+        body: JSON.stringify({
+          precioDolar: valorDolar,
+        }),
       });
+    }
   }
 
   const handleCuotaChange = (id, valorTarjeta) => {
