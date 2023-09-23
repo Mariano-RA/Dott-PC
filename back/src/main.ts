@@ -25,6 +25,6 @@ async function bootstrap() {
   app.use(bodyParser.json({ limit: "50mb" }));
   app.use(urlencoded({ extended: true, limit: "50mb" }));
   app.setGlobalPrefix("api");
-  await app.listen(process.env.PORT || 3000);
+  await app.listen(process.env.PORT || 3000, "0.0.0.0");
 }
 bootstrap();
