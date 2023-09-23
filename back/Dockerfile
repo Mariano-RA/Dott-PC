@@ -21,6 +21,8 @@ RUN npm prune --production
 FROM node:alpine AS production
 WORKDIR /app
 COPY --from=builderBack /app/package.json /app
+COPY --from=builderBack /app/ssl /app/ssl
+
 RUN npm install
 
 COPY --from=builderBack /app/dist ./dist
