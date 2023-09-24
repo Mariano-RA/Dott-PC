@@ -1,12 +1,35 @@
+import { NextResponse } from "next/server";
 import { apiUrl } from "../utils/utils";
 
+import axios from "axios";
+const https = require("https");
+
+const agent = new https.Agent({
+  rejectUnauthorized: false,
+});
+
 export async function GET() {
-  const cuotas = await fetch(`${apiUrl}/api/cuota`);
-  const arrCuotas = await cuotas.json();
-  return arrCuotas;
+  const cuotas = await axios
+    .get(`${apiUrl}/api/cuota`, {
+      headers: {
+        "content-type": "application/json",
+      },
+      httpsAgent: agent,
+    })
+    .then((response) => {
+      return response.data;
+    });
+
+  return NextResponse.json({ cuotas });
 }
 
-export async function POST(arrCuotas, accessToken) {
+export async function POST(request) {
+  const { headers } = await request;
+  const { precioDolar } = await request.json();
+
+  const accessToken = headers.get("authorization");
+  const valorDolar = precioDolar;
+
   let config = {
     method: "post",
     url: `${apiUrl}/api/cuota`,

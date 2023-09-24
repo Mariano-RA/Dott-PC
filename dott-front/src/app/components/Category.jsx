@@ -2,15 +2,15 @@
 import { Fragment, useContext, useEffect, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import Link from "next/link";
-import { GET } from "../api/nest/categorys/route";
 
 export default function Category() {
   const [categorys, setCategorys] = useState([]);
 
   useEffect(() => {
     const handleCategorys = async () => {
-      const categorias = await GET();
-      setCategorys(categorias);
+      const resVal = await fetch("/api/nest/categorys");
+      const { categorys } = await resVal.json();
+      setCategorys(categorys);
     };
     handleCategorys();
   }, []);

@@ -1,12 +1,10 @@
 "use client";
 import { useContext, useEffect, useState } from "react";
 import axios from "axios";
-import { ContextGlobal } from "../components/utils/global.context";
 import useSWR from "swr";
 import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
 import { redirect } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
-import { GET } from "../api/nest/quote/route";
 
 const fetcher = async (uri) => {
   const response = await fetch(uri);
@@ -33,7 +31,9 @@ export default withPageAuthRequired(function Admin() {
 
   useEffect(() => {
     const getCuotas = async () => {
-      setCuotas(await GET());
+      const resVal = await fetch("/api/nest/quote");
+      const { cuotas } = await resVal.json();
+      setArrayCuotas(cuotas);
     };
     getCuotas();
   }, []);
@@ -55,21 +55,10 @@ export default withPageAuthRequired(function Admin() {
   }
 
   async function handleActualizarDolar() {
-    // let config = {
-    //   method: "post",
-    //   url: `/api/nest/dolar`,
-    //   data: JSON.stringify({
-    //     precioDolar: valorDolar,
-    //   }),
-    // };
-    // await axios.request(config).catch((error) => {
-    //   console.log(error);
-    // });
     if (valorDolar > 0) {
-      fetch(`/api/nest/dolar`, {
-        method: "POST",
+      const resVal = await fetch(`/api/nest/dolar`, {
+        method: "post",
         headers: {
-          "Access-Control-Allow-Origin": "*",
           Authorization: `Bearer ${accToken}`,
         },
         body: JSON.stringify({

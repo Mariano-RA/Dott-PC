@@ -25,9 +25,14 @@ const Page = () => {
   }
 
   async function handleLoadProducts() {
-    const data = await GET(page, take, sortType);
-    setProducts(data.productos);
-    setProductLength(data.cantResultados);
+    const data = await fetch(
+      `/api/nest/products/list?skip=${page}&take=${take}&orderBy=${sortType}`
+    );
+
+    const { response } = await data.json();
+
+    setProducts(response.productos);
+    setProductLength(response.cantResultados);
   }
 
   useEffect(() => {
