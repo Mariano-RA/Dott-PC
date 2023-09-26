@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
 import { redirect } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
+import { apiPythonUrl } from "../api/nest/utils/utils";
 
 const fetcher = async (uri) => {
   const response = await fetch(uri);
@@ -13,7 +14,7 @@ const fetcher = async (uri) => {
 
 export default withPageAuthRequired(function Admin() {
   const { data, error } = useSWR("/api/admin", fetcher);
-
+  const [accToken, setAccToken] = useState("");
   const [valorDolar, setValorDolar] = useState(0);
   const [proveedor, setProveedor] = useState("");
   const [arrayCuotas, setArrayCuotas] = useState([]);
@@ -34,6 +35,14 @@ export default withPageAuthRequired(function Admin() {
     };
     getCuotas();
   }, []);
+
+  useEffect(() => {
+    if (data != undefined) {
+      if (data.token != "") {
+        setAccToken(data.token);
+      }
+    }
+  }, [data]);
 
   function handleSelectOption(e) {
     setProveedor(e.target.value);
@@ -78,9 +87,10 @@ export default withPageAuthRequired(function Admin() {
     const file = fileInput.files[0];
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("proveedor", proveedor); // Agrega el parámetro extra
+    formData.append("proveedor", proveedor);
 
-    const resVal = await axios.post(`/api/nest/products/list`, {
+    await fetch("/api/nest/products/list", {
+      method: "POST",
       body: formData,
     });
   }

@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from unidecode import unidecode
 from openpyxl import load_workbook
@@ -15,7 +15,6 @@ import io
 
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
-
 
 url = os.environ.get('APP_URL')
 
@@ -111,9 +110,10 @@ def procesar_archivo_air(token):
         "Authorization": f"{token}"
     }
 
-    requests.post(url=url, json=data, headers=headers, timeout=None)
+    # requests.post(url=url, json=data, headers=headers,
+    #               timeout=None, verify=False)
 
-    return "Se cargaron los datos correctamente"
+    return make_response(jsonify(data), 200)
 
 
 def tablaEikon():
@@ -174,9 +174,10 @@ def procesar_archivo_eikon(token):
         "Authorization": f"{token}"
     }
 
-    response = requests.post(url=url, json=data, headers=headers, timeout=None)
+    # response = requests.post(
+    #     url=url, json=data, headers=headers, timeout=None, verify=False)
 
-    return response.text
+    return make_response(jsonify(data), 200)
 
 
 def tablaElit():
@@ -233,9 +234,10 @@ def procesar_archivo_elit(token):
         "Authorization": f"{token}"
     }
 
-    requests.post(url=url, json=data, headers=headers, timeout=None)
+    # requests.post(url=url, json=data, headers=headers,
+    #               timeout=None, verify=False)
 
-    return "Se actualizo la tabla de Elit correctamente"
+    return make_response(jsonify(data), 200)
 
 
 def obtenerTipoIva(clave):
@@ -307,9 +309,10 @@ def procesar_archivo_hdc(token):
         "Authorization": f"{token}"
     }
 
-    requests.post(url=url, json=data, headers=headers, timeout=None)
+    # requests.post(url=url, json=data, headers=headers,
+    #               timeout=None, verify=False)
 
-    return "Se actualizo la tabla de Hdc correctamente"
+    return make_response(jsonify(data), 200)
 
 
 def tablaInvid(archivo):
@@ -406,9 +409,10 @@ def procesar_archivo_invid(token):
         "Authorization": f"{token}"
     }
 
-    requests.post(url=url, json=data, headers=headers, timeout=None)
+    # requests.post(url=url, json=data, headers=headers,
+    #               timeout=None, verify=False)
 
-    return "Se actualizo la tabla de Invid correctamente"
+    return make_response(jsonify(data), 200)
 
 
 def tablaNb():
@@ -463,9 +467,10 @@ def procesar_archivo_nb(token):
         "Authorization": f"{token}"
     }
 
-    requests.post(url=url, json=data, headers=headers, timeout=None)
+    # requests.post(url=url, json=data, headers=headers,
+    #               timeout=None, verify=False)
 
-    return "Se actualizo la tabla de NB correctamente"
+    return make_response(jsonify(data), 200)
 
 
 def tablaMega(archivo):
@@ -570,10 +575,13 @@ def procesar_archivo_mega(token):
         "Authorization": f"{token}"
     }
 
-    requests.post(url=url, json=data, headers=headers, timeout=None)
+    # requests.post(url=url, json=data, headers=headers,
+    #               timeout=None, verify=False)
 
-    return "Se actualizo la tabla de Mega correctamente"
+    return make_response(jsonify(data), 200)
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', debug=True)
+    certfile = 'secrets/fullchain.pem'
+    keyfile = 'secrets/privkey.pem'
+    app.run(host='0.0.0.0', debug=True, ssl_context=(certfile, keyfile))

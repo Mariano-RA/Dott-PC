@@ -25,11 +25,6 @@ export async function GET(req) {
 }
 
 export async function POST(request) {
-  const formData = await request.formData();
-
-  const file = formData.get("file");
-  const proveedor = formData.get("proveedor");
-
   try {
     const { accessToken } = await getSession(request, null, {
       authorizationParams: {
@@ -37,27 +32,45 @@ export async function POST(request) {
       },
     });
 
+    const formData = await request.formData();
+    const file = formData.get("file");
+    const proveedor = formData.get("proveedor");
+
+    const formDataToSend = new FormData();
+    formDataToSend.append("file", file);
+
     const config = {
+      method: "POST",
+      url: `${apiPythonUrl}/procesar_archivo_${proveedor}`,
       headers: {
+        "Content-Type": "multipart/form-data",
         Authorization: "Bearer " + accessToken,
       },
     };
+    config.data = formDataToSend;
 
-    const formDataToSend = new FormData(); // Crea un nuevo FormData
-    formDataToSend.append("file", file);
+    const response = await axios.request(config).then((response) => {
+      return response.data;
+    });
+
+    const config_2 = {
+      method: "POST",
+      url: `${apiUrl}/api/productos`,
+      headers: {
+        Authorization: "Bearer " + accessToken,
+      },
+      body: response,
+    };
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    const response = await axios.post(
-      `${apiPythonUrl}/procesar_archivo_${proveedor}`,
-      formDataToSend,
-      config
-    );
-
+    const resVal = await axios.request(config_2).then((response) => {
+      return response.data;
+    });
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
-    return NextResponse.json({ response: response.data });
-  } catch (error) {
-    console.error("Error en la solicitud POST:", error);
 
-    return NextResponse.error("Error en la solicitud POST", 500);
+    return NextResponse.json({ response: resVal });
+  } catch (error) {
+    console.log(error);
+    return NextResponse.error("Error en la solicitud POST", error);
   }
 }
