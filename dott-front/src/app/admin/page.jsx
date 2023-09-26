@@ -5,7 +5,6 @@ import useSWR from "swr";
 import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
 import { redirect } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
-import { apiUrl } from "../api/nest/utils/utils";
 
 const fetcher = async (uri) => {
   const response = await fetch(uri);

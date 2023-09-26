@@ -4,7 +4,6 @@ import * as bodyParser from "body-parser";
 import { ConfigService } from "@nestjs/config";
 import { urlencoded } from "express";
 import { Logger } from "nestjs-pino";
-import path from "path";
 
 function checkEnvironment(configService: ConfigService) {
   const requiredEnvVars = ["ISSUER_BASE_URL", "AUDIENCE", "CLIENT_ORIGIN_URL"];
@@ -18,8 +17,8 @@ function checkEnvironment(configService: ConfigService) {
 
 async function bootstrap() {
   const fs = require("fs");
-  const keyFile = fs.readFileSync("/app/ssl/privkey.pem");
-  const certFile = fs.readFileSync("/app/ssl/fullchain.pem");
+  const keyFile = fs.readFileSync("./secrets/privkey.pem");
+  const certFile = fs.readFileSync("./secrets/fullchain.pem");
   const app = await NestFactory.create(AppModule, {
     logger: console,
     httpsOptions: {

@@ -44,7 +44,6 @@ import { LoggerModule } from "nestjs-pino";
     // }),
     TypeOrmModule.forRoot({
       type: "mysql",
-      // host: process.env.DATABASE_HOST,
       host: "149.50.130.168",
       port: 3306,
       username: "do0tt",
@@ -55,12 +54,6 @@ import { LoggerModule } from "nestjs-pino";
     }),
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: AtGuard,
-    // },
-  ],
+  providers: [AppService],
 })
 export class AppModule {}

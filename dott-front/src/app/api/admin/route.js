@@ -9,7 +9,7 @@ const GET = withApiAuthRequired(async (req, res) => {
   try {
     const { accessToken } = await getSession(req, res, {
       authorizationParams: {
-        scope: "create:tablas",
+        scope: "create:tablas offline_access",
       },
     });
 
