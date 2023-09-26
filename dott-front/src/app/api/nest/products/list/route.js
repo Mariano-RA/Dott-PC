@@ -61,7 +61,7 @@ export async function POST(request) {
       headers: {
         Authorization: "Bearer " + accessToken,
       },
-      body: response,
+      body: response.json(),
     };
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
