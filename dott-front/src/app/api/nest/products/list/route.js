@@ -49,9 +49,11 @@ export async function POST(request) {
     };
     config.data = formDataToSend;
 
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
     const response = await axios.request(config).then((response) => {
       return response.data;
     });
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
     const config_2 = {
       method: "POST",
