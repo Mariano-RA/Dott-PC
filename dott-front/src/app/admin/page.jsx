@@ -14,9 +14,6 @@ const fetcher = async (uri) => {
 export default withPageAuthRequired(function Admin() {
   const { data, error } = useSWR("/api/admin", fetcher);
 
-  const [accToken, setAccToken] = useState("");
-  const [cuotas, setCuotas] = useState([]);
-
   const [valorDolar, setValorDolar] = useState(0);
   const [proveedor, setProveedor] = useState("");
   const [arrayCuotas, setArrayCuotas] = useState([]);
@@ -38,14 +35,6 @@ export default withPageAuthRequired(function Admin() {
     getCuotas();
   }, []);
 
-  useEffect(() => {
-    if (data != undefined) {
-      if (data.token != "") {
-        setAccToken(data.token);
-      }
-    }
-  }, [data]);
-
   function handleSelectOption(e) {
     setProveedor(e.target.value);
   }
@@ -57,7 +46,7 @@ export default withPageAuthRequired(function Admin() {
   async function handleActualizarDolar() {
     if (valorDolar > 0) {
       const resVal = await fetch(`/api/nest/dolar`, {
-        method: "post",
+        method: "POST",
         body: JSON.stringify({
           precioDolar: valorDolar,
         }),
@@ -66,62 +55,35 @@ export default withPageAuthRequired(function Admin() {
   }
 
   const handleCuotaChange = (id, valorTarjeta) => {
-    // Actualiza el nombre del usuario con el ID dado
-    const nuevasCuotas = cuotas.map((cuota) => {
+    const nuevasCuotas = arrayCuotas.map((cuota) => {
       if (cuota.id === id) {
         return { ...cuota, valorTarjeta };
       }
       return cuota;
     });
-
     setArrayCuotas([...nuevasCuotas]);
   };
 
   async function handleActualizarCuotas() {
-    let config = {
+    const resVal = await fetch(`/api/nest/quote`, {
       method: "post",
-      url: `${state.state.apiUrl}/api/cuota`,
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${accToken}`,
-      },
-      data: {
-        arrCuotas,
-      },
-    };
-    await axios
-      .request(config)
-      .then((response) => {
-        console.log(JSON.stringify(response.data));
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+      body: JSON.stringify({
+        arrayCuotas,
+      }),
+    });
   }
 
-  function handleUpdateProvider() {
+  async function handleUpdateProvider() {
     const fileInput = document.querySelector('input[type="file"]');
     const file = fileInput.files[0];
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("proveedor", proveedor); // Agrega el parámetro extra
 
-    let config = {
-      method: "post",
-      url: `${state.state.apiPythonUrl}/procesar_archivo_${proveedor}`,
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${accToken}`,
-      },
-    };
-    config.data = formData;
-    axios
-      .request(config)
-      .then((response) => {
-        console.log(JSON.stringify(response.data));
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+    const resVal = await fetch(`/api/nest/products/list`, {
+      method: "POST",
+      body: formData,
+    });
   }
 
   if (error) return <div>oops... {error.message}</div>;
@@ -278,7 +240,7 @@ export default withPageAuthRequired(function Admin() {
           <div className="flex justify-center">
             <button
               className="text-center hover:bg-red-950 hover:text-white p-1 ring-1 ring-red-950 rounded-md my-2"
-              onClick={() => handleActualizarCuotas}
+              onClick={handleActualizarCuotas}
             >
               Actualizar valor de las cuotas
             </button>

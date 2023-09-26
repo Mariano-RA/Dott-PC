@@ -1,23 +1,19 @@
 import { NextResponse } from "next/server";
 import { apiUrl } from "../utils/utils";
 import axios from "axios";
-const https = require("https");
-
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-});
 
 export async function GET() {
+  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
   const categorys = await axios
     .get(`${apiUrl}/api/productos/categorias`, {
       headers: {
         "content-type": "application/json",
       },
-      httpsAgent: agent,
     })
     .then((response) => {
       return response.data;
     });
+  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
   return NextResponse.json({ categorys });
 }
