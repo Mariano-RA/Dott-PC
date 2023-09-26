@@ -58,9 +58,6 @@ export default withPageAuthRequired(function Admin() {
     if (valorDolar > 0) {
       const resVal = await fetch(`/api/nest/dolar`, {
         method: "post",
-        headers: {
-          Authorization: `Bearer ${accToken}`,
-        },
         body: JSON.stringify({
           precioDolar: valorDolar,
         }),
