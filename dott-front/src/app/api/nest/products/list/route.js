@@ -26,9 +26,9 @@ export async function GET(req) {
 
 export async function POST(request) {
   const formData = await request.formData();
+
   const file = formData.get("file");
   const proveedor = formData.get("proveedor");
-  console.log(proveedor);
 
   try {
     const { accessToken } = await getSession(request, null, {
@@ -43,10 +43,13 @@ export async function POST(request) {
       },
     };
 
+    const formDataToSend = new FormData(); // Crea un nuevo FormData
+    formDataToSend.append("file", file);
+
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
     const response = await axios.post(
       `${apiPythonUrl}/procesar_archivo_${proveedor}`,
-      file,
+      formDataToSend,
       config
     );
 

@@ -80,8 +80,7 @@ export default withPageAuthRequired(function Admin() {
     formData.append("file", file);
     formData.append("proveedor", proveedor); // Agrega el parámetro extra
 
-    const resVal = await fetch(`/api/nest/products/list`, {
-      method: "POST",
+    const resVal = await axios.post(`/api/nest/products/list`, {
       body: formData,
     });
   }
