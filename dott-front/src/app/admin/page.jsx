@@ -1,11 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import useSWR from "swr";
 import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
 import { redirect } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
-import { apiPythonUrl } from "../api/nest/utils/utils";
 
 const fetcher = async (uri) => {
   const response = await fetch(uri);
@@ -55,7 +53,7 @@ export default withPageAuthRequired(function Admin() {
   async function handleActualizarDolar() {
     if (valorDolar > 0) {
       const resVal = await fetch(`/api/nest/dolar`, {
-        method: "POST",
+        method: "post",
         body: JSON.stringify({
           precioDolar: valorDolar,
         }),
@@ -90,7 +88,7 @@ export default withPageAuthRequired(function Admin() {
     formData.append("proveedor", proveedor);
 
     await fetch("/api/nest/products/list", {
-      method: "POST",
+      method: "post",
       body: formData,
     });
   }

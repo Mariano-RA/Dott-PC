@@ -5,7 +5,6 @@ import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import Dropdown from "@/app/components/Dropdown";
 import { ContextGlobal } from "@/app/components/utils/global.context";
-import { GET } from "@/app/api/nest/products/list/route";
 
 const take = 20;
 
