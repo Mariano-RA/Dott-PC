@@ -56,16 +56,14 @@ export async function POST(request) {
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
     const config_2 = {
-      method: "POST",
       url: `${apiUrl}/api/productos`,
       headers: {
         Authorization: "Bearer " + accessToken,
       },
-      response,
     };
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    const resVal = await axios.request(config_2).then((response) => {
+    const resVal = await axios.post(config_2, response).then((response) => {
       return response.data;
     });
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
