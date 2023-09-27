@@ -66,16 +66,16 @@ export async function POST(request) {
 
     configTest.data = listado;
 
-    // process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
     const data = await axios
       .request(configTest)
       .then((response) => {
-        return response.data;
+        return response;
       })
       .catch((error) => {
         return error;
       });
-    // process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
     return NextResponse.json({ data });
   } catch (error) {
