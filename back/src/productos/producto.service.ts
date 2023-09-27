@@ -67,7 +67,9 @@ export class ProductosService {
     try {
       const id = productDto[0].proveedor;
 
-      console.log(id);
+      if (id != null && id != undefined) {
+        console.log(id);
+      }
 
       const proveedorExistente = await this.productoRepository.findOneBy({
         proveedor: id,

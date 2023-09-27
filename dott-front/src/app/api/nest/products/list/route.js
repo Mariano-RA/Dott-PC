@@ -2,6 +2,7 @@ import axios from "axios";
 import { NextResponse } from "next/server";
 import { getSession } from "@auth0/nextjs-auth0";
 import { apiPythonUrl, apiUrl } from "../../utils/utils";
+import { error } from "console";
 
 export async function GET(req) {
   const skip = req.nextUrl.searchParams.get("skip");
@@ -56,19 +57,27 @@ export async function POST(request) {
     const listado = JSON.stringify(response.data);
 
     const configTest = {
-      method: "post",
+      method: "POST",
       url: `${apiUrl}/api/productos`,
       headers: {
         Authorization: "Bearer " + accessToken,
       },
-      data: JSON.parse(listado),
     };
 
+    configTest.data = listado;
+
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    const resVal = await axios.request(configTest);
+    const data = await axios
+      .request(configTest)
+      .then((response) => {
+        return response.data;
+      })
+      .catch((error) => {
+        return error;
+      });
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
-    return NextResponse.json({ resVal: resVal });
+    return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.error("Error en la solicitud POST", error);
   }

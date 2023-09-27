@@ -87,10 +87,10 @@ export default withPageAuthRequired(function Admin() {
     formData.append("file", file);
     formData.append("proveedor", proveedor);
 
-    await fetch("/api/nest/products/list", {
+    const resval = await fetch("/api/nest/products/list", {
       method: "post",
       body: formData,
-    }).then((response) => console.log(response));
+    });
   }
 
   if (error) return <div>oops... {error.message}</div>;
