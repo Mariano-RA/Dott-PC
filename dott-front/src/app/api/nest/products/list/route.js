@@ -77,14 +77,26 @@ export async function POST(request) {
     configTest.data = arrayFormateado;
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    const data = await axios
-      .request(configTest)
-      .then((response) => {
-        return response;
-      })
-      .catch((error) => {
-        return error;
-      });
+    // const data = await axios
+    //   .request(configTest)
+    //   .then((response) => {
+    //     return response;
+    //   })
+    //   .catch((error) => {
+    //     return error;
+    //   });
+
+    const configTestTest = {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + accessToken,
+      },
+    };
+    const datita = await axios.post(
+      `${apiUrl}/api/productos`,
+      JSON.stringify(arrayFormateado),
+      configTestTest
+    );
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
     return NextResponse.json({ data });
