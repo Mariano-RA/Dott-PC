@@ -82,7 +82,7 @@ export class ProductosService {
           .createQueryBuilder("Productos")
           .delete()
           .from(Producto)
-          .where("id = :id", { id: id })
+          .where("proveedor = :id", { id: id })
           .execute();
 
         const arrProductos = await this.productoRepository.create(productDto);
