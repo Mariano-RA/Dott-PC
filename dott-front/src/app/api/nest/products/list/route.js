@@ -56,6 +56,7 @@ export async function POST(request) {
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
     const config_2 = {
+      method: "post",
       url: `${apiUrl}/api/productos`,
       headers: {
         Authorization: "Bearer " + accessToken,
