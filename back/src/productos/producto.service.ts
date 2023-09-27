@@ -66,18 +66,18 @@ export class ProductosService {
   async updateTable(productDto: createProductoDto[]) {
     try {
       const id = productDto[0].proveedor;
+
+      console.log(id);
+
       const proveedorExistente = await this.productoRepository.findOneBy({
         proveedor: id,
       });
 
       if (!proveedorExistente) {
-        // Si no existe, crear nuevos registros
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
         return `Se crearon nuevos datos correspondientes a ${id} correctamente.`;
       } else {
-        // Si existe, eliminar registros existentes y crear nuevos registros
-
         await this.productoRepository
           .createQueryBuilder("Productos")
           .delete()
