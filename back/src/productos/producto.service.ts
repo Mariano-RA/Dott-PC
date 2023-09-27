@@ -77,12 +77,13 @@ export class ProductosService {
         return `Se crearon nuevos datos correspondientes a ${id} correctamente.`;
       } else {
         // Si existe, eliminar registros existentes y crear nuevos registros
-        await this.productoRepository.query(
-          `
-          DELETE FROM Productos WHERE proveedor = $1;
-          `,
-          [id]
-        );
+
+        await this.productoRepository
+          .createQueryBuilder("Productos")
+          .delete()
+          .from(Producto)
+          .where("id = :id", { id: id })
+          .execute();
 
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
