@@ -90,7 +90,7 @@ export default withPageAuthRequired(function Admin() {
     await fetch("/api/nest/products/list", {
       method: "post",
       body: formData,
-    });
+    }).then((response) => console.log(response));
   }
 
   if (error) return <div>oops... {error.message}</div>;
