@@ -68,13 +68,12 @@ export async function POST(request) {
       .post(`${apiUrl}/api/productos`, response.data, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json", // Especifica el tipo de contenido como JSON
         },
       })
-      .then((response) => console.log(response));
+      .then((response) => console.log(response.data));
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
-    return NextResponse.json({ response: resVal });
+    return NextResponse.json({ response: resVal.data });
   } catch (error) {
     return NextResponse.error("Error en la solicitud POST", error);
   }
