@@ -54,7 +54,17 @@ export async function POST(request) {
     const response = await axios.request(config);
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
-    const listado = JSON.stringify(response.data);
+    const arrayFormateado = [];
+
+    for (const objeto of response.data) {
+      const objetoFormateado = {
+        proveedor: objeto.proveedor,
+        producto: objeto.producto,
+        categoria: objeto.categoria,
+        precio: objeto.precio,
+      };
+      arrayFormateado.push(objetoFormateado);
+    }
 
     const configTest = {
       method: "POST",
@@ -64,7 +74,7 @@ export async function POST(request) {
       },
     };
 
-    configTest.data = listado;
+    configTest.data = arrayFormateado;
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
     const data = await axios
