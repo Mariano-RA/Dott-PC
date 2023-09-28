@@ -100,6 +100,9 @@ export async function POST(request) {
       )
       .then((response) => {
         return response.data;
+      })
+      .catch((err) => {
+        return err;
       });
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
