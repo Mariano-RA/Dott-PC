@@ -12,22 +12,11 @@ import { ConfigModule } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
 import { ClientsModule } from "@nestjs/microservices";
 import { Transport } from "@nestjs/microservices";
+import { RmqModule } from "./rmq/rmq.module";
 
 @Module({
   imports: [
-    ClientsModule.register([
-      {
-        name: "MATH_SERVICE",
-        transport: Transport.RMQ,
-        options: {
-          urls: ["amqp://localhost:15672"],
-          queue: "dott_queue",
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-    ]),
+    RmqModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
