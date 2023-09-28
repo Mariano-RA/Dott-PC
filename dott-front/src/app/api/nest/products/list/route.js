@@ -77,14 +77,6 @@ export async function POST(request) {
     configTest.data = arrayFormateado;
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    // const data = await axios
-    //   .request(configTest)
-    //   .then((response) => {
-    //     return response;
-    //   })
-    //   .catch((error) => {
-    //     return error;
-    //   });
 
     const configTestTest = {
       headers: {

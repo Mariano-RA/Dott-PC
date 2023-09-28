@@ -5,19 +5,31 @@ import { AppService } from "./app.service";
 import { ProductosModule } from "./productos/producto.module";
 import { Dolar } from "./dolar/entities/dolar.entity";
 import { Producto } from "./productos/entities/producto.entity";
-import { ServeStaticModule } from "@nestjs/serve-static";
-import { join } from "path";
 import { Cuota } from "./cuota/entities/cuota.entity";
 import { CuotasModule } from "./cuota/cuota.module";
 import { User } from "./users/entities/user.entity";
 import { ConfigModule } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
+import { ClientsModule } from "@nestjs/microservices";
+import { Transport } from "@nestjs/microservices";
 
 @Module({
   imports: [
+    ClientsModule.register([
+      {
+        name: "MATH_SERVICE",
+        transport: Transport.RMQ,
+        options: {
+          urls: ["amqp://localhost:15672"],
+          queue: "dott_queue",
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
-      // envFilePath: [".env.development", ".env.production"],
     }),
     LoggerModule.forRoot({
       pinoHttp: {
@@ -33,15 +45,6 @@ import { LoggerModule } from "nestjs-pino";
     }),
     CuotasModule,
     ProductosModule,
-    // TypeOrmModule.forRoot({
-    //   type: "sqlite",
-    //   database: "./database/productosDB.sqlite",
-    //   entities: [Dolar, Producto, Cuota, User],
-    //   synchronize: true,
-    // }),
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, "..", "client"),
-    // }),
     TypeOrmModule.forRoot({
       type: "mysql",
       host: "149.50.130.168",

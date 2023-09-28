@@ -1,16 +1,5 @@
 version: "3"
 services:
-  mysql:
-    build:
-      dockerfile: ./Dockerfile
-      context: ./dott-database
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    environment:
-      - MYSQL_DATABASE=dottdb
-
   backend:
     build:
       dockerfile: ./Dockerfile
@@ -18,17 +7,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_HOST=localhosst
       - ISSUER_BASE_URL=https://dev-3hmy3galmqfty1xt.us.auth0.com
       - AUDIENCE=https://dott-pc-server.com
-      - CLIENT_ORIGIN_URL=http://frontend:90/
-
-  frontend:
-    build:
-      dockerfile: ./Dockerfile
-      context: ./front
-    ports:
-      - "80:4173" # Ajusta el puerto según tu proyecto
+      - CLIENT_ORIGIN_URL=https://dott-pc.com.ar/
 
   python-api:
     build:
@@ -37,7 +18,11 @@ services:
     ports:
       - "5000:5000" # Ajusta el puerto según tu proyecto
     environment:
-      - APP_URL=http://backend:3000/api/productos
+      - APP_URL=http://backend/api/productos
 
-volumes:
-  mysql-data:
+  dottpc-rabbit:
+    container_name: dottpc-rabbit
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
