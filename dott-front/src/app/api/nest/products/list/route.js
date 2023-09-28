@@ -92,11 +92,15 @@ export async function POST(request) {
         Authorization: "Bearer " + accessToken,
       },
     };
-    const datita = await axios.post(
-      `${apiUrl}/api/productos`,
-      JSON.stringify(arrayFormateado),
-      configTestTest
-    );
+    const datita = await axios
+      .post(
+        `${apiUrl}/api/productos`,
+        JSON.stringify(arrayFormateado),
+        configTestTest
+      )
+      .then((response) => {
+        return response.data;
+      });
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
     return NextResponse.json({ data });
