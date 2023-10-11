@@ -37,20 +37,22 @@ export async function POST(request) {
     // const formDataToSend = new FormData();
     // formDataToSend.append("file", file);
 
-    const provBody = await request.json();
+    const datoRequest = await request.json();
 
     const config = {
-      method: "POST",
-      url: `${apiUrl}/productos`,
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + accessToken,
       },
     };
-    config.data = provBody;
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    const response = await axios.request(config);
+    const response = await axios.post(
+      `${apiUrl}/productos`,
+      datoRequest.provBody,
+      config
+    );
+
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
     // const arrayFormateado = [];
