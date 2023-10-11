@@ -48,7 +48,7 @@ const Page = ({ params }) => {
       <div className="flex-grow w-full">
         <div className="flex w-full justify-between items-center py-8 px-14">
           <p className="text-red-950 font-bold text-lg">
-            {params.id.replace("%20", " ")}
+            {decodeURIComponent(params.id)}
           </p>
           <Dropdown handleSort={handleSelectedSort} />
         </div>
