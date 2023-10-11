@@ -27,8 +27,6 @@ export async function POST(request) {
       config
     );
 
-    console.log(response.data);
-
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
     return NextResponse.json({ response: response.data });
   } catch (error) {

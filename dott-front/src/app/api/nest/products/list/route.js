@@ -47,11 +47,11 @@ export async function POST(request) {
     };
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    const response = await axios.post(
-      `${apiUrl}/productos`,
-      datoRequest.provBody,
-      config
-    );
+    const response = await axios
+      .post(`${apiUrl}/productos`, datoRequest, config)
+      .then((response) => {
+        return response.data;
+      });
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
