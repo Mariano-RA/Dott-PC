@@ -288,7 +288,7 @@ export default withPageAuthRequired(function Admin() {
               </tr>
             </thead>
             <tbody>
-              {arrayCuotas.map((cuota) => (
+              {arrayCuotas?.map((cuota) => (
                 <tr key={cuota.id}>
                   <td className="border border-slate-700 text-red-950 text-center w-1/2">
                     {cuota.id}
