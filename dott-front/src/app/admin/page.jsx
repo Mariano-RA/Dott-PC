@@ -113,7 +113,7 @@ export default withPageAuthRequired(function Admin() {
       body: provBody,
     });
 
-    console.log(resval);
+    console.log("El resultado de la consulta fue: " + resval);
   }
 
   if (error) return <div>oops... {error.message}</div>;
