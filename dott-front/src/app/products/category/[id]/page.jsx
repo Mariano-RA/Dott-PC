@@ -5,7 +5,6 @@ import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import Dropdown from "@/app/components/Dropdown";
 import { ContextGlobal } from "@/app/components/utils/global.context";
-import { GET } from "@/app/api/nest/categorys/route";
 
 const take = 20;
 
@@ -61,7 +60,8 @@ const Page = ({ params }) => {
         <div className="px-14">
           <Pagination
             actualPage={page}
-            cantPages={productLength}
+            cantItems={productLength}
+            itemsPerPage={take}
             newPage={handlePagination}
           />
         </div>

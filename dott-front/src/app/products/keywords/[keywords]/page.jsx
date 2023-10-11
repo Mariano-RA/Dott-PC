@@ -58,7 +58,8 @@ const Page = ({ params }) => {
         <div className="px-14">
           <Pagination
             actualPage={page}
-            cantPages={productLength}
+            cantItems={productLength}
+            itemsPerPage={take}
             newPage={handlePagination}
           />
         </div>

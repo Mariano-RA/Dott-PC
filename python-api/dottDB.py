@@ -67,7 +67,9 @@ def obtenerDiccionario(nombreDiccionario):
 
 
 def tablaAir(archivo_bytesios):
-    csv_reader = csv.reader(io.TextIOWrapper(archivo_bytesios), delimiter=',')
+
+    csv_reader = csv.reader(io.TextIOWrapper(
+        archivo_bytesios, encoding="iso-8859-1"), delimiter=',')
 
     # Crea una lista para almacenar los datos
     data = []
@@ -225,64 +227,77 @@ def procesar_archivo_hdc(archivo_base64):
 
 
 def tablaInvid(archivo_bytesio):
+    # Guardar el archivo .xls en el directorio
     df = pd.read_excel(archivo_bytesio)
 
+    # Se utilizan los índices 0, 1 y 2 para las primeras tres filas
     df = df.drop([0, 1, 2, 3, 4, 5, 6, 7, 8])
     df.reset_index(drop=True, inplace=True)
+    df.to_excel(listadosTemporales + "temp_invid.xlsx", index=False)
 
-    wb = Workbook()
-    ws = wb.active
+    # Cargar el libro de trabajo
+    book = load_workbook(listadosTemporales + "temp_invid.xlsx")
+    sheet = book["Sheet1"]
 
-    for r_idx, row in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
-        for c_idx, value in enumerate(row, 1):
-            ws.cell(row=r_idx, column=c_idx, value=value)
-
-    # Aplicar la lógica para calcular la columna "categoria"
-    ws['I3'] = "categoria"
+    sheet["I3"] = "categoria"
 
     def apply_custom_formula(value1, value2, value3, value4, value5):
         result = ""
-        if value1 is None or (isinstance(value1, str) and len(value1) <= 1):
+        if (value1 is None or len(value1) <= 1):
             result = ""
-        elif (value2 is None or (isinstance(value2, str) and len(value2) <= 1)) and (value3 is None or (isinstance(value3, str) and len(value3) <= 1)):
+        elif (value2 is None or len(value2) <= 1) and (value3 is None or len(value3) <= 1):
             result = value4
         else:
             result = value5
         return result
 
-    for row in range(4, ws.max_row + 1):
-        value1 = ws[f'H{row}'].value
-        value2 = ws[f'A{row-2}'].value
-        value3 = ws[f'C{row-2}'].value
-        value4 = ws[f'B{row-2}'].value
-        value5 = ws[f'I{row-1}'].value
+    for row in range(4, sheet.max_row + 1):
+        value1 = sheet[f'H{row}'].value
+        value2 = sheet[f'A{row-2}'].value
+        value3 = sheet[f'C{row-2}'].value
+        value4 = sheet[f'B{row-2}'].value
+        value5 = sheet[f'I{row-1}'].value
         result = apply_custom_formula(
             value1, value2, value3, value4, value5)
 
-        cell = ws.cell(row=row, column=9)
+        cell = sheet.cell(row=row, column=9)
         cell.value = unidecode(result)
 
-    # Procesar los datos en memoria sin necesidad de guardar como CSV
-    data = []
+    # Save the changes to the file
+    book.save(listadosTemporales + "temp_invid.xlsx")
 
-    for row in range(4, ws.max_row + 1):
-        if (ws.cell(row=row, column=4).value and
-                ws.cell(row=row, column=4).value != "Nro. de Parte" and
-                str(ws.cell(row=row, column=4).value).isdigit()):  # Verificar si es un número válido
-            descripcion = ws.cell(row=row, column=2).value
-            categoria = unidecode(ws.cell(row=row, column=9).value)
-            precio = float(ws.cell(row=row, column=6).value)
-            iva = (1 + (float(ws.cell(row=row, column=7).value)/100)) * \
-                (1 + (float(ws.cell(row=row, column=8).value)/100))
+    # Guardar como CSV
+    df = pd.read_excel(listadosTemporales+"temp_invid.xlsx")
+    df.to_csv(listadoCsv+"listadoInvid.csv", index=False)
 
-            registro = {
-                "proveedor": "invid",
-                "producto": descripcion,
-                "categoria": encontrar_valor(obtenerDiccionario("invid"), categoria),
-                "precio": round((precio * iva * 1.1))
-            }
+    with open(listadoCsv+"listadoInvid.csv", "r") as file:
+        # Crea un objeto lector CSV
+        csv_reader = csv.reader(file, delimiter=",")
 
-            data.append(registro)
+        # Crea una lista para almacenar los datos
+        data = []
+
+        # Lee cada fila del archivo CSV (ignorando la primera fila de encabezados)
+
+        next(csv_reader)  # Ignora la primera fila de encabezados
+        for row in csv_reader:
+            if (row[3] != "" and row[3] != "Nro. de Parte"):
+                descripcion = row[1]
+                categoria = unidecode(row[8])
+                precio = float(row[5])
+                iva = (1 + (float(row[6])/100)) * (1 + (float(row[7])/100))
+
+                # Crea un diccionario con los datos de cada registro
+                registro = {
+                    "proveedor": "invid",
+                    "producto": descripcion,
+                    "categoria": encontrar_valor(obtenerDiccionario("invid"), categoria),
+                    "precio": round((precio * iva * 1.1))
+                }
+
+                # Agrega el diccionario a la lista de datos
+
+                data.append(registro)
 
     return data
 
