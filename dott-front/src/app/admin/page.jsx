@@ -10,16 +10,21 @@ const fetcher = async (uri) => {
   return response.json();
 };
 
-function fileToBase64(file, callback) {
-  const reader = new FileReader();
-  reader.onload = function () {
-    const base64String = reader.result.split(",")[1];
-    if (callback && typeof callback === "function") {
-      callback(base64String);
-    }
-  };
+function fileToBase64Async(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
 
-  reader.readAsDataURL(file);
+    reader.onload = function () {
+      const base64String = reader.result.split(",")[1];
+      resolve(base64String);
+    };
+
+    reader.onerror = function (error) {
+      reject(error);
+    };
+
+    reader.readAsDataURL(file);
+  });
 }
 
 export default withPageAuthRequired(function Admin() {
