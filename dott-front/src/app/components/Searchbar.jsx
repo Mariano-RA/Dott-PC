@@ -21,7 +21,7 @@ const Searchbar = () => {
   return (
     <form onSubmit={searchProduct}>
       <input
-        className="rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-red-950"
+        className="rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-red-950 w-full"
         type="text"
         value={searchValue}
         onChange={handleSearchValue}

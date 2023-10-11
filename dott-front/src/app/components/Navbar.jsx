@@ -137,6 +137,9 @@ export default function Navbar() {
                 </Disclosure.Button>
               ))}
               <Category />
+              <div className="px-2 w-100">
+                <Searchbar />
+              </div>
             </div>
           </Disclosure.Panel>
           <Cart action={show} handleCloseCart={handleClose} />
