@@ -95,14 +95,20 @@ export default function Pagination({
           className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-red-950 hover:bg-gray-50"
           onClick={() => handlePagination("reduce", 1)}
         >
-          Previous
+          Anterior
         </a>
+        <div className="flex items-center justify-center">
+          <p className="text-sm text-gray-700">
+            <span className="font-medium">{actualPage}</span> de{" "}
+            <span className="font-medium">{totalPages}</span>
+          </p>
+        </div>
         <a
           href="#"
-          className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-red-950 hover:bg-gray-50"
+          className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-red-950 hover:bg-gray-50"
           onClick={() => handlePagination("increase", 1)}
         >
-          Next
+          Siguiente
         </a>
       </div>
       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
