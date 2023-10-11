@@ -32,25 +32,7 @@ export default withPageAuthRequired(function Admin() {
   const [accToken, setAccToken] = useState("");
   const [valorDolar, setValorDolar] = useState(0);
   const [proveedor, setProveedor] = useState("");
-  const [arrayCuotas, setArrayCuotas] = useState([
-    {
-      id: 3,
-      valorTarjeta: 0.7578,
-    },
-    {
-      id: 6,
-      valorTarjeta: 0.6534,
-    },
-    {
-      id: 12,
-      valorTarjeta: 0.4828,
-    },
-    {
-      id: 18,
-      valorTarjeta: 0.3517,
-    },
-  ]);
-
+  const [arrayCuotas, setArrayCuotas] = useState();
   const [usrRoles, setUsrRoles] = useState([]);
   const { user } = useUser();
 
