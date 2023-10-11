@@ -32,10 +32,6 @@ export default function Cart({ action, handleCloseCart }) {
     handleClose();
   }, [open]);
 
-  function handleValorCuota() {
-    setValorCuota(state.valorCuotas);
-  }
-
   function handleRemoveFromCart(productId) {
     const updatedSubtotals = arrSubtotal.filter((sub) => sub.id !== productId);
     setArrSubtotal(updatedSubtotals);
@@ -66,8 +62,13 @@ export default function Cart({ action, handleCloseCart }) {
   }
 
   useEffect(() => {
-    handleValorCuota();
-  }, [state]);
+    const getCuotas = async () => {
+      const resVal = await fetch("/api/nest/quote");
+      const { cuotas } = await resVal.json();
+      setValorCuota(cuotas);
+    };
+    getCuotas();
+  }, []);
 
   useEffect(() => {
     handletotal();
@@ -176,6 +177,26 @@ export default function Cart({ action, handleCloseCart }) {
                         <p>
                           ${new Intl.NumberFormat("es-AR").format(totalCart)}
                         </p>
+                      </div>
+                      <div className="flex flex-col justify-between text-base font-medium text-gray-900 my-3">
+                        <p>Valor en cuotas</p>
+                        {valorCuota.map((cuota, index) => (
+                          <div className="flex justify-end my-1" key={cuota.id}>
+                            <p className="mt-0.5 text-sm text-gray-500">
+                              {cuota.id} cuotas de:
+                            </p>
+                            <p className="mt-0.5 text-sm text-gray-500 flex-grow text-right">
+                              $
+                              {new Intl.NumberFormat("es-AR").format(
+                                calcularCuota(
+                                  totalCart,
+                                  cuota.valorTarjeta,
+                                  cuota.id
+                                )
+                              )}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                       <p className="mt-0.5 text-sm text-gray-500">
                         Gastos de envío calculados al pagar.

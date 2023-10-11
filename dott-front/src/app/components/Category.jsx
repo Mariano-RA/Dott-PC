@@ -22,7 +22,7 @@ export default function Category() {
     <Menu as="div" className="relative inline-block text-left">
       <div>
         <Menu.Button className="inline-flex w-full justify-center rounded-md bg-red-950 px-3 py-2 font-medium text-gray-300 hover:bg-red-700 hover:text-white">
-          Category
+          Categorías
         </Menu.Button>
       </div>
 
