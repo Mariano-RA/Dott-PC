@@ -6,15 +6,12 @@ import Link from "next/link";
 export default function Category() {
   const [categorys, setCategorys] = useState([]);
 
-  async function getCategorys() {
-    const resVal = await fetch("/api/nest/categorys");
-
-    const { categorys } = await resVal.json();
-
-    setCategorys(categorys);
-  }
-
   useEffect(() => {
+    const getCategorys = async () => {
+      const resVal = await fetch("/api/nest/categorys");
+      const { categorys } = await resVal.json();
+      setCategorys(categorys);
+    };
     getCategorys();
   }, []);
 
