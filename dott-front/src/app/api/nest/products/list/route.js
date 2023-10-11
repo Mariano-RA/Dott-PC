@@ -1,7 +1,7 @@
 import axios from "axios";
 import { NextResponse } from "next/server";
 import { getSession } from "@auth0/nextjs-auth0";
-import { apiPythonUrl, apiUrl } from "../../utils/utils";
+import { apiUrl } from "../../utils/utils";
 import { error } from "console";
 
 export async function GET(req) {
@@ -33,72 +33,74 @@ export async function POST(request) {
       },
     });
 
-    const formData = await request.formData();
-    const file = formData.get("file");
-    const proveedor = formData.get("proveedor");
+    // const formData = await request.formData();
+    // const file = formData.get("file");
+    // const proveedor = formData.get("proveedor");
 
-    const formDataToSend = new FormData();
-    formDataToSend.append("file", file);
+    // const formDataToSend = new FormData();
+    // formDataToSend.append("file", file);
+
+    const provBody = await request.json();
 
     const config = {
       method: "POST",
-      url: `${apiPythonUrl}/procesar_archivo_${proveedor}`,
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: "Bearer " + accessToken,
-      },
-    };
-    config.data = formDataToSend;
-
-    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-    const response = await axios.request(config);
-    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
-
-    const arrayFormateado = [];
-
-    for (const objeto of response.data) {
-      const objetoFormateado = {
-        proveedor: objeto.proveedor,
-        producto: objeto.producto,
-        categoria: objeto.categoria,
-        precio: objeto.precio,
-      };
-      arrayFormateado.push(objetoFormateado);
-    }
-
-    const configTest = {
-      method: "POST",
-      url: `${apiUrl}/api/productos`,
-      headers: {
-        Authorization: "Bearer " + accessToken,
-      },
-    };
-
-    configTest.data = arrayFormateado;
-
-    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-
-    const configTestTest = {
+      url: `${apiUrl}/productos`,
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + accessToken,
       },
     };
-    const datita = await axios
-      .post(
-        `${apiUrl}/api/productos`,
-        JSON.stringify(arrayFormateado),
-        configTestTest
-      )
-      .then((response) => {
-        return response.data;
-      })
-      .catch((err) => {
-        return err;
-      });
+    config.data = provBody;
+
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+    const response = await axios.request(config);
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
-    return NextResponse.json({ data });
+    // const arrayFormateado = [];
+
+    // for (const objeto of response.data) {
+    //   const objetoFormateado = {
+    //     proveedor: objeto.proveedor,
+    //     producto: objeto.producto,
+    //     categoria: objeto.categoria,
+    //     precio: objeto.precio,
+    //   };
+    //   arrayFormateado.push(objetoFormateado);
+    // }
+
+    // const configTest = {
+    //   method: "POST",
+    //   url: `${apiUrl}/api/productos`,
+    //   headers: {
+    //     Authorization: "Bearer " + accessToken,
+    //   },
+    // };
+
+    // configTest.data = arrayFormateado;
+
+    // process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+
+    // const configTestTest = {
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //     Authorization: "Bearer " + accessToken,
+    //   },
+    // };
+    // const datita = await axios
+    //   .post(
+    //     `${apiUrl}/api/productos`,
+    //     JSON.stringify(arrayFormateado),
+    //     configTestTest
+    //   )
+    //   .then((response) => {
+    //     return response.data;
+    //   })
+    //   .catch((err) => {
+    //     return err;
+    //   });
+    // process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
+
+    return NextResponse.json({ response });
   } catch (error) {
     return NextResponse.error("Error en la solicitud POST", error);
   }

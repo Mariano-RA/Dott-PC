@@ -10,13 +10,9 @@ import { CuotasModule } from "./cuota/cuota.module";
 import { User } from "./users/entities/user.entity";
 import { ConfigModule } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
-import { ClientsModule } from "@nestjs/microservices";
-import { Transport } from "@nestjs/microservices";
-import { RmqModule } from "./rmq/rmq.module";
 
 @Module({
   imports: [
-    RmqModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -36,11 +32,11 @@ import { RmqModule } from "./rmq/rmq.module";
     ProductosModule,
     TypeOrmModule.forRoot({
       type: "mysql",
-      host: "149.50.130.168",
+      host: "mysql",
       port: 3306,
       username: "do0tt",
       password: "M@riano1820",
-      database: "dott_dottdb",
+      database: "dottdb",
       entities: [Dolar, User, Cuota, Producto],
       synchronize: false, // ¡Cuidado! No usar esto en producción
     }),

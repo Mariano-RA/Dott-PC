@@ -9,6 +9,12 @@ import { valorCuotaDto } from "./dto/valorCuotaDto";
 import { createProductoDto } from "./dto/createProductDto";
 import { Logger } from "@nestjs/common";
 import { ListDto } from "./dto/list.dto";
+import {
+  ClientProxy,
+  ClientProxyFactory,
+  Transport,
+} from "@nestjs/microservices";
+import { newTableDto } from "./dto/newTableDto";
 
 function obtenerPrecioEfectivo(monto, dolar) {
   return Math.round(monto * dolar);
@@ -52,24 +58,44 @@ function handleOrder(action, array) {
   return sortedArray;
 }
 
+const rabbitmq_url = process.env.RABBIT_MQ_URI;
+const rabbitmq_python_queue = process.env.RABBITMQ_PYTHON_QUEUE;
+
 @Injectable()
 export class ProductosService {
   @Inject(DolaresService) private readonly dolaresService: DolaresService;
   @Inject(CuotasService) private readonly cuotasService: CuotasService;
+  private client: ClientProxy;
+
   constructor(
     @InjectRepository(Producto)
     private readonly productoRepository: Repository<Producto>
-  ) {}
+  ) {
+    this.client = ClientProxyFactory.create({
+      transport: Transport.RMQ,
+      options: {
+        urls: [rabbitmq_url],
+        queue: rabbitmq_python_queue,
+      },
+    });
+  }
 
   private readonly logger = new Logger(ProductosService.name);
 
-  async updateTable(productDto: createProductoDto[]) {
+  async sendMessageData(newMessageDto) {
+    const msg = {
+      nombreProveedor: newMessageDto.nombreProveedor,
+      base64: newMessageDto.base64,
+    };
+    await this.client.emit("api_python", msg);
+    return "Se envio el mensaje de carga!";
+  }
+
+  async updateTable(data: newTableDto) {
+    const productDto = data.resultado;
+
     try {
       const id = productDto[0].proveedor;
-
-      if (id != null && id != undefined) {
-        console.log(id);
-      }
 
       const proveedorExistente = await this.productoRepository.findOneBy({
         proveedor: id,
@@ -90,14 +116,10 @@ export class ProductosService {
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
         this.logger.debug("Se actualizaron tablas");
-
-        return `Se actualizaron los datos correspondientes a ${id} correctamente.`;
+        console.log(`Se actualizo la tabla de: ${id}`);
       }
     } catch (error) {
       this.logger.error(error);
-      return (
-        error.message || "Ocurrió un error durante la actualización de datos."
-      );
     }
   }
 

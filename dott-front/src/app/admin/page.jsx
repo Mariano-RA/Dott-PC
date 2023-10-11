@@ -10,6 +10,18 @@ const fetcher = async (uri) => {
   return response.json();
 };
 
+function fileToBase64(file, callback) {
+  const reader = new FileReader();
+  reader.onload = function () {
+    const base64String = reader.result.split(",")[1];
+    if (callback && typeof callback === "function") {
+      callback(base64String);
+    }
+  };
+
+  reader.readAsDataURL(file);
+}
+
 export default withPageAuthRequired(function Admin() {
   const { data, error } = useSWR("/api/admin", fetcher);
   const [accToken, setAccToken] = useState("");
@@ -83,14 +95,25 @@ export default withPageAuthRequired(function Admin() {
   async function handleUpdateProvider() {
     const fileInput = document.querySelector('input[type="file"]');
     const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("proveedor", proveedor);
+
+    // formData.append("file", file);
+    // formData.append("proveedor", proveedor);
+
+    const base64 = fileToBase64(file, function (base64String) {
+      return base64String;
+    });
+
+    provBody = JSON.stringify({
+      nombreProveedor: proveedor,
+      base64: base64,
+    });
 
     const resval = await fetch("/api/nest/products/list", {
       method: "post",
-      body: formData,
+      body: provBody,
     });
+
+    console.log(resval);
   }
 
   if (error) return <div>oops... {error.message}</div>;

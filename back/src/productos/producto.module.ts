@@ -5,6 +5,7 @@ import { Producto } from "./entities/producto.entity";
 import { ProductosController } from "./producto.controller";
 import { ProductosService } from "./producto.service";
 import { CuotasModule } from "src/cuota/cuota.module";
+import { ClientsModule, Transport } from "@nestjs/microservices";
 
 @Module({
   imports: [CuotasModule, DolaresModule, TypeOrmModule.forFeature([Producto])],

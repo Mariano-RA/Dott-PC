@@ -12,11 +12,38 @@ import csv
 import json
 import os
 import io
+import pika
+
 
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
 url = os.environ.get('APP_URL')
+rabbit_url = os.environ.get('RABBITMQ_URL')
+rabbit_queue = os.environ.get("RABBITMQ_QUEUE")
+
+
+def enviar_resultado_a_rabbitmq(channel, data):
+    # Prepara el mensaje a enviar (proveedor actualizado y JSON de resultado)
+    mensaje = {
+        "proveedor_actualizado": "air",
+        "resultado": data
+    }
+
+    # Convierte el mensaje a JSON
+    mensaje_json = json.dumps(mensaje)
+
+    # Envía el mensaje a la cola
+    channel.basic_publish(
+        exchange='',
+        routing_key=rabbit_queue,
+        body=mensaje_json,
+        properties=pika.BasicProperties(
+            delivery_mode=2,  # Hace que el mensaje sea persistente
+        )
+    )
+
+    return "Resultado enviado a RabbitMQ"
 
 
 # Direccion archivos
@@ -584,4 +611,9 @@ def procesar_archivo_mega(token):
 if __name__ == "__main__":
     certfile = 'secrets/fullchain.pem'
     keyfile = 'secrets/privkey.pem'
+
+    import threading
+    consumer_thread = threading.Thread(target=rabbitmq_consumer)
+    consumer_thread.start()
+
     app.run(host='0.0.0.0', debug=True, ssl_context=(certfile, keyfile))

@@ -17,12 +17,10 @@ RUN pip install -r requeriments.txt && \
 # Copia el código de la aplicación a la imagen
 COPY . .
 
-ARG APP_URL
-ENV APP_URL=$APP_URL
-
-
 # Expone el puerto en el que la API estará escuchando
 EXPOSE 5000
 
 # Comando para ejecutar la aplicación cuando el contenedor se inicie
-CMD ["python", "dottApiTablas.py"]
+# CMD ["python", "dottApiTablas.py"]
+# CMD ["python", "dottPC-Test.py"]
+CMD ["python", "dottDB.py"]

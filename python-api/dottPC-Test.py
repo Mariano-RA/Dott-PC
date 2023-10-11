@@ -1,19 +1,89 @@
-import base64
-import csv
-import io
-import json
-import math
-import os
-import pandas as pd
-from openpyxl import Workbook, load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-import pika
+from functools import wraps
+from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS
 from unidecode import unidecode
+from openpyxl import Workbook, load_workbook
+from openpyxl.formula.translate import Translator
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils import get_column_letter
+from openpyxl.utils import FORMULAE
+import math  # Importa el módulo math para usar math.isnan()
+import requests
+import pandas as pd
+import csv
+import json
+import os
+import sys
+import io
+import pika
+from pika.exchange_type import ExchangeType
+import base64
+import threading
 
 
-rabbit_url = os.environ['RABBITMQ_URL']
-rabbit_queue = os.environ["RABBITMQ_QUEUE"]
-rabbit_python_queue = os.environ["RABBITMQ_PYTHON_QUEUE"]
+app = Flask(__name__)
+CORS(app)
+
+# url = os.environ.get('APP_URL')
+rabbit_url = os.environ.get('RABBITMQ_URL')
+rabbit_queue = os.environ.get("RABBITMQ_QUEUE")
+rabbit_python_queue = os.environ.get("RABBITMQ_PYTHON_QUEUE")
+
+
+def main():
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host=rabbit_url))
+    channel = connection.channel()
+
+    channel.queue_declare(queue=rabbit_python_queue, durable=True)
+
+    def callback(ch, method, properties, body):
+        mensaje_decodificado = body.decode('utf-8')
+
+        # Analiza el mensaje como un objeto JSON
+        mensaje_json = json.loads(mensaje_decodificado)
+
+        # Accede a los datos dentro del objeto 'data'
+        datos = mensaje_json['data']
+
+        # Accede a elementos específicos dentro de 'data'
+        nombre_proveedor = datos['nombreProveedor']
+        base64 = datos['base64']
+
+        print(" [x] Received:")
+        print("Nombre del proveedor:", nombre_proveedor)
+        print("Base64:", base64)
+
+    channel.basic_consume(
+        queue=rabbit_python_queue, on_message_callback=callback, auto_ack=True)
+
+    print(' [*] Waiting for messages. To exit press CTRL+C')
+    channel.start_consuming()
+
+
+def enviar_resultado_a_rabbitmq(channel, nombre_proveedor, data):
+    mensaje = {
+        "pattern": "carga_tabla",
+        "data": {
+            "proveedor_actualizado": nombre_proveedor,
+            "resultado": data,
+        }
+    }
+
+    mensaje_json = json.dumps(mensaje)
+
+    # channel.exchange_declare(exchange='api_nest', exchange_type='direct')
+
+    channel.basic_publish(
+        exchange='',
+        routing_key=rabbit_queue,
+        body=mensaje_json,
+        properties=pika.BasicProperties(
+            delivery_mode=2,  # Hace que el mensaje sea persistente
+        )
+    )
+
+    return "Resultado enviado a RabbitMQ"
 
 
 # Direccion archivos
@@ -22,25 +92,50 @@ listadoCsv = "archivosPorCargar/csv/"
 listadoJson = "archivosPorCargar/archivosJson/"
 diccionarios = "nuevosScripts/diccionarios/diccionarios.json"
 
+# Función para encontrar un valor en el diccionario
 
-def procesar_archivo(nombre_proveedor, archivo_base64):
-    if nombre_proveedor == 'air':
-        resultado = procesar_archivo_air(archivo_base64)
-    elif nombre_proveedor == 'eikon':
-        resultado = procesar_archivo_eikon(archivo_base64)
-    elif nombre_proveedor == 'elit':
-        resultado = procesar_archivo_elit(archivo_base64)
-    elif nombre_proveedor == 'hdc':
-        resultado = procesar_archivo_hdc(archivo_base64)
-    elif nombre_proveedor == 'invid':
-        resultado = procesar_archivo_invid(archivo_base64)
-    elif nombre_proveedor == 'nb':
-        resultado = procesar_archivo_nb(archivo_base64)
-    elif nombre_proveedor == 'mega':
-        resultado = procesar_archivo_mega(archivo_base64)
 
-    enviar_resultado_a_rabbitmq(
-        nombre_proveedor=nombre_proveedor, data=resultado)
+@app.route('/procesar_archivo', methods=['POST'])
+def procesar_archivo():
+    try:
+        # Obtener los datos JSON del cuerpo de la solicitud
+        data = request.get_json()
+
+        # Verificar si 'nombreProveedor' y 'base64' están en el JSON
+        if 'nombreProveedor' not in data or 'base64' not in data:
+            return jsonify({"error": "El JSON debe contener 'nombreProveedor' y 'base64'"}), 400
+
+        nombre_proveedor = data['nombreProveedor']
+        archivo_base64 = data['base64']
+
+        # Llamar a la función de procesamiento adecuada según el proveedor
+        if nombre_proveedor == 'air':
+            resultado = procesar_archivo_air(archivo_base64)
+        elif nombre_proveedor == 'eikon':
+            resultado = procesar_archivo_eikon(archivo_base64)
+        elif nombre_proveedor == 'elit':
+            resultado = procesar_archivo_elit(archivo_base64)
+        elif nombre_proveedor == 'hdc':
+            resultado = procesar_archivo_hdc(archivo_base64)
+        elif nombre_proveedor == 'invid':
+            resultado = procesar_archivo_invid(archivo_base64)
+        elif nombre_proveedor == 'nb':
+            resultado = procesar_archivo_nb(archivo_base64)
+        elif nombre_proveedor == 'mega':
+            resultado = procesar_archivo_mega(archivo_base64)
+        else:
+            return jsonify({"error": "Proveedor no válido"}), 400
+
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(rabbit_url))
+        channel = connection.channel()
+        respuesta = enviar_resultado_a_rabbitmq(
+            channel, nombre_proveedor, resultado)
+        connection.close()
+        return jsonify({"respuesta": respuesta})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 def encontrar_valor(diccionario, clave):
@@ -391,6 +486,8 @@ def tablaMega(archivo_bytesio):
         # Crea una lista para almacenar los datos
         data = []
 
+        # Lee cada fila del archivo CSV (ignorando la primera fila de encabezados)
+
         next(csv_reader)  # Ignora la primera fila de encabezados
         for row in csv_reader:
             if (row[3] != ""):
@@ -399,12 +496,15 @@ def tablaMega(archivo_bytesio):
                 iva = row[4].replace("+", "").replace("%", "")
                 categoria = row[6]
 
+                # Crea un diccionario con los datos de cada registro
                 registro = {
                     "proveedor": "mega",
                     "producto": descripcion,
                     "categoria": encontrar_valor(obtenerDiccionario("mega"), categoria),
                     "precio": round((float(precio) * (1 + (float(iva)/100)) * 1.1))
                 }
+
+                # Agrega el diccionario a la lista de datos
 
                 data.append(registro)
 
@@ -420,60 +520,22 @@ def procesar_archivo_mega(archivo_base64):
     return data
 
 
-def callback(ch, method, properties, body):
-    mensaje_decodificado = body.decode('utf-8')
+if __name__ == "__main__":
+    # certfile = 'secrets/fullchain.pem'
+    # keyfile = 'secrets/privkey.pem'
+    rabbitmq_thread = threading.Thread(target=main)
+    rabbitmq_thread.start()
 
-    # Analiza el mensaje como un objeto JSON
-    mensaje_json = json.loads(mensaje_decodificado)
+    app.run(host='0.0.0.0', debug=True
+            # , ssl_context=(certfile, keyfile)
+            )
 
-    # Accede a los datos dentro del objeto 'data'
-    datos = mensaje_json['data']
-
-    # Accede a elementos específicos dentro de 'data'
-    proveedor = datos['nombreProveedor']
-    base64 = datos['base64']
-
-    procesar_archivo(nombre_proveedor=proveedor, archivo_base64=base64)
-
-
-def enviar_resultado_a_rabbitmq(nombre_proveedor, data):
-    mensaje = {
-        "pattern": "carga_tabla",
-        "data": {
-            "proveedor_actualizado": nombre_proveedor,
-            "resultado": data,
-        }
-    }
-
-    mensaje_json = json.dumps(mensaje)
-
-    channel.queue_declare(queue=rabbit_queue, durable=True)
-
-    channel.basic_publish(
-        exchange='',
-        routing_key=rabbit_queue,
-        body=mensaje_json,
-    )
-
-
-connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host=rabbit_url))
-channel = connection.channel()
-
-channel.queue_declare(queue=rabbit_python_queue, durable=True)
-# Configurar la función de callback para manejar los mensajes recibidos
-channel.basic_consume(
-    queue=rabbit_python_queue, on_message_callback=callback, auto_ack=True)
-
-
-try:
-    # Iniciar la escucha
-    print("Iniciando ejecucion...")
-    channel.start_consuming()
-except KeyboardInterrupt:
-    # Manejar la interrupción de CTRL+C
-    print("Deteniendo la escucha...")
-    channel.stop_consuming()
-
-# Cerrar la conexión cuando hayamos terminado
-connection.close()
+# if __name__ == '__main__':
+#     try:
+#         main()
+#     except KeyboardInterrupt:
+#         print('Interrupted')
+#         try:
+#             sys.exit(0)
+#         except SystemExit:
+#             os._exit(0)

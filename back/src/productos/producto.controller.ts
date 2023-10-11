@@ -10,10 +10,17 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ProductosService } from "./producto.service";
-import { createProductoDto } from "./dto/createProductDto";
 import { Public } from "src/auth/decorators/public.decorator";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
 import { PermissionGuard } from "src/authTest/permission.guard";
+import {
+  Ctx,
+  MessagePattern,
+  Payload,
+  RmqContext,
+} from "@nestjs/microservices";
+import { newTableDto } from "./dto/newTableDto";
+import { newMessageDto } from "./dto/newMessageDto";
 
 @Controller("productos")
 export class ProductosController {
@@ -22,8 +29,13 @@ export class ProductosController {
   @UseGuards(AuthorizationGuard, PermissionGuard)
   @SetMetadata("permissions", ["create:tablas"])
   @Post()
-  updateTable(@Body() productDto: createProductoDto[]) {
-    return this.productosService.updateTable(productDto);
+  async updateTable(@Body() newMessageDto: newMessageDto) {
+    return await this.productosService.sendMessageData(newMessageDto);
+  }
+
+  @MessagePattern("carga_tabla")
+  async cargaTabla(@Payload() data: newTableDto, @Ctx() context: RmqContext) {
+    return await this.productosService.updateTable(data);
   }
 
   @Get()
@@ -40,7 +52,6 @@ export class ProductosController {
     return this.productosService.findAllCategories();
   }
 
-  @Public()
   @Get("/buscarPorPalabrasClaves/")
   findByKeyWord(
     // @Query("keywords", new ParseArrayPipe({ items: String, separator: "," }))
