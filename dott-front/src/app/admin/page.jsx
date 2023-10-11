@@ -103,7 +103,7 @@ export default withPageAuthRequired(function Admin() {
       return base64String;
     });
 
-    provBody = JSON.stringify({
+    const provBody = JSON.stringify({
       nombreProveedor: proveedor,
       base64: base64,
     });
