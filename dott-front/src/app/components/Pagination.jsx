@@ -47,7 +47,7 @@ export default function Pagination({
           href="#"
           className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-red-950 ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0"
           onClick={() => {
-            actualPage < 10
+            actualPage <= 10
               ? handlePagination("change", 1)
               : handlePagination("change", actualPage - visiblePageRange);
           }}
