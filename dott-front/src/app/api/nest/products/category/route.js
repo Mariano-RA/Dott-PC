@@ -11,7 +11,7 @@ export async function GET(req) {
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
   let response = await axios
     .get(
-      `${apiUrl}/api/productos/categoria?category=${category}&skip=${skip}&take=${take}&orderBy=${orderBy}`,
+      `${apiUrl}/productos/categoria?category=${category}&skip=${skip}&take=${take}&orderBy=${orderBy}`,
       {
         headers: {
           "content-type": "application/json",

@@ -10,14 +10,11 @@ export async function GET(req) {
   const orderBy = req.nextUrl.searchParams.get("orderBy");
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
   const response = await axios
-    .get(
-      `${apiUrl}/api/productos?skip=${skip}&take=${take}&orderBy=${orderBy}`,
-      {
-        headers: {
-          "content-type": "application/json",
-        },
-      }
-    )
+    .get(`${apiUrl}/productos?skip=${skip}&take=${take}&orderBy=${orderBy}`, {
+      headers: {
+        "content-type": "application/json",
+      },
+    })
     .then((response) => {
       return response.data;
     });

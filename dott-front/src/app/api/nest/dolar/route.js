@@ -22,7 +22,7 @@ export async function POST(request) {
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
     const response = await axios.post(
-      `${apiUrl}/api/dolar`,
+      `${apiUrl}/dolar`,
       JSON.stringify(precioDolar),
       config
     );

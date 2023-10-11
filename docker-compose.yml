@@ -29,7 +29,8 @@ services:
     image: marianora/dott-back:2.9
     container_name: dott-back
     ports:
-      - "443:3000"
+      # - "443:3000"
+      - "3000:3000"
     environment:
       - ISSUER_BASE_URL=https://dev-3hmy3galmqfty1xt.us.auth0.com
       - AUDIENCE=https://dott-pc-server.com

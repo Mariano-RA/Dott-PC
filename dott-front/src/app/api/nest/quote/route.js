@@ -6,7 +6,7 @@ import { getSession } from "@auth0/nextjs-auth0";
 export async function GET() {
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
   const cuotas = await axios
-    .get(`${apiUrl}/api/cuota`, {
+    .get(`${apiUrl}/cuota`, {
       headers: {
         "content-type": "application/json",
       },
@@ -38,7 +38,7 @@ export async function POST(request) {
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
     const response = await axios.post(
-      `${apiUrl}/api/cuota`,
+      `${apiUrl}/cuota`,
       datosCuotas.arrayCuotas,
       config
     );
