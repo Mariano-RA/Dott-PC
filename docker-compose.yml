@@ -26,7 +26,7 @@ services:
     # build:
     #   dockerfile: ./Dockerfile
     #   context: ./back
-    image: marianora/dott-back:2.9
+    image: marianora/dott-back:3.1
     container_name: dott-back
     ports:
       # - "443:3000"
@@ -47,7 +47,7 @@ services:
     # build:
     #   dockerfile: ./Dockerfile
     #   context: ./python-api
-    image: marianora/dott-python:1.9
+    image: marianora/dott-python:2.0
     container_name: dott-python
     ports:
       - "5000:5000" # Ajusta el puerto según tu proyecto

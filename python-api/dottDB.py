@@ -433,6 +433,8 @@ def callback(ch, method, properties, body):
     proveedor = datos['nombreProveedor']
     base64 = datos['base64']
 
+    print("Procesando datos...")
+
     procesar_archivo(nombre_proveedor=proveedor, archivo_base64=base64)
 
 
@@ -448,6 +450,8 @@ def enviar_resultado_a_rabbitmq(nombre_proveedor, data):
     mensaje_json = json.dumps(mensaje)
 
     channel.queue_declare(queue=rabbit_queue, durable=True)
+
+    print("Mensaje enviado!")
 
     channel.basic_publish(
         exchange='',

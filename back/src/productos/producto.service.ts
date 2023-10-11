@@ -88,6 +88,7 @@ export class ProductosService {
       base64: newMessageDto.base64,
     };
     await this.client.emit("api_python", msg);
+    console.log("Mensaje enviado a python..");
     return "Se envio el mensaje de carga!";
   }
 

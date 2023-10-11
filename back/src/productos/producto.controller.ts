@@ -30,11 +30,13 @@ export class ProductosController {
   @SetMetadata("permissions", ["create:tablas"])
   @Post()
   async updateTable(@Body() newMessageDto: newMessageDto) {
+    console.log("Enviando mensaje a python");
     return await this.productosService.sendMessageData(newMessageDto);
   }
 
   @MessagePattern("carga_tabla")
   async cargaTabla(@Payload() data: newTableDto, @Ctx() context: RmqContext) {
+    console.log("Mensaje recibido..");
     return await this.productosService.updateTable(data);
   }
 
