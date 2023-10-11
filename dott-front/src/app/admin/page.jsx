@@ -109,28 +109,63 @@ export default withPageAuthRequired(function Admin() {
     });
   }
 
+  // async function handleUpdateProvider() {
+  //   const fileInput = document.querySelector('input[type="file"]');
+  //   const file = fileInput.files[0];
+
+  //   // formData.append("file", file);
+  //   // formData.append("proveedor", proveedor);
+
+  //   const base64 = fileToBase64(file, function (base64String) {
+  //     return base64String;
+  //   });
+
+  //   const provBody = JSON.stringify({
+  //     nombreProveedor: proveedor,
+  //     base64: base64,
+  //   });
+
+  //   const resval = await fetch("/api/nest/products/list", {
+  //     method: "post",
+  //     body: provBody,
+  //   });
+
+  //   console.log("El resultado de la consulta fue: " + resval);
+  // }
+
   async function handleUpdateProvider() {
     const fileInput = document.querySelector('input[type="file"]');
     const file = fileInput.files[0];
 
-    // formData.append("file", file);
-    // formData.append("proveedor", proveedor);
+    if (!file) {
+      console.log("No se seleccionó ningún archivo.");
+      return;
+    }
 
-    const base64 = fileToBase64(file, function (base64String) {
-      return base64String;
-    });
+    try {
+      const base64String = await fileToBase64Async(file);
+      const provBody = JSON.stringify({
+        nombreProveedor: proveedor, // Asegúrate de tener definida la variable "proveedor".
+        base64: base64String,
+      });
 
-    const provBody = JSON.stringify({
-      nombreProveedor: proveedor,
-      base64: base64,
-    });
+      const resval = await fetch("/api/nest/products/list", {
+        method: "post",
+        body: provBody,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-    const resval = await fetch("/api/nest/products/list", {
-      method: "post",
-      body: provBody,
-    });
-
-    console.log("El resultado de la consulta fue: " + resval);
+      if (resval.ok) {
+        const responseData = await resval.json();
+        console.log("El resultado de la consulta fue:", responseData);
+      } else {
+        console.error("Error al enviar la solicitud a la API.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
   }
 
   if (error) return <div>oops... {error.message}</div>;
