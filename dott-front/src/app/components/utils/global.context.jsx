@@ -3,6 +3,7 @@ import { createContext, useReducer, useMemo, useEffect } from "react";
 
 export const initialState = {
   productCart: [],
+  categorys: [],
 };
 
 export const ContextGlobal = createContext(undefined);
@@ -13,6 +14,11 @@ function reducer(state, action) {
       return {
         ...state,
         productCart: [...state.productCart, action.payload],
+      };
+    case "set_categorys":
+      return {
+        ...state,
+        categorys: action.payload,
       };
     case "remove_cart":
       return {
@@ -45,6 +51,15 @@ export const ContextProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem("appState", JSON.stringify(state));
   }, [state, dispatch]);
+
+  useEffect(() => {
+    const getCategorys = async () => {
+      const resVal = await fetch("/api/nest/categorys");
+      const { categorys } = await resVal.json();
+      dispatch({ type: "set_categorys", payload: categorys });
+    };
+    getCategorys();
+  }, []);
 
   const addCart = (item) => {
     dispatch({ type: "add_cart", payload: item });

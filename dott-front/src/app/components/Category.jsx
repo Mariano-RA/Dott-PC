@@ -2,18 +2,23 @@
 import { Fragment, useContext, useEffect, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import Link from "next/link";
+import { ContextGlobal } from "./utils/global.context";
 
 export default function Category() {
   const [categorys, setCategorys] = useState([]);
+  const { state } = useContext(ContextGlobal);
 
+  // useEffect(() => {
+  //   const getCategorys = async () => {
+  //     const resVal = await fetch("/api/nest/categorys");
+  //     const { categorys } = await resVal.json();
+  //     setCategorys(categorys);
+  //   };
+  //   getCategorys();
+  // }, []);
   useEffect(() => {
-    const getCategorys = async () => {
-      const resVal = await fetch("/api/nest/categorys");
-      const { categorys } = await resVal.json();
-      setCategorys(categorys);
-    };
-    getCategorys();
-  }, []);
+    setCategorys(state.categorys);
+  }, [state]);
 
   return (
     <Menu as="div" className="relative inline-block text-left">

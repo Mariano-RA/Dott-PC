@@ -1,18 +1,15 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
+import { ContextGlobal } from "./utils/global.context";
 
 export default function CategoryColumn() {
   const [categorys, setCategorys] = useState([]);
+  const { state } = useContext(ContextGlobal);
 
   useEffect(() => {
-    const getCategorys = async () => {
-      const resVal = await fetch("/api/nest/categorys");
-      const { categorys } = await resVal.json();
-      setCategorys(categorys);
-    };
-    getCategorys();
-  }, []);
+    setCategorys(state.categorys);
+  }, [state]);
 
   return (
     <ul role="list" className="mx-24 hidden lg:flex flex-col">
