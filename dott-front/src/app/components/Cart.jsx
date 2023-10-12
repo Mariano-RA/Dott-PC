@@ -38,7 +38,7 @@ export default function Cart({ action, handleCloseCart }) {
   }
 
   const calcularCuota = (precio, interes, cuota) => {
-    return Math.round(precio / interes / cuota);
+    return Math.round(precio / (1 - interes / 100) / cuota);
   };
 
   function handleSubtotal(data) {

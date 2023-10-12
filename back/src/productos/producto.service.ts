@@ -24,10 +24,11 @@ function calcularValorCuotas(precio, listadoCuotas) {
   let listado = [];
   listadoCuotas.forEach((cuota) => {
     const { id, valorTarjeta } = cuota;
+    const interesTotal = 1 - valorTarjeta / 100;
     const valorCuota = new valorCuotaDto();
     valorCuota.CantidadCuotas = id;
-    valorCuota.Total = Math.round(precio / valorTarjeta);
-    valorCuota.Cuota = Math.round(precio / valorTarjeta / id);
+    valorCuota.Total = Math.round(precio / interesTotal);
+    valorCuota.Cuota = Math.round(precio / interesTotal / id);
     listado.push(valorCuota);
   });
   return listado;

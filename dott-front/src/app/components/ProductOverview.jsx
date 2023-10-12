@@ -151,7 +151,10 @@ export default function ProductOverview({ action, close, product }) {
                                           ${" "}
                                           {new Intl.NumberFormat(
                                             "es-AR"
-                                          ).format(datoCuota.Total)}
+                                          ).format(
+                                            datoCuota.Total /
+                                              datoCuota.CantidadCuotas
+                                          )}
                                         </span>
                                       </div>
                                     </div>
