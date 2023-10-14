@@ -11,6 +11,7 @@ export default function Cart({ action, handleCloseCart }) {
   const [totalCart, setTotalCart] = useState(0);
   const [arrSubtotal, setArrSubtotal] = useState([]);
   const [valorCuota, setValorCuota] = useState([]);
+  const [valorDolar, setValorDolar] = useState(0);
 
   useEffect(() => {
     const handleShow = () => {
@@ -51,15 +52,25 @@ export default function Cart({ action, handleCloseCart }) {
         }
         return product;
       });
-      console.log(newArr);
+
       setArrSubtotal(newArr);
     }
   }
 
-  function handletotal() {
-    const total = arrSubtotal.reduce((acc, item) => acc + item.subtotal, 0);
+  function handleTotalProduct() {
+    let total = arrSubtotal.reduce((acc, item) => acc + item.subtotal, 0);
+
     setTotalCart(total);
   }
+
+  useEffect(() => {
+    const getValorDolar = async () => {
+      const resVal = await fetch("/api/nest/dolar");
+      const { dolar } = await resVal.json();
+      setValorDolar(dolar);
+    };
+    getValorDolar();
+  }, []);
 
   useEffect(() => {
     const getCuotas = async () => {
@@ -71,15 +82,17 @@ export default function Cart({ action, handleCloseCart }) {
   }, []);
 
   useEffect(() => {
-    handletotal();
+    handleTotalProduct();
   }, [arrSubtotal, setTotalCart]);
 
   function handlePresupuesto() {
-    let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n${state.productCart
-      .map((item) => `${item.producto} - $${item.precioEfectivo}`)
+    let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n\n${state.productCart
+      .map(
+        (item) =>
+          `${item.producto} - ${item.proveedor} - $${item.precioEfectivo}`
+      )
       .join("\n")}`;
 
-    // Agregar precios de las cuotas al mensaje
     message += "\n\nPrecios de Cuotas";
     valorCuota.forEach((cuota, index) => {
       const cuotaPrice = calcularCuota(totalCart, cuota.valorTarjeta, cuota.id);
