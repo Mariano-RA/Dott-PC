@@ -13,8 +13,12 @@ export default function ProductOverview({ action, close, product }) {
   const { user } = useUser();
 
   useEffect(() => {
-    const roles = user["http://localhost:3000/roles"] || [];
-    setUsrRoles(roles);
+    if (user) {
+      const roles = user["http://localhost:3000/roles"];
+      setUsrRoles(roles);
+    } else {
+      setUsrRoles([]);
+    }
   }, [user]);
 
   useEffect(() => {
