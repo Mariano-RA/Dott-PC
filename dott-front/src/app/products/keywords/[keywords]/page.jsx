@@ -11,6 +11,7 @@ const take = 20;
 
 const Page = ({ params }) => {
   useEffect(() => {
+    setPage = 1;
     handleLoadProducts();
   }, [params]);
 
