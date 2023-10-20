@@ -13,7 +13,7 @@ export const User = () => {
   const { user } = useUser();
 
   useEffect(() => {
-    const roles = user["http://localhost:3000/roles"];
+    const roles = user["http://localhost:3000/roles"] || [];
     setUsrRoles(roles);
   }, [user]);
 
