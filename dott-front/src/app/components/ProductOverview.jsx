@@ -1,12 +1,21 @@
+"use client";
 import { Fragment, useEffect, useState, useContext } from "react";
 import { Dialog, RadioGroup, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "./utils/global.context";
+import { useUser } from "@auth0/nextjs-auth0/client";
 
 export default function ProductOverview({ action, close, product }) {
   const [open, setOpen] = useState(false);
   const { state, addCart, removeCart } = useContext(ContextGlobal);
   const [IsSelected, setIsSelected] = useState(false);
+  const [usrRoles, setUsrRoles] = useState([]);
+  const { user } = useUser();
+
+  useEffect(() => {
+    const roles = user["http://localhost:3000/roles"];
+    setUsrRoles(roles);
+  }, [user]);
 
   useEffect(() => {
     const handleShow = () => {
@@ -120,14 +129,16 @@ export default function ProductOverview({ action, close, product }) {
                               )}
                             </dd>
                           </div>
-                          {/* <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                            <dt className="text-sm font-medium leading-6 text-gray-900">
-                              Proveedor
-                            </dt>
-                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                              {product.proveedor?.toUpperCase()}
-                            </dd>
-                          </div> */}
+                          {usrRoles.includes("admin") && (
+                            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                              <dt className="text-sm font-medium leading-6 text-gray-900">
+                                Proveedor
+                              </dt>
+                              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                {product.proveedor?.toUpperCase()}
+                              </dd>
+                            </div>
+                          )}
                           <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
                             <dt className="text-sm font-medium leading-6 text-gray-900">
                               Categoría
