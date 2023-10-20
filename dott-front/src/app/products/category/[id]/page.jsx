@@ -50,9 +50,9 @@ const Page = ({ params }) => {
       {showLoading ? (
         <Loading />
       ) : (
-        <div className="flex justify-center">
+        <div className="flex justify-center w-full">
           <CategoryColumn />
-          <div className="flex-grow w-full">
+          <div className="flex-grow w-full flex flex-col justify-between">
             <div className="flex w-full justify-between items-center py-8 px-14">
               <p className="text-red-950 font-bold text-lg">
                 {decodeURIComponent(params.id)}
