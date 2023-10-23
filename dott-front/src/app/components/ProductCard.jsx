@@ -55,7 +55,9 @@ const ProductCard = ({ product }) => {
       /> */}
       <div className="h-full flex flex-col justify-between">
         <h2 className="font-bold text-red-950 text-sm md:text-base text-center ">
-          <div className="line-clamp-2">{product?.producto.toUpperCase()}</div>
+          <div className="line-clamp-3 md:line-clamp-3">
+            {product?.producto.toUpperCase()}
+          </div>
         </h2>
         <div className="mt-2 flex flex-wrap justify-center text-sm leading-6 text-red-950 flex-col items-center sm:flex-row">
           <dd className="flex items-center">
