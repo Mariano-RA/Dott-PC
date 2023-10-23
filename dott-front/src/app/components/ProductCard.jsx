@@ -45,7 +45,7 @@ const ProductCard = ({ product }) => {
   }, [product]);
 
   return (
-    <article className="flex justify-between flex-col p-3 sm:p-6 ring-1 rounded-md ring-red-950 w-40 sm:w-80 mb-5 h-44 sm:h-40">
+    <article className="flex justify-between flex-col p-3 sm:p-6 ring-1 rounded-md ring-red-950 w-40 sm:w-80 mb-5 h-44 sm:h-44">
       {/* <img
         src={movie.image}
         alt=""
@@ -54,8 +54,8 @@ const ProductCard = ({ product }) => {
         className="flex-none rounded-md bg-slate-100"
       /> */}
       <div className="h-full flex flex-col justify-between">
-        <h2 className="font-bold text-red-950 text-sm md:text-base text-center line-clamp-3 sm:truncate sm:line-clamp-1">
-          {product?.producto.toUpperCase()}
+        <h2 className="font-bold text-red-950 text-sm md:text-base text-center ">
+          <div className="line-clamp-2">{product?.producto.toUpperCase()}</div>
         </h2>
         <div className="mt-2 flex flex-wrap justify-center text-sm leading-6 text-red-950 flex-col items-center sm:flex-row">
           <dd className="flex items-center">

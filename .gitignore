@@ -33,3 +33,4 @@ client
 .venv/
 archivosPorCargar/csv
 archivosPorCargar/temporales
+dott-front/.env
