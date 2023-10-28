@@ -69,7 +69,9 @@ def obtenerDiccionario(nombreDiccionario):
 def tablaAir(archivo_bytesios):
 
     csv_reader = csv.reader(io.TextIOWrapper(
-        archivo_bytesios, encoding="iso-8859-1"), delimiter=',')
+        archivo_bytesios, encoding="iso-8859-1"), delimiter=',', quotechar='"', escapechar='"')
+
+    # lector_csv = csv.reader(archivo, delimiter=',', quotechar='"', escapechar='"')
 
     # Crea una lista para almacenar los datos
     data = []
