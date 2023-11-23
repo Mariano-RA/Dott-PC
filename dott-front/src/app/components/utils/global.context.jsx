@@ -56,6 +56,7 @@ export const ContextProvider = ({ children }) => {
     const getCategorys = async () => {
       const resVal = await fetch("/api/nest/categorys");
       const { categorys } = await resVal.json();
+      console.log(categorys)
       dispatch({ type: "set_categorys", payload: categorys });
     };
     getCategorys();
