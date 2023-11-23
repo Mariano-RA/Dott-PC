@@ -10,6 +10,6 @@ export async function GET() {
       return response.data;
     });
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
-
+  console.log(categorys);
   return NextResponse.json({ categorys });
 }
