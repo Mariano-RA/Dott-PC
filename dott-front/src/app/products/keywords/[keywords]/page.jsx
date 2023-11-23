@@ -52,7 +52,7 @@ const Page = ({ params }) => {
       ) : (
         <div className="flex justify-center w-full">
           <CategoryColumn />
-          <div className="flex-grow w-full flex flex-col justify-between">
+          <div className="flex-grow w-full flex flex-col justify-start">
             <div className="flex w-full justify-between items-center py-8 px-14">
               <p className="text-red-950 font-bold text-lg">
                 Todos los productos
