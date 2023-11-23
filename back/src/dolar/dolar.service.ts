@@ -12,28 +12,44 @@ export class DolaresService {
     private readonly dolarRepository: Repository<Dolar>
   ) {}
 
-  async getLastOne() {
-    const resDolar = await this.dolarRepository
-      .createQueryBuilder()
-      .select()
-      .orderBy("id", "DESC")
-      .getOne();
-
-    if (resDolar != null) {
-      const dolarFinal = new Dolar();
-      dolarFinal.id = resDolar.id;
-      dolarFinal.precioDolar = resDolar.precioDolar;
-      return dolarFinal;
-    }
-    return null;
+  async findAll() {
+    let valorDolar: Dolar[] = [];
+    const resDolar = await this.dolarRepository.find();
+    resDolar.forEach((tipoDolar) => {
+      let dolar = new Dolar();
+      dolar.id = tipoDolar.id;
+      dolar.precioDolar = tipoDolar.precioDolar;
+      dolar.proveedor= tipoDolar.proveedor;
+      valorDolar.push(dolar);
+    });
+    return valorDolar;
   }
 
-  async create(dolarDto: DolarDto) {
+  async getByProvider(proveedor: string){
+    const valorDolar =  await this.dolarRepository.findOneBy({
+      proveedor: proveedor,
+    });
+  }
+
+  async create(arrayDolar: DolarDto[]) {
     try {
-      await this.dolarRepository.save({ precioDolar: dolarDto.precioDolar });
-      return "Se creo el registro correctamente";
+      for(const valor of arrayDolar) {
+        const valorDolar = await this.dolarRepository.findOneBy({
+          proveedor: valor.proveedor,
+        });
+        if(!valorDolar){
+          this.dolarRepository.save({proveedor: valor.proveedor, precioDolar:valor.precioDolar});
+        }else{
+          this.dolarRepository.createQueryBuilder()
+          .update(Dolar)
+          .set({ precioDolar: valor.precioDolar })
+          .where("proveedor = :id", { id: valor.proveedor })
+          .execute()
+        }
+      };
+      return "Se crearon y/o actualizaron los valores correctamente";
     } catch (error) {
-      return error;
+      return error.message;
     }
   }
 }

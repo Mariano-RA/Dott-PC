@@ -14,7 +14,6 @@ export async function GET() {
     .then((response) => {
       return response.data;
     });
-
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
   return NextResponse.json({ dolar });
 }
@@ -34,17 +33,17 @@ export async function POST(request) {
       },
     };
 
-    const precioDolar = await request.json();
+    const datosDolar = await request.json();
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
     const response = await axios.post(
       `${apiUrl}/dolar`,
-      JSON.stringify(precioDolar),
+      datosDolar.arrayDolar,
       config
-    );
+    ).then(response => {return response.data});
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
-    return NextResponse.json({ response: response.data });
+    return NextResponse.json({ response });
   } catch (error) {
     console.error("Error en la solicitud POST:", error);
 

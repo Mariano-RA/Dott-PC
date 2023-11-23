@@ -20,14 +20,19 @@ export class DolaresController {
   constructor(private readonly dolaresService: DolaresService) {}
 
   @Get()
-  getLastOne() {
-    return this.dolaresService.getLastOne();
+  async findAll() {
+    return await this.dolaresService.findAll();
+  }
+  
+  @Get("byproveedor/")
+  async getByProvider(@Body() proveedor: string) {
+    return await this.dolaresService.getByProvider(proveedor);
   }
 
   @UseGuards(AuthorizationGuard, PermissionGuard)
   @SetMetadata("permissions", ["create:tablas"])
   @Post()
-  create(@Body() dolarDto: DolarDto) {
-    return this.dolaresService.create(dolarDto);
+  async cargarValores(@Body() dolarDto: DolarDto[]) {
+    return await this.dolaresService.create(dolarDto);
   }
 }
