@@ -395,7 +395,7 @@ export default withPageAuthRequired(function Admin() {
               ))}
             </tbody>
           </table>
-          <div className="flex justify-center mb-5">
+          <div className="flex justify-center mb-7">
             <button
               className="text-center hover:bg-red-950 hover:text-white p-1 ring-1 ring-red-950 rounded-md my-2"
               onClick={handleActualizarDolar}
