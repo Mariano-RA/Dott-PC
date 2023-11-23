@@ -191,12 +191,15 @@ export class ProductosService {
 
   async findAllCategories() {
     const productos = await this.productoRepository.find();
-    const categoriasSet = [];
+    const categoriasSet = new Set();
 
     productos.forEach((prod) => {
-      categoriasSet.push(prod.categoria);
+      categoriasSet.add(prod.categoria);
     });
-    return categoriasSet.sort();
+
+    const categorias = Array.from(categoriasSet); // Convertir el conjunto a un array
+
+    return categorias.sort();
   }
 
   async findByKeyWord(
