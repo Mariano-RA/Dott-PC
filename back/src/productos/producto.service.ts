@@ -42,8 +42,8 @@ function handleOrder(action, array) {
   const sortedArray = [...array];
 
   const sortingActions = {
-    mayor: (a, b) => b.precio - a.precio,
-    menor: (a, b) => a.precio - b.precio,
+    mayor: (a, b) => b.precioEfectivo - a.precioEfectivo,
+    menor: (a, b) => a.precioEfectivo - b.precioEfectivo,
     nombreAsc: (a, b) =>
       a.producto.toLowerCase().localeCompare(b.producto.toLowerCase()),
     nombreDesc: (a, b) =>
@@ -165,10 +165,11 @@ export class ProductosService {
       this.cuotasService.findAll(),
     ]);
 
-    const listadoProductos = [];
+    let listadoProductos = [];
 
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted.map((prod) => {
+    // let arrayProductos = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos.map((prod) => {
       const dto = new ProductoDto();
       dto.id = prod.id;
       dto.proveedor = prod.proveedor;
@@ -178,13 +179,14 @@ export class ProductosService {
       dto.precioEfectivo = obtenerPrecioEfectivo(
         prod.precio,
         valorDolar.precioDolar
-      );
+        );
       dto.precioCuotas = calcularValorCuotas(dto.precioEfectivo, listadoCuotas);
       listadoProductos.push(dto);
     });
 
     let listDto = new ListDto();
-    listDto.cantResultados = productosSorted.length;
+    listDto.cantResultados = arrayProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos);
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }
@@ -216,9 +218,10 @@ export class ProductosService {
 
     const listadoPalabras = keywords.split(" ");
 
-    const listadoProductos = [];
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted
+    let listadoProductos = [];
+    // let arrayProductos = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos
       .filter((x) =>
         listadoPalabras.every((word) =>
           x.producto.toLowerCase().includes(word.toLowerCase())
@@ -243,6 +246,7 @@ export class ProductosService {
       });
     let listDto = new ListDto();
     listDto.cantResultados = listadoProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos)
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }
@@ -258,9 +262,11 @@ export class ProductosService {
       this.dolaresService.findAll(),
       this.cuotasService.findAll(),
     ]);
-    const listadoProductos = [];
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted
+
+    let listadoProductos = [];
+    // let productosSorted = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos
       .filter((x) => x.categoria.toLowerCase().includes(category.toLowerCase()))
       .map((prod) => {
         const dto = new ProductoDto();
@@ -282,6 +288,7 @@ export class ProductosService {
 
     let listDto = new ListDto();
     listDto.cantResultados = listadoProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos);
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }
@@ -298,9 +305,10 @@ export class ProductosService {
       this.dolaresService.findAll(),
       this.cuotasService.findAll(),
     ]);
-    const listadoProductos = [];
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted
+    let listadoProductos = [];
+    // let productosSorted = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos
       .filter(
         (x) =>
           keywords.every((word) =>
@@ -327,6 +335,7 @@ export class ProductosService {
 
     let listDto = new ListDto();
     listDto.cantResultados = listadoProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos);
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }
