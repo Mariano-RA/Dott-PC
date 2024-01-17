@@ -45,7 +45,7 @@ const ProductCard = ({ product }) => {
   }, [product]);
 
   return (
-    <article className="flex justify-between flex-col p-3 sm:p-6 ring-1 rounded-md ring-red-950 w-40 md:w-52 sm:w-80 mb-5 h-44 sm:h-44 mx-4">
+    <article className="flex justify-between flex-col p-3 sm:p-6 ring-1 rounded-md ring-red-950 w-40 md:w-52 sm:w-80 mb-5 h-44 sm:h-44 mx-4 md:mx-0">
       {/* <img
         src={movie.image}
         alt=""
