@@ -42,8 +42,8 @@ function handleOrder(action, array) {
   const sortedArray = [...array];
 
   const sortingActions = {
-    mayor: (a, b) => b.precio - a.precio,
-    menor: (a, b) => a.precio - b.precio,
+    mayor: (a, b) => b.precioEfectivo - a.precioEfectivo,
+    menor: (a, b) => a.precioEfectivo - b.precioEfectivo,
     nombreAsc: (a, b) =>
       a.producto.toLowerCase().localeCompare(b.producto.toLowerCase()),
     nombreDesc: (a, b) =>
@@ -89,11 +89,11 @@ export class ProductosService {
       base64: newMessageDto.base64,
     };
     await this.client.emit("api_python", msg);
-    console.log("Mensaje enviado a python..");
     return "Se envio el mensaje de carga!";
   }
 
   async updateTable(data: newTableDto) {
+    console.log("Mensaje recibido...")
     const productDto = data.resultado;
 
     try {
@@ -106,6 +106,7 @@ export class ProductosService {
       if (!proveedorExistente) {
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
+        console.log(`Se crearon nuevos datos correspondientes a ${id} correctamente.`)
         return `Se crearon nuevos datos correspondientes a ${id} correctamente.`;
       } else {
         await this.productoRepository
@@ -118,39 +119,74 @@ export class ProductosService {
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
         this.logger.debug("Se actualizaron tablas");
-        console.log(`Se actualizo la tabla de: ${id}`);
+        console.log("Se actualizaron tablas");
+        return `Se actualizo la tabla de: ${id}`;
       }
     } catch (error) {
       this.logger.error(error);
+      return "Hubo un error al actualizar la tabla" + error
+    }
+  }
+
+  async deleteTable(proveedorDto) {
+
+    const idProveedor = proveedorDto.proveedor;
+    try {
+      const proveedorExistente = await this.productoRepository.findOneBy({
+        proveedor: idProveedor,
+      });
+
+      if (proveedorExistente) {
+        await this.productoRepository
+          .createQueryBuilder("Productos")
+          .delete()
+          .from(Producto)
+          .where("proveedor = :id", { id: idProveedor })
+          .execute();
+
+        this.logger.debug("Se borro tablas");
+        return `Se borro la tabla de: ${idProveedor}`
+      }
+      else{
+        this.logger.debug("No habia ningun proveedor con ese id");
+        return `No habia un listado del proveedor ${idProveedor}`
+      }
+    } catch (error) {
+      this.logger.error(error);
+      console.log(error)
+      return error;
     }
   }
 
   async findAll(skip: number, take: number, orderBy: string) {
-    const [productos, valorDolar, listadoCuotas] = await Promise.all([
+    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
       this.productoRepository.find(),
-      this.dolaresService.getLastOne(),
+      this.dolaresService.findAll(),
       this.cuotasService.findAll(),
     ]);
 
-    const listadoProductos = [];
+    let listadoProductos = [];
 
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted.map((prod) => {
+    // let arrayProductos = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos.map((prod) => {
       const dto = new ProductoDto();
       dto.id = prod.id;
       dto.proveedor = prod.proveedor;
       dto.producto = prod.producto;
       dto.categoria = prod.categoria;
+      const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
       dto.precioEfectivo = obtenerPrecioEfectivo(
         prod.precio,
         valorDolar.precioDolar
-      );
+        );
       dto.precioCuotas = calcularValorCuotas(dto.precioEfectivo, listadoCuotas);
       listadoProductos.push(dto);
     });
 
     let listDto = new ListDto();
-    listDto.cantResultados = productosSorted.length;
+    listDto.cantResultados = arrayProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos);
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }
@@ -174,17 +210,18 @@ export class ProductosService {
     take: number,
     orderBy: string
   ) {
-    const [productos, valorDolar, listadoCuotas] = await Promise.all([
+    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
       this.productoRepository.find(),
-      this.dolaresService.getLastOne(),
+      this.dolaresService.findAll(),
       this.cuotasService.findAll(),
     ]);
 
     const listadoPalabras = keywords.split(" ");
 
-    const listadoProductos = [];
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted
+    let listadoProductos = [];
+    // let arrayProductos = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos
       .filter((x) =>
         listadoPalabras.every((word) =>
           x.producto.toLowerCase().includes(word.toLowerCase())
@@ -196,9 +233,10 @@ export class ProductosService {
         dto.proveedor = prod.proveedor;
         dto.producto = prod.producto;
         dto.categoria = prod.categoria;
+        const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
         dto.precioEfectivo = obtenerPrecioEfectivo(
-          prod.precio,
-          valorDolar.precioDolar
+        prod.precio,
+        valorDolar.precioDolar
         );
         dto.precioCuotas = calcularValorCuotas(
           dto.precioEfectivo,
@@ -208,6 +246,7 @@ export class ProductosService {
       });
     let listDto = new ListDto();
     listDto.cantResultados = listadoProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos)
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }
@@ -218,14 +257,16 @@ export class ProductosService {
     take: number,
     orderBy: string
   ) {
-    const [productos, valorDolar, listadoCuotas] = await Promise.all([
+    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
       this.productoRepository.find(),
-      this.dolaresService.getLastOne(),
+      this.dolaresService.findAll(),
       this.cuotasService.findAll(),
     ]);
-    const listadoProductos = [];
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted
+
+    let listadoProductos = [];
+    // let productosSorted = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos
       .filter((x) => x.categoria.toLowerCase().includes(category.toLowerCase()))
       .map((prod) => {
         const dto = new ProductoDto();
@@ -233,6 +274,7 @@ export class ProductosService {
         dto.proveedor = prod.proveedor;
         dto.producto = prod.producto;
         dto.categoria = prod.categoria;
+        const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
         dto.precioEfectivo = obtenerPrecioEfectivo(
           prod.precio,
           valorDolar.precioDolar
@@ -246,6 +288,7 @@ export class ProductosService {
 
     let listDto = new ListDto();
     listDto.cantResultados = listadoProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos);
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }
@@ -257,14 +300,15 @@ export class ProductosService {
     take: number,
     orderBy: string
   ) {
-    const [productos, valorDolar, listadoCuotas] = await Promise.all([
+    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
       this.productoRepository.find(),
-      this.dolaresService.getLastOne(),
+      this.dolaresService.findAll(),
       this.cuotasService.findAll(),
     ]);
-    const listadoProductos = [];
-    let productosSorted = handleOrder(orderBy, productos);
-    productosSorted
+    let listadoProductos = [];
+    // let productosSorted = handleOrder(orderBy, productos);
+    let arrayProductos = productos;
+    arrayProductos
       .filter(
         (x) =>
           keywords.every((word) =>
@@ -277,6 +321,7 @@ export class ProductosService {
         dto.proveedor = prod.proveedor;
         dto.producto = prod.producto;
         dto.categoria = prod.categoria;
+        const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
         dto.precioEfectivo = obtenerPrecioEfectivo(
           prod.precio,
           valorDolar.precioDolar
@@ -290,6 +335,7 @@ export class ProductosService {
 
     let listDto = new ListDto();
     listDto.cantResultados = listadoProductos.length;
+    listadoProductos = handleOrder(orderBy, listadoProductos);
     listDto.productos = pagination(skip, take, listadoProductos);
     return listDto;
   }

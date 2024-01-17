@@ -59,7 +59,7 @@ const Page = ({ params }) => {
               </p>
               <Dropdown handleSort={handleSelectedSort} />
             </div>
-            <div className="flex flex-wrap justify-evenly w-full items-center px-0 md:px-14">
+            <div className="flex flex-grow flex-wrap justify-evenly w-full items-start px-0 md:px-14 content-start">
               {products?.map((product) => (
                 <ProductCard product={product} key={product.id} />
               ))}

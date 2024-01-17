@@ -33,6 +33,7 @@ import { LoggerModule } from "nestjs-pino";
     TypeOrmModule.forRoot({
       type: "mysql",
       host: "mysql",
+      // host: "localhost",
       port: 3306,
       username: "do0tt",
       password: "M@riano1820",

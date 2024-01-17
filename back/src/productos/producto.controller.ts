@@ -2,6 +2,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   ParseArrayPipe,
   Post,
@@ -21,6 +22,7 @@ import {
 } from "@nestjs/microservices";
 import { newTableDto } from "./dto/newTableDto";
 import { newMessageDto } from "./dto/newMessageDto";
+import { deleteProveedorDto } from "./dto/deleteProveedorDto";
 
 @Controller("productos")
 export class ProductosController {
@@ -30,13 +32,11 @@ export class ProductosController {
   @SetMetadata("permissions", ["create:tablas"])
   @Post()
   async updateTable(@Body() newMessageDto: newMessageDto) {
-    console.log("Enviando mensaje a python");
     return await this.productosService.sendMessageData(newMessageDto);
   }
 
   @MessagePattern("carga_tabla")
   async cargaTabla(@Payload() data: newTableDto, @Ctx() context: RmqContext) {
-    console.log("Mensaje recibido..");
     return await this.productosService.updateTable(data);
   }
 
@@ -91,5 +91,12 @@ export class ProductosController {
       take,
       orderBy
     );
+  }
+
+  @UseGuards(AuthorizationGuard, PermissionGuard)
+  @SetMetadata("permissions", ["create:tablas"])
+  @Post("delete/")
+  async delete(@Body() proveedorDto:deleteProveedorDto) {
+    return await this.productosService.deleteTable(proveedorDto)
   }
 }

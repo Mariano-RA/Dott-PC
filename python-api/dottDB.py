@@ -119,8 +119,8 @@ def tablaEikon(archivo_bytesio):
 
     for index, row in df.iterrows():
         descripcion = row[1]
-        categoria = row[6]
-        precio = row[3]
+        categoria = row[5]
+        precio = row[2]
 
         registro = {
             "proveedor": "eikon",
@@ -197,7 +197,7 @@ def tablaHdc(archivo_bytesio):
 
     for index, row in df.iterrows():
         if not math.isnan(row[7]):  # Verificar si no es NaN
-            descripcion = row[5]
+            descripcion = row[4]
             if row[3]:
                 categoria = unidecode(str(row[3]))
             else:

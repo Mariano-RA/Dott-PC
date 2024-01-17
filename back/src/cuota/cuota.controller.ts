@@ -20,9 +20,6 @@ import { PermissionGuard } from "src/authTest/permission.guard";
 export class CuotasController {
   constructor(private readonly cuotasService: CuotasService) {}
 
-  // @Public()
-
-  // @UseGuards(AuthGuard("jwt"))
   @Get()
   findAll() {
     return this.cuotasService.findAll();

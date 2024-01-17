@@ -30,13 +30,6 @@ export async function POST(request) {
       },
     });
 
-    // const formData = await request.formData();
-    // const file = formData.get("file");
-    // const proveedor = formData.get("proveedor");
-
-    // const formDataToSend = new FormData();
-    // formDataToSend.append("file", file);
-
     const datoRequest = await request.json();
 
     const config = {
@@ -55,52 +48,41 @@ export async function POST(request) {
 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
 
-    // const arrayFormateado = [];
-
-    // for (const objeto of response.data) {
-    //   const objetoFormateado = {
-    //     proveedor: objeto.proveedor,
-    //     producto: objeto.producto,
-    //     categoria: objeto.categoria,
-    //     precio: objeto.precio,
-    //   };
-    //   arrayFormateado.push(objetoFormateado);
-    // }
-
-    // const configTest = {
-    //   method: "POST",
-    //   url: `${apiUrl}/api/productos`,
-    //   headers: {
-    //     Authorization: "Bearer " + accessToken,
-    //   },
-    // };
-
-    // configTest.data = arrayFormateado;
-
-    // process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
-
-    // const configTestTest = {
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //     Authorization: "Bearer " + accessToken,
-    //   },
-    // };
-    // const datita = await axios
-    //   .post(
-    //     `${apiUrl}/api/productos`,
-    //     JSON.stringify(arrayFormateado),
-    //     configTestTest
-    //   )
-    //   .then((response) => {
-    //     return response.data;
-    //   })
-    //   .catch((err) => {
-    //     return err;
-    //   });
-    // process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
-
     return NextResponse.json({ response });
   } catch (error) {
     return NextResponse.error("Error en la solicitud POST", error);
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { accessToken } = await getSession(request, null, {
+      authorizationParams: {
+        scope: "create:tablas offline_access",
+      },
+    });
+
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + accessToken,
+      },
+    };
+
+    const proveedor = await request.json();
+
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+    const response = await axios.post(
+      `${apiUrl}/productos/delete`,
+      proveedor,
+      config
+    ).then(response => {return response.data});
+
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 1;
+    
+    return NextResponse.json({ response});
+  } catch (error) {
+    console.error("Error en la solicitud DELETE:", error);
+    return NextResponse.error("Error en la solicitud DELETE", 500);
   }
 }
