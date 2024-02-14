@@ -51,6 +51,7 @@ export default withPageAuthRequired(function Admin() {
   const [usrRoles, setUsrRoles] = useState([]);
   const { user } = useUser();
   const [alert, setAlert] = useState("");
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
     const roles = user["http://localhost:3000/roles"];
@@ -152,6 +153,7 @@ export default withPageAuthRequired(function Admin() {
     });
     const responseData = await resval.json();
     setAlert(responseData);
+    setShow(true);
   }
   async function handleActualizarDolar() {
     const resVal = await fetch(`/api/nest/dolar`, {
@@ -162,6 +164,7 @@ export default withPageAuthRequired(function Admin() {
     });
     const responseData = await resVal.json();
     setAlert(responseData);
+    setShow(true);
   }
 
   async function handleUpdateProvider() {
@@ -191,12 +194,15 @@ export default withPageAuthRequired(function Admin() {
       if (resval.ok) {
         const responseData = await resval.json();
         setAlert(responseData);
+        setShow(true);
         
       } else {
         setAlert("Error al enviar la solicitud a la API.");
+        setShow(true);
       }
     } catch (error) {
       setAlert("Error:", error);
+      setShow(true);
     }
   }
 
@@ -410,10 +416,7 @@ export default withPageAuthRequired(function Admin() {
             </button>
           </div>
         </div>
-        {
-          alert != "" && 
-          <Alert alertText={alert} />
-        }
+        <Alert action={show} alertText={alert} />
       </div>
     );
   }
