@@ -154,12 +154,9 @@ export default withPageAuthRequired(function Admin() {
         arrayCuotas,
       }),
     });
-    const responseData = await resVal.json();
-    if(responseData){
-      console.log(responseData);
-      setAlert(responseData.response);
-      setShow(true);
-    }
+    const responseData = await resVal.json();  
+    setAlert(responseData.response);
+    setShow(true);  
   }
   async function handleActualizarDolar() {
     const resVal = await fetch(`/api/nest/dolar`, {
