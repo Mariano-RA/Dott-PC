@@ -85,11 +85,21 @@ export default function Cart({ action, handleCloseCart }) {
     handleTotalProduct();
   }, [arrSubtotal, setTotalCart]);
 
+  function getTotalForSend(itemId){
+    var mount = 0;
+    arrSubtotal.map((product) => {
+      if (product.id === itemId) {
+        mount = product.subtotal;
+      }
+    });
+    return mount;
+  }
+
   function handlePresupuesto() {
     let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n\n${state.productCart
       .map(
         (item) =>
-          `${item.producto} - ${item.proveedor} - $${arrSubtotal.filter(x => x.id == item.id).subtotal}`
+          `${item.producto} - ${item.proveedor} - $${getTotalForSend(item.id)}`
       )
       .join("\n")}`;
 
