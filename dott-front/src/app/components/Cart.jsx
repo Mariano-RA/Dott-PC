@@ -53,6 +53,7 @@ export default function Cart({ action, handleCloseCart }) {
         return product;
       });
 
+      console.log(newArr);
       setArrSubtotal(newArr);
     }
   }
