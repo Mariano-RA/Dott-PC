@@ -53,7 +53,6 @@ export default function Cart({ action, handleCloseCart }) {
         return product;
       });
 
-      console.log(newArr);
       setArrSubtotal(newArr);
     }
   }
@@ -90,7 +89,7 @@ export default function Cart({ action, handleCloseCart }) {
     let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n\n${state.productCart
       .map(
         (item) =>
-          `${item.producto} - ${item.proveedor} - $${item.precioEfectivo}`
+          `${item.producto} - ${item.proveedor} - $${arrSubtotal.filter(x => x.id == item.id).subtotal}`
       )
       .join("\n")}`;
 
