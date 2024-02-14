@@ -119,9 +119,9 @@ export default withPageAuthRequired(function Admin() {
         }),
       })
       const responseData = await resVal.json();
-      if(responseData != ""){
+      if(responseData){
         console.log(responseData);
-        setAlert(responseData);
+        setAlert(responseData.response);
         setShow(true);
       }     
     }
@@ -154,10 +154,10 @@ export default withPageAuthRequired(function Admin() {
         arrayCuotas,
       }),
     });
-    const responseData = await resval.json();
-    if(responseData != ""){
+    const responseData = await resVal.json();
+    if(responseData){
       console.log(responseData);
-      setAlert(responseData);
+      setAlert(responseData.response);
       setShow(true);
     }
   }
@@ -169,9 +169,9 @@ export default withPageAuthRequired(function Admin() {
       })
     });
     const responseData = await resVal.json();
-    if(responseData != ""){
+    if(responseData){
       console.log(responseData);
-      setAlert(responseData);
+      setAlert(responseData.response);
       setShow(true);
     }
   }
@@ -202,9 +202,9 @@ export default withPageAuthRequired(function Admin() {
 
       if (resval.ok) {
         const responseData = await resval.json();
-        if(responseData != ""){
+        if(responseData){
           console.log(responseData);
-          setAlert(responseData);
+          setAlert(responseData.response);
           setShow(true);
         }
         
