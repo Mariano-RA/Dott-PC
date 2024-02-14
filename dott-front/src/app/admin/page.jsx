@@ -124,7 +124,6 @@ export default withPageAuthRequired(function Admin() {
       })
       const responseData = await resVal.json();
       if(responseData){
-        console.log(responseData);
         setAlert(responseData.response);
         setShow(true);
       }     
@@ -159,8 +158,10 @@ export default withPageAuthRequired(function Admin() {
       }),
     });
     const responseData = await resVal.json();  
-    setAlert(responseData.response);
-    setShow(true);  
+    if(responseData){
+      setAlert(responseData.response);
+      setShow(true);
+    }     
   }
   async function handleActualizarDolar() {
     const resVal = await fetch(`/api/nest/dolar`, {
@@ -171,10 +172,9 @@ export default withPageAuthRequired(function Admin() {
     });
     const responseData = await resVal.json();
     if(responseData){
-      console.log(responseData);
       setAlert(responseData.response);
       setShow(true);
-    }
+    }    
   }
 
   async function handleUpdateProvider() {
@@ -204,10 +204,9 @@ export default withPageAuthRequired(function Admin() {
       if (resval.ok) {
         const responseData = await resval.json();
         if(responseData){
-          console.log(responseData);
           setAlert(responseData.response);
           setShow(true);
-        }
+        }    
         
       } else {
         setAlert("Error al enviar la solicitud a la API.");
