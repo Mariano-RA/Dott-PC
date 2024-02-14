@@ -1,5 +1,5 @@
+"use client";
 import { Fragment, useRef, useState } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline'
 
 export default function Alert({alertText}) {
