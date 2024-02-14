@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
 import { redirect } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
+import Alert from "../components/Alert";
 
 const fetcher = async (uri) => {
   const response = await fetch(uri);
@@ -49,6 +50,7 @@ export default withPageAuthRequired(function Admin() {
   const [deleteProveedor, setDeleteProveedor] = useState("");
   const [usrRoles, setUsrRoles] = useState([]);
   const { user } = useUser();
+  const [alert, setAlert] = useState("");
 
   useEffect(() => {
     const roles = user["http://localhost:3000/roles"];
@@ -116,7 +118,8 @@ export default withPageAuthRequired(function Admin() {
         }),
       })
       const responseData = await resVal.json();
-      console.log(responseData)
+      setAlert(responseData);
+      
     }
   }
 
@@ -147,6 +150,8 @@ export default withPageAuthRequired(function Admin() {
         arrayCuotas,
       }),
     });
+    const responseData = await resval.json();
+    setAlert(responseData);
   }
   async function handleActualizarDolar() {
     const resVal = await fetch(`/api/nest/dolar`, {
@@ -156,7 +161,7 @@ export default withPageAuthRequired(function Admin() {
       })
     });
     const responseData = await resVal.json();
-    console.log(responseData)
+    setAlert(responseData);
   }
 
   async function handleUpdateProvider() {
@@ -185,12 +190,13 @@ export default withPageAuthRequired(function Admin() {
 
       if (resval.ok) {
         const responseData = await resval.json();
-        console.log("El resultado de la consulta fue:", responseData);
+        setAlert(responseData);
+        
       } else {
-        console.error("Error al enviar la solicitud a la API.");
+        setAlert("Error al enviar la solicitud a la API.");
       }
     } catch (error) {
-      console.error("Error:", error);
+      setAlert("Error:", error);
     }
   }
 
@@ -404,6 +410,10 @@ export default withPageAuthRequired(function Admin() {
             </button>
           </div>
         </div>
+        {
+          alert != "" && 
+          <Alert alertText={alert} />
+        }
       </div>
     );
   }
