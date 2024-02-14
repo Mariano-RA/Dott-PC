@@ -102,6 +102,10 @@ export default withPageAuthRequired(function Admin() {
     }
   }, [data]);
 
+  function handleCloseAlert(action) {
+    setShow(action);
+  }
+
   function handleSelectOption(e) {
     setProveedor(e.target.value);
   }
@@ -428,7 +432,7 @@ export default withPageAuthRequired(function Admin() {
             </button>
           </div>
         </div>
-        <Alert action={show} alertText={alert} />
+        <Alert action={show} alertText={alert} handleCloseAlert={handleCloseAlert} />
       </div>
     );
   }

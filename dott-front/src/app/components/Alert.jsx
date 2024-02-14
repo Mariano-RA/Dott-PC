@@ -2,10 +2,29 @@ import { Fragment, useRef, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline'
 
-export default function Alert({alertText}) {
-  const [open, setOpen] = useState(true)
+export default function Alert({alertText, action, handleCloseAlert}) {
+  const [open, setOpen] = useState(false);
+  const cancelButtonRef = useRef(null);
 
-  const cancelButtonRef = useRef(null)
+  useEffect(() => {
+    const handleShow = () => {
+      if (action) {
+        setOpen(true);
+      } else {
+        setOpen(false);
+      }
+    };
+    handleShow();
+  }, [action]);
+
+  useEffect(() => {
+    const handleClose = () => {
+      if (open == false) {
+        handleCloseAlert(open);
+      }
+    };
+    handleClose();
+  }, [open]);
 
   return (
     <Transition.Root show={open} as={Fragment}>
