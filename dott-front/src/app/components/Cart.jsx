@@ -99,7 +99,7 @@ export default function Cart({ action, handleCloseCart }) {
     let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n\n${state.productCart
       .map(
         (item) =>
-          `${item.producto} - ${item.proveedor} - $${getTotalForSend(item.id)}`
+          `${item.producto} - ${getTotalForSend(item.id)/item.precioEfectivo} - ${item.proveedor} - $${getTotalForSend(item.id)}`
       )
       .join("\n")}`;
 
