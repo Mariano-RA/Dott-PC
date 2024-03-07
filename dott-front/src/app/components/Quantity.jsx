@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { PlusIcon, MinusIcon } from "@heroicons/react/24/outline";
-const Quantity = ({ handleQuantity }) => {
+const Quantity = ({quantity, handleQuantity }) => {
   const [cantidad, setCantidad] = useState(1);
+
+  useEffect(() => {
+    const handleDefaultQuantity = () => {
+      if(quantity != null && quantity > 0){
+        setCantidad(quantity);
+      }
+    };
+    handleDefaultQuantity();
+  }, []);
 
   function reduceQuantity() {
     if (cantidad > 1) {

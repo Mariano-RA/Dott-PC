@@ -41,7 +41,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
         state.productCart.filter((prodCart) => prodCart.id === product.id)
           .length > 0
       ) {
-        handleCantidad(product.quantity);
+        setCantidad(product.quantity);
       }
     };
     handleSaveQuantity();
@@ -72,7 +72,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
             value={cantidad}
             onChange={handleCantidad}
           /> */}
-          <Quantity handleQuantity={handleCantidad} />
+          <Quantity handleQuantity={handleCantidad} quantity={product?.quantity}/>
           <button
             type="button"
             className="font-medium text-red-600 hover:text-red-500"
