@@ -36,12 +36,15 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
   }
 
   useEffect(() => {
-    if (
-      state.productCart.filter((prodCart) => prodCart.id === product.id)
-        .length > 0
-    ) {
-      setCantidad(product.quantity);
-    }
+    const handleSaveQuantity = () => {
+      if (
+        state.productCart.filter((prodCart) => prodCart.id === product.id)
+          .length > 0
+      ) {
+        setCantidad(product.quantity);
+      }
+    };
+    handleSaveQuantity();
   }, []);
 
   useEffect(() => {
