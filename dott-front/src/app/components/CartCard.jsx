@@ -4,8 +4,8 @@ import Quantity from "./Quantity";
 
 const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
   const { state, removeCart, updateCart } = useContext(ContextGlobal);
-  const [cantidad, setCantidad] = useState(1);
-  const [subtotal, setSubtotal] = useState();
+  // const [cantidad, setCantidad] = useState(1);
+  // const [subtotal, setSubtotal] = useState();
   const [IsHovered, setIsHovered] = useState(false);
 
   function handleCart() {
@@ -60,7 +60,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
             <a>{product?.producto}</a>
           </h3>
           <p className="ml-4">
-            ${new Intl.NumberFormat("es-AR").format(subtotal)}
+            ${new Intl.NumberFormat("es-AR").format(product?.precioEfectivo * product?.quantity)}
           </p>
         </div>
       </div>
