@@ -106,10 +106,10 @@ export default function Cart({ action, handleCloseCart }) {
   // }
 
   function handlePresupuesto() {
-    let message = `Hola Nano! Me interesan estos productos \n\n\n${state.productCart
+    let message = `Hola!\n Productos de interes:\n\n${state.productCart
       .map(
         (item) =>
-          `${item.producto.substring(0, 25)} - ${item.quantity} - ${item.proveedor} - $${item.quantity * item.precioEfectivo}`
+          `${item.producto} - ${item.quantity} - ${item.proveedor} - $${item.quantity * item.precioEfectivo}`
       )
       .join("\n")}`;
 
