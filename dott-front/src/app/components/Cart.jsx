@@ -33,33 +33,43 @@ export default function Cart({ action, handleCloseCart }) {
     handleClose();
   }, [open]);
 
-  function handleRemoveFromCart(productId) {
-    const updatedSubtotals = arrSubtotal.filter((sub) => sub.id !== productId);
-    setArrSubtotal(updatedSubtotals);
-  }
+  // function handleRemoveFromCart(productId) {
+  //   const updatedSubtotals = arrSubtotal.filter((sub) => sub.id !== productId);
+  //   setArrSubtotal(updatedSubtotals);
+  // }
 
   const calcularCuota = (precio, interes, cuota) => {
     return Math.round(precio / (1 - interes / 100) / cuota);
   };
 
-  function handleSubtotal(data) {
-    if (!arrSubtotal.find((prod) => prod.id === data.id)) {
-      setArrSubtotal((arr) => [...arr, data]);
-    } else {
-      const newArr = arrSubtotal.map((product) => {
-        if (product.id === data.id) {
-          return { ...product, subtotal: data.subtotal };
-        }
-        return product;
-      });
+  // function handleSubtotal(data) {
+  //   if (!arrSubtotal.find((prod) => prod.id === data.id)) {
+  //     setArrSubtotal((arr) => [...arr, data]);
+  //   } else {
+  //     const newArr = arrSubtotal.map((product) => {
+  //       if (product.id === data.id) {
+  //         return { ...product, subtotal: data.subtotal };
+  //       }
+  //       return product;
+  //     });
 
-      setArrSubtotal(newArr);
-    }
-  }
+  //     setArrSubtotal(newArr);
+  //   }
+  // }
+
+  useEffect(() => {
+    const getSubtotal = async () => {
+      const resVal = await fetch("/api/nest/quote");
+      const { cuotas } = await resVal.json();
+      setValorCuota(cuotas);
+
+    };
+    getSubtotal();
+  }, [state]);
 
   function handleTotalProduct() {
-    let total = arrSubtotal.reduce((acc, item) => acc + item.subtotal, 0);
-
+    let total = state.productCart.reduce((acc,item) => acc + item.precioEfectivo * item.quantity, 0);
+    // let total = arrSubtotal.reduce((acc, item) => acc + item.subtotal, 0);
     setTotalCart(total);
   }
 
@@ -83,23 +93,23 @@ export default function Cart({ action, handleCloseCart }) {
 
   useEffect(() => {
     handleTotalProduct();
-  }, [arrSubtotal, setTotalCart]);
+  }, [state, setTotalCart]);
 
-  function getTotalForSend(itemId){
-    var mount = 0;
-    arrSubtotal.map((product) => {
-      if (product.id === itemId) {
-        mount = product.subtotal;
-      }
-    });
-    return mount;
-  }
+  // function getTotalForSend(itemId){
+  //   var mount = 0;
+  //   state.productCart.map((product) => {
+  //     if (product.id === itemId) {
+  //       mount = product.subtotal;
+  //     }
+  //   });
+  //   return mount;
+  // }
 
   function handlePresupuesto() {
     let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n\n${state.productCart
       .map(
         (item) =>
-          `${item.producto} - ${getTotalForSend(item.id)/item.precioEfectivo} - ${item.proveedor} - $${getTotalForSend(item.id)}`
+          `${item.producto} - ${item.quantity} - ${item.proveedor} - $${item.quantity * item.precioEfectivo}`
       )
       .join("\n")}`;
 
@@ -184,8 +194,8 @@ export default function Cart({ action, handleCloseCart }) {
 
                                   <CartCard
                                     product={product}
-                                    subTotalProduct={handleSubtotal}
-                                    removeFromArr={handleRemoveFromCart}
+                                    // subTotalProduct={handleSubtotal}
+                                    // removeFromArr={handleRemoveFromCart}
                                   />
                                 </li>
                               ))}

@@ -14,7 +14,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
         .length > 0
     ) {
       removeCart(product.id);
-      removeFromArr(product.id);
+      // removeFromArr(product.id);
     }
   }
 
@@ -26,14 +26,14 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
     updateCart(product.id, cantidad);
   }
 
-  function handleSubtotal() {
-    setSubtotal(product.precioEfectivo * cantidad);
-    let item = {
-      id: product.id,
-      subtotal: product.precioEfectivo * cantidad,
-    };
-    subTotalProduct(item);
-  }
+  // function handleSubtotal() {
+  //   setSubtotal(product.precioEfectivo * cantidad);
+  //   let item = {
+  //     id: product.id,
+  //     subtotal: product.precioEfectivo * cantidad,
+  //   };
+  //   subTotalProduct(item);
+  // }
 
   useEffect(() => {
     const handleSaveQuantity = () => {
