@@ -3,7 +3,7 @@ import { ContextGlobal } from "./utils/global.context";
 import Quantity from "./Quantity";
 
 const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
-  const { state, removeCart } = useContext(ContextGlobal);
+  const { state,addCart, removeCart } = useContext(ContextGlobal);
   const [cantidad, setCantidad] = useState(1);
   const [subtotal, setSubtotal] = useState();
   const [IsHovered, setIsHovered] = useState(false);
