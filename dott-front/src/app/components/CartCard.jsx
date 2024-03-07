@@ -48,7 +48,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
   }, []);
 
   useEffect(() => {
-    handleSubtotal();
+    // handleSubtotal();
     updateCartQuantity();
   }, [cantidad]);
 
