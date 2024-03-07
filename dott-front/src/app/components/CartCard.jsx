@@ -20,6 +20,13 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
 
   function handleCantidad(value) {
     setCantidad(value);
+    if (
+      state.productCart.filter((prodCart) => prodCart.id === product.id)
+        .length > 0
+    ) {
+      removeCart(product.id);
+      addCart({...product, quantity: value});
+    }
   }
 
   function handleSubtotal() {
@@ -30,6 +37,17 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
     };
     subTotalProduct(item);
   }
+
+  useEffect(() => {
+    if (
+      state.productCart.filter((prodCart) => prodCart.id === product.id)
+        .length > 0
+    ) {
+      if(product.quantity !== null){
+        setCantidad(product.quantity)
+      }      
+    }
+  }, []);
 
   useEffect(() => {
     handleSubtotal();
