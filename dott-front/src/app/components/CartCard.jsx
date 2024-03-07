@@ -41,8 +41,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
         state.productCart.filter((prodCart) => prodCart.id === product.id)
           .length > 0
       ) {
-        console.log(product.quantity);
-        setCantidad(product.quantity);
+        handleCantidad(product.quantity);
       }
     };
     handleSaveQuantity();
