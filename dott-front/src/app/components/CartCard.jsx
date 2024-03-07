@@ -20,7 +20,6 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
 
   function handleCantidad(value) {
     setCantidad(value);
-    updateCartQuantity();
   }
 
   function updateCartQuantity(){
@@ -47,6 +46,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
 
   useEffect(() => {
     handleSubtotal();
+    updateCartQuantity();
   }, [cantidad]);
 
   return (
