@@ -25,7 +25,7 @@ const ProductCard = ({ product }) => {
       removeCart(product.id);
       setIsSelected(false);
     } else {
-      addCart(product);
+      addCart({...product, quantity: 1});
       setIsSelected(true);
     }
   }
