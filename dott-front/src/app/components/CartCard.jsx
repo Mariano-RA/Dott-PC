@@ -3,7 +3,7 @@ import { ContextGlobal } from "./utils/global.context";
 import Quantity from "./Quantity";
 
 const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
-  const { state,addCart, removeCart } = useContext(ContextGlobal);
+  const { state, removeCart, updateCart } = useContext(ContextGlobal);
   const [cantidad, setCantidad] = useState(1);
   const [subtotal, setSubtotal] = useState();
   const [IsHovered, setIsHovered] = useState(false);
@@ -20,13 +20,11 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
 
   function handleCantidad(value) {
     setCantidad(value);
-    if (
-      state.productCart.filter((prodCart) => prodCart.id === product.id)
-        .length > 0
-    ) {
-      removeCart(product.id);
-      addCart({...product, quantity: value});
-    }
+    updateCartQuantity(cantidad)
+  }
+
+  function updateCartQuantity(cantidad){
+    updateCart(product.id, cantidad)
   }
 
   function handleSubtotal() {
@@ -37,17 +35,6 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
     };
     subTotalProduct(item);
   }
-
-  useEffect(() => {
-    if (
-      state.productCart.filter((prodCart) => prodCart.id === product.id)
-        .length > 0
-    ) {
-      if(product.quantity !== null){
-        setCantidad(product.quantity)
-      }      
-    }
-  }, []);
 
   useEffect(() => {
     handleSubtotal();

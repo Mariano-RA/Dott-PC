@@ -27,6 +27,13 @@ function reducer(state, action) {
           (item) => item.id !== action.payload
         ),
       };
+    case "update_cart":
+      return {
+        ...state,
+        productCart: state.productCart.map(item =>
+          item.id === action.payload.id ? { ...item, quantity: action.payload.quantity } : item
+        ),
+      };
 
     case "set_state":
       return action.state; // Para inicializar el estado desde el Local Storage
@@ -68,9 +75,12 @@ export const ContextProvider = ({ children }) => {
   const removeCart = (itemId) => {
     dispatch({ type: "remove_cart", payload: itemId });
   };
+  const updateCart = (itemId, quantity) => {
+    dispatch({ type: 'update_cart', payload: { id: itemId, quantity: quantity } });
+  };
 
   const value = useMemo(() => {
-    return { state, dispatch, addCart, removeCart };
+    return { state, dispatch, addCart, removeCart, updateCart };
   }, [state]);
 
   return (
