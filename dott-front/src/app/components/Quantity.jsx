@@ -4,6 +4,7 @@ const Quantity = ({quantity, handleQuantity }) => {
   const [cantidad, setCantidad] = useState(1);
 
   useEffect(() => {
+    console.log(quantity);
     const handleDefaultQuantity = () => {
       if(quantity != null && quantity > 0){
         setCantidad(quantity);
