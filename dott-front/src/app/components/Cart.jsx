@@ -106,18 +106,18 @@ export default function Cart({ action, handleCloseCart }) {
   // }
 
   function handlePresupuesto() {
-    let message = `Hola Nano! Me interesan estos productos \nCarrito de compras:\n\n${state.productCart
+    let message = `Hola Nano! Me interesan estos productos \n\n\n${state.productCart
       .map(
         (item) =>
-          `${item.producto} - ${item.quantity} - ${item.proveedor} - $${item.quantity * item.precioEfectivo}`
+          `${item.producto.substring(0, 25)} - ${item.quantity} - ${item.proveedor} - $${item.quantity * item.precioEfectivo}`
       )
       .join("\n")}`;
 
-    message += "\n\nPrecios de Cuotas";
-    valorCuota.forEach((cuota, index) => {
-      const cuotaPrice = calcularCuota(totalCart, cuota.valorTarjeta, cuota.id);
-      message += `\n${cuota.id} cuotas de: $${cuotaPrice}`;
-    });
+    // message += "\n\nPrecios de Cuotas";
+    // valorCuota.forEach((cuota, index) => {
+    //   const cuotaPrice = calcularCuota(totalCart, cuota.valorTarjeta, cuota.id);
+    //   message += `\n${cuota.id} cuotas de: $${cuotaPrice}`;
+    // });
 
     // Agregar el total de la compra al mensaje
     message += `\ntotal en efectivo: $${totalCart}`;
