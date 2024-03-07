@@ -20,11 +20,11 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
 
   function handleCantidad(value) {
     setCantidad(value);
-    updateCartQuantity(cantidad)
+    updateCartQuantity();
   }
 
-  function updateCartQuantity(cantidad){
-    updateCart(product.id, cantidad)
+  function updateCartQuantity(){
+    updateCart(product.id, cantidad);
   }
 
   function handleSubtotal() {
@@ -35,6 +35,15 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
     };
     subTotalProduct(item);
   }
+
+  useEffect(() => {
+    if (
+      state.productCart.filter((prodCart) => prodCart.id === product.id)
+        .length > 0
+    ) {
+      setCantidad(product.quantity);
+    }
+  }, []);
 
   useEffect(() => {
     handleSubtotal();
