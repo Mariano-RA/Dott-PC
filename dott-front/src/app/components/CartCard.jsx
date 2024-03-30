@@ -3,9 +3,9 @@ import { ContextGlobal } from "./utils/global.context";
 import Quantity from "./Quantity";
 
 const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
-  const { state, removeCart } = useContext(ContextGlobal);
+  const { state, removeCart, updateCart } = useContext(ContextGlobal);
   const [cantidad, setCantidad] = useState(1);
-  const [subtotal, setSubtotal] = useState();
+  // const [subtotal, setSubtotal] = useState();
   const [IsHovered, setIsHovered] = useState(false);
 
   function handleCart() {
@@ -14,7 +14,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
         .length > 0
     ) {
       removeCart(product.id);
-      removeFromArr(product.id);
+      // removeFromArr(product.id);
     }
   }
 
@@ -22,17 +22,34 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
     setCantidad(value);
   }
 
-  function handleSubtotal() {
-    setSubtotal(product.precioEfectivo * cantidad);
-    let item = {
-      id: product.id,
-      subtotal: product.precioEfectivo * cantidad,
-    };
-    subTotalProduct(item);
+  function updateCartQuantity(){
+    updateCart(product.id, cantidad);
   }
 
+  // function handleSubtotal() {
+  //   setSubtotal(product.precioEfectivo * cantidad);
+  //   let item = {
+  //     id: product.id,
+  //     subtotal: product.precioEfectivo * cantidad,
+  //   };
+  //   subTotalProduct(item);
+  // }
+
   useEffect(() => {
-    handleSubtotal();
+    const handleSaveQuantity = () => {
+      if (
+        state.productCart.filter((prodCart) => prodCart.id === product.id)
+          .length > 0
+      ) {
+        setCantidad(product.quantity);
+      }
+    };
+    handleSaveQuantity();
+  }, []);
+
+  useEffect(() => {
+    // handleSubtotal();
+    updateCartQuantity();
   }, [cantidad]);
 
   return (
@@ -43,7 +60,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
             <a>{product?.producto}</a>
           </h3>
           <p className="ml-4">
-            ${new Intl.NumberFormat("es-AR").format(subtotal)}
+            ${new Intl.NumberFormat("es-AR").format(product?.precioEfectivo * product?.quantity)}
           </p>
         </div>
       </div>
@@ -55,7 +72,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
             value={cantidad}
             onChange={handleCantidad}
           /> */}
-          <Quantity handleQuantity={handleCantidad} />
+          <Quantity handleQuantity={handleCantidad} quantity={product?.quantity}/>
           <button
             type="button"
             className="font-medium text-red-600 hover:text-red-500"
