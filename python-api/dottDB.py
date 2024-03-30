@@ -9,6 +9,9 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 import pika
 from unidecode import unidecode
+import sys
+
+csv.field_size_limit(sys.maxsize)
 
 
 rabbit_url = os.environ['RABBITMQ_URL']
@@ -68,20 +71,26 @@ def obtenerDiccionario(nombreDiccionario):
 
 def tablaAir(archivo_bytesios):
 
-    csv_reader = csv.reader(io.TextIOWrapper(
-        archivo_bytesios, encoding="iso-8859-1"), delimiter=',', quotechar='"', escapechar='"')
+    # csv_reader = csv.reader(io.TextIOWrapper(
+    #     archivo_bytesios, encoding="iso-8859-1"), delimiter=',', quotechar='"', escapechar='"')
 
     # lector_csv = csv.reader(archivo, delimiter=',', quotechar='"', escapechar='"')
+
+    csv_reader = csv.DictReader(io.TextIOWrapper(
+         archivo_bytesios, encoding="iso-8859-1"), delimiter=',', quotechar='"')
 
     # Crea una lista para almacenar los datos
     data = []
     next(csv_reader)  # Ignora la primera fila de encabezados
     for row in csv_reader:
-        if (row[2] != "A"):
-            descripcion = row[1]
-            rubro = row[10]
-            iva = row[4]
-            precio = row[2]
+        # '212286, AURICULARES  KLIPXTREME DYNAMIK AZUL,48.44,A,10.5,20,5,15,57,173,001-0351,KSM-750BL,A
+        # if(row[1] != ""):
+        if(row["lista1"] != 'A' and len(row)< 14):
+        
+            descripcion = row['Descripcion']
+            rubro = row['Rubro']
+            iva = row['IVA']
+            precio = row['lista1']
 
             # Crea un diccionario con los datos de cada registro
             registro = {

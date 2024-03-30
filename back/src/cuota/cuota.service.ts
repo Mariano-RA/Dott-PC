@@ -33,7 +33,7 @@ export class CuotasService {
     try {
       const arrCuotas = await this.cuotaRepository.create(cuotaDto);
       await this.cuotaRepository.save(arrCuotas);
-      return "Se cargo la tabla correctamente.";
+      return "Se actualizaron las cuotas correctamente.";
     } catch (error) {
       return error;
     }

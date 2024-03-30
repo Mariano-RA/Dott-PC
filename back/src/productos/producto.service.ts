@@ -15,6 +15,7 @@ import {
   Transport,
 } from "@nestjs/microservices";
 import { newTableDto } from "./dto/newTableDto";
+import { OK } from "sqlite3";
 
 function obtenerPrecioEfectivo(monto, dolar) {
   return Math.round(monto * dolar);
@@ -24,11 +25,17 @@ function calcularValorCuotas(precio, listadoCuotas) {
   let listado = [];
   listadoCuotas.forEach((cuota) => {
     const { id, valorTarjeta } = cuota;
-    const interesTotal = 1 - valorTarjeta / 100;
     const valorCuota = new valorCuotaDto();
     valorCuota.CantidadCuotas = id;
-    valorCuota.Total = Math.round(precio / interesTotal);
-    valorCuota.Cuota = Math.round(precio / interesTotal / id);
+    if(valorTarjeta > 100){
+      var interesCuota = 2 + (valorTarjeta - 100) / 100;
+      valorCuota.Total = Math.round(precio * interesCuota );
+      valorCuota.Cuota = Math.round(precio * interesCuota / id);
+    }else{
+      var interesCuota = 1 + valorTarjeta/ 100;
+      valorCuota.Total = Math.round(precio * interesCuota );
+      valorCuota.Cuota = Math.round(precio * interesCuota / id);
+    }
     listado.push(valorCuota);
   });
   return listado;
@@ -93,12 +100,10 @@ export class ProductosService {
   }
 
   async updateTable(data: newTableDto) {
-    console.log("Mensaje recibido...")
     const productDto = data.resultado;
-
+    
     try {
       const id = productDto[0].proveedor;
-
       const proveedorExistente = await this.productoRepository.findOneBy({
         proveedor: id,
       });
@@ -108,7 +113,7 @@ export class ProductosService {
         await this.productoRepository.save(arrProductos);
         console.log(`Se crearon nuevos datos correspondientes a ${id} correctamente.`)
         return `Se crearon nuevos datos correspondientes a ${id} correctamente.`;
-      } else {
+      } else { 
         await this.productoRepository
           .createQueryBuilder("Productos")
           .delete()
@@ -119,12 +124,12 @@ export class ProductosService {
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
         this.logger.debug("Se actualizaron tablas");
-        console.log("Se actualizaron tablas");
-        return `Se actualizo la tabla de: ${id}`;
+        console.log(`Se actualizo la tabla de ${id}`)
+        return OK
       }
     } catch (error) {
       this.logger.error(error);
-      return "Hubo un error al actualizar la tabla" + error
+      return error
     }
   }
 

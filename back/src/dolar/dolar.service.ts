@@ -47,7 +47,8 @@ export class DolaresService {
           .execute()
         }
       };
-      return "Se crearon y/o actualizaron los valores correctamente";
+      // return Ok "Se crearon y/o actualizaron los valores correctamente";
+      return "Se actualizo el valor del colar correctamente";
     } catch (error) {
       return error.message;
     }
