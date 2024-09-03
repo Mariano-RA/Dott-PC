@@ -120,7 +120,7 @@ def tablaEikon(archivo_bytesio):
     df = pd.read_excel(archivo_bytesio)
 
     # Se borran las primeras filas
-    df = df.drop([0, 1, 2])
+    df = df.drop([0, 1, 2, 3])
     df.reset_index(drop=True, inplace=True)
 
     # Procesar los datos del DataFrame df
@@ -128,8 +128,8 @@ def tablaEikon(archivo_bytesio):
 
     for index, row in df.iterrows():
         descripcion = row[1]
-        categoria = row[5]
-        precio = row[2]
+        categoria = row[6]
+        precio = row[3]
 
         registro = {
             "proveedor": "eikon",
@@ -161,9 +161,9 @@ def tablaElit(archivo_bytesio):
     for index, row in df.iterrows():
         descripcion = row[1]
         categoria = row[5]
-        precio = row[7]
-        iva = row[8]
-        ivaInterno = row[9]
+        precio = row[8]
+        iva = row[9]
+        ivaInterno = row[10]
 
         registro = {
             "proveedor": "elit",
