@@ -59,8 +59,8 @@ const Page = ({ params }) => {
                 {decodeURIComponent(params.id)}
               </p>
               <Dropdown handleSort={handleSelectedSort} />
-            </div>
-            <div className="flex flex-grow flex-wrap justify-start w-full items-start px-0 md:px-14 content-start" style="gap: 0vh 0.6vh">
+            </div>  
+            <div className="flex flex-grow flex-wrap justify-start w-full items-start px-0 md:px-14 content-start" style={{ gap: "0vh 0.6vh" }}>
               {products.map((product) => (
                 <ProductCard product={product} key={product.id} />
               ))}
