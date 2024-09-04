@@ -59,7 +59,7 @@ const Page = ({ params }) => {
               </p>
               <Dropdown handleSort={handleSelectedSort} />
             </div>
-            <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start" style={{ gap: "0vh 0.6vh" }}>
+            <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start gap-y-[2vw]">
               {products?.map((product) => (
                 <ProductCard product={product} key={product.id} />
               ))}
