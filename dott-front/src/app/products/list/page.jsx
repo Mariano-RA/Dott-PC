@@ -54,7 +54,7 @@ const Page = () => {
               </p>
               <Dropdown handleSort={handleSelectedSort} />
             </div>
-            <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start gap-x-[.3%]">
+            <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start gap-x-[.3%] max-[100px]:gap-x-[3%]">
               {products.map((product) => (  
                 <ProductCard product={product} key={product.id} />
               ))}
