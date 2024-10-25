@@ -190,8 +190,8 @@ def procesar_archivo_elit(archivo_base64):
 def obtenerTipoIva(clave):
     # Diccionario con tipo de IVA
     tipoIva = {
-        "002-I.V.A. 10.5 %": 10.5,
-        "001-I.V.A. 21 %": 21,
+        "IVA 10,5%": 10.5,
+        "IVA 21%": 21,
         "005-Impuestos Internos": 21
     }
     if clave in tipoIva:
@@ -205,14 +205,14 @@ def tablaHdc(archivo_bytesio):
     data = []
 
     for index, row in df.iterrows():
-        if not math.isnan(row[7]):  # Verificar si no es NaN
-            descripcion = row[4]
+        if not math.isnan(row[6]):  # Verificar si no es NaN
+            descripcion = row[5]
             if row[3]:
                 categoria = unidecode(str(row[3]))
             else:
                 categoria = unidecode(str(row[2]))
-            precio = row[7]
-            iva = obtenerTipoIva(row[8])
+            precio = row[6]
+            iva = obtenerTipoIva(row[7])
 
             # Crea un diccionario con los datos de cada registro
             registro = {
