@@ -242,7 +242,7 @@ def tablaInvid(archivo_bytesio):
     df = pd.read_excel(archivo_bytesio)
 
     # Se utilizan los índices 0, 1 y 2 para las primeras tres filas
-    df = df.drop([0, 1, 2, 3, 4, 5, 6, 7, 8])
+    df = df.drop([0, 1, 2, 3, 4, 5])
     df.reset_index(drop=True, inplace=True)
     df.to_excel(listadosTemporales + "temp_invid.xlsx", index=False)
 
@@ -250,26 +250,27 @@ def tablaInvid(archivo_bytesio):
     book = load_workbook(listadosTemporales + "temp_invid.xlsx")
     sheet = book["Sheet1"]
 
-    sheet["I3"] = "categoria"
+    sheet["L3"] = "categoria"
 
-    def apply_custom_formula(value1, value2, value3, value4, value5):
+    def apply_custom_formula(j_value, a_value, c_value, b_value, l_value):
         result = ""
-        if (value1 is None or len(value1) <= 1):
+        if (j_value is None or len(j_value) <= 1):
             result = ""
-        elif (value2 is None or len(value2) <= 1) and (value3 is None or len(value3) <= 1):
-            result = value4
+        elif (a_value is None or len(a_value) <= 1) and (c_value is None or len(c_value) <= 1):
+            result = b_value
         else:
-            result = value5
+            result = l_value
         return result
 
     for row in range(4, sheet.max_row + 1):
-        value1 = sheet[f'H{row}'].value
-        value2 = sheet[f'A{row-2}'].value
-        value3 = sheet[f'C{row-2}'].value
-        value4 = sheet[f'B{row-2}'].value
-        value5 = sheet[f'I{row-1}'].value
+        print(row)
+        j_value = sheet[f'J{row}'].value
+        a_value = sheet[f'A{row-2}'].value
+        c_value = sheet[f'C{row-2}'].value
+        b_value = sheet[f'B{row-2}'].value
+        l_value = sheet[f'L{row-1}'].value        
         result = apply_custom_formula(
-            value1, value2, value3, value4, value5)
+            j_value, a_value, c_value, b_value, l_value)
 
         cell = sheet.cell(row=row, column=9)
         cell.value = unidecode(result)
@@ -288,22 +289,20 @@ def tablaInvid(archivo_bytesio):
         # Crea una lista para almacenar los datos
         data = []
 
-        # Lee cada fila del archivo CSV (ignorando la primera fila de encabezados)
-
         next(csv_reader)  # Ignora la primera fila de encabezados
         for row in csv_reader:
             if (row[3] != "" and row[3] != "Nro. de Parte"):
                 descripcion = row[1]
-                categoria = unidecode(row[8])
-                precio = float(row[5])
-                iva = (1 + (float(row[6])/100)) * (1 + (float(row[7])/100))
+                categoria = unidecode(row[11])
+                precio = float(row[9])
+                # iva = (1 + (float(row[6])/100)) * (1 + (float(row[7])/100))
 
                 # Crea un diccionario con los datos de cada registro
                 registro = {
                     "proveedor": "invid",
                     "producto": descripcion,
                     "categoria": encontrar_valor(obtenerDiccionario("invid"), categoria),
-                    "precio": round((precio * iva * 1.1))
+                    "precio": round((precio * 1.1))
                 }
 
                 # Agrega el diccionario a la lista de datos
