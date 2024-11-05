@@ -237,80 +237,120 @@ def procesar_archivo_hdc(archivo_base64):
     return data
 
 
+# def tablaInvid(archivo_bytesio):
+#     # Guardar el archivo .xls en el directorio
+#     df = pd.read_excel(archivo_bytesio)
+
+#     # Se utilizan los índices 0, 1 y 2 para las primeras tres filas
+#     df = df.drop([0, 1, 2, 3, 4, 5])
+#     df.reset_index(drop=True, inplace=True)
+#     df.to_excel(listadosTemporales + "temp_invid.xlsx", index=False)
+
+#     # Cargar el libro de trabajo
+#     book = load_workbook(listadosTemporales + "temp_invid.xlsx")
+#     sheet = book["Sheet1"]
+
+#     sheet["L3"] = "categoria"
+
+#     def apply_custom_formula(j_value, a_value, c_value, b_value, l_value):
+#         result = ""
+#         if (j_value is None or len(j_value) <= 1):
+#             result = ""
+#         elif (a_value is None or len(a_value) <= 1) and (c_value is None or len(c_value) <= 1):
+#             result = b_value
+#         else:
+#             result = l_value
+#         return result
+
+#     for row in range(4, sheet.max_row + 1):
+#         print(row)
+#         j_value = sheet[f'J{row}'].value
+#         a_value = sheet[f'A{row-2}'].value
+#         c_value = sheet[f'C{row-2}'].value
+#         b_value = sheet[f'B{row-2}'].value
+#         l_value = sheet[f'L{row-1}'].value        
+#         result = apply_custom_formula(
+#             j_value, a_value, c_value, b_value, l_value)
+
+#         cell = sheet.cell(row=row, column=9)
+#         cell.value = unidecode(result)
+
+#     # Save the changes to the file
+#     book.save(listadosTemporales + "temp_invid.xlsx")
+
+#     # Guardar como CSV
+#     df = pd.read_excel(listadosTemporales+"temp_invid.xlsx")
+#     df.to_csv(listadoCsv+"listadoInvid.csv", index=False)
+
+#     with open(listadoCsv+"listadoInvid.csv", "r") as file:
+#         # Crea un objeto lector CSV
+#         csv_reader = csv.reader(file, delimiter=",")
+
+#         # Crea una lista para almacenar los datos
+#         data = []
+
+#         next(csv_reader)  # Ignora la primera fila de encabezados
+#         for row in csv_reader:
+#             if (row[3] != "" and row[3] != "Nro. de Parte"):
+#                 descripcion = row[1]
+#                 categoria = unidecode(row[11])
+#                 precio = float(row[9])
+#                 # iva = (1 + (float(row[6])/100)) * (1 + (float(row[7])/100))
+
+#                 # Crea un diccionario con los datos de cada registro
+#                 registro = {
+#                     "proveedor": "invid",
+#                     "producto": descripcion,
+#                     "categoria": encontrar_valor(obtenerDiccionario("invid"), categoria),
+#                     "precio": round((precio * 1.1))
+#                 }
+
+#                 # Agrega el diccionario a la lista de datos
+
+#                 data.append(registro)
+
+#     return data
+
 def tablaInvid(archivo_bytesio):
-    # Guardar el archivo .xls en el directorio
-    df = pd.read_excel(archivo_bytesio)
+    # Cargar el archivo de Excel
+    df = pd.read_excel(archivo_bytesio, header=None)
+    df = df.drop([0, 1, 2, 3, 4, 5, 6]).reset_index(drop=True)  # Reiniciar el índice después de eliminar filas
 
-    # Se utilizan los índices 0, 1 y 2 para las primeras tres filas
-    df = df.drop([0, 1, 2, 3, 4, 5])
-    df.reset_index(drop=True, inplace=True)
-    df.to_excel(listadosTemporales + "temp_invid.xlsx", index=False)
+    # Variable para almacenar la categoría actual
+    categoria_actual = ""
+    
+    # Crear una lista para almacenar los datos procesados
+    data = []
 
-    # Cargar el libro de trabajo
-    book = load_workbook(listadosTemporales + "temp_invid.xlsx")
-    sheet = book["Sheet1"]
+    # Recorrer cada fila del DataFrame
+    for index, row in df.iterrows():
+        
+        # Comprobar si la fila contiene un título de categoría
+        print(row[1])
 
-    sheet["L3"] = "categoria"
+        if pd.isna(row[0]) or row[0] == "" and len(str(row[1])) > 1:
+            print(row[1])
+            categoria_actual = str(row[1]).strip()
+            continue 
 
-    def apply_custom_formula(j_value, a_value, c_value, b_value, l_value):
-        result = ""
-        if (j_value is None or len(j_value) <= 1):
-            result = ""
-        elif (a_value is None or len(a_value) <= 1) and (c_value is None or len(c_value) <= 1):
-            result = b_value
-        else:
-            result = l_value
-        return result
+        # Filtrar las filas que contienen datos válidos
+        if pd.notna(row[0]) and isinstance(row[8], (int, float)):  # Supone que las filas de datos tienen "Código" y "Precio en ARS"
 
-    for row in range(4, sheet.max_row + 1):
-        print(row)
-        j_value = sheet[f'J{row}'].value
-        a_value = sheet[f'A{row-2}'].value
-        c_value = sheet[f'C{row-2}'].value
-        b_value = sheet[f'B{row-2}'].value
-        l_value = sheet[f'L{row-1}'].value        
-        result = apply_custom_formula(
-            j_value, a_value, c_value, b_value, l_value)
+            descripcion = row[1]
+            precio_ars = row[8] if len(row) > 9 else 0
+            
+            # Crear un diccionario con los datos de cada registro
+            registro = {
+                "proveedor": "invid",
+                "producto": descripcion,
+                "precio": float(precio_ars),
+                "categoria": encontrar_valor(obtenerDiccionario("invid"), categoria_actual)  # Asignar la categoría actual
+            }
 
-        cell = sheet.cell(row=row, column=9)
-        cell.value = unidecode(result)
+            data.append(registro)
 
-    # Save the changes to the file
-    book.save(listadosTemporales + "temp_invid.xlsx")
-
-    # Guardar como CSV
-    df = pd.read_excel(listadosTemporales+"temp_invid.xlsx")
-    df.to_csv(listadoCsv+"listadoInvid.csv", index=False)
-
-    with open(listadoCsv+"listadoInvid.csv", "r") as file:
-        # Crea un objeto lector CSV
-        csv_reader = csv.reader(file, delimiter=",")
-
-        # Crea una lista para almacenar los datos
-        data = []
-
-        next(csv_reader)  # Ignora la primera fila de encabezados
-        for row in csv_reader:
-            if (row[3] != "" and row[3] != "Nro. de Parte"):
-                descripcion = row[1]
-                categoria = unidecode(row[11])
-                precio = float(row[9])
-                # iva = (1 + (float(row[6])/100)) * (1 + (float(row[7])/100))
-
-                # Crea un diccionario con los datos de cada registro
-                registro = {
-                    "proveedor": "invid",
-                    "producto": descripcion,
-                    "categoria": encontrar_valor(obtenerDiccionario("invid"), categoria),
-                    "precio": round((precio * 1.1))
-                }
-
-                # Agrega el diccionario a la lista de datos
-
-                data.append(registro)
-
+    # Convertir los datos a un DataFrame y guardarlos como CSV
     return data
-
 
 def procesar_archivo_invid(archivo_base64):
 
