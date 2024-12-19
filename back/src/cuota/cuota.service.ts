@@ -14,13 +14,22 @@ export class CuotasService {
 
   async findAll() {
     let tipoCuotas: Cuota[] = [];
-    const resDolar = await this.cuotaRepository.find();
-    resDolar.forEach((tipoCuota) => {
-      let cuota = new Cuota();
-      cuota.id = tipoCuota.id;
-      cuota.valorTarjeta = tipoCuota.valorTarjeta;
-      tipoCuotas.push(cuota);
-    });
+    try {
+      const resDolar = await this.cuotaRepository.find();
+      resDolar.forEach((tipoCuota) => {
+        let cuota = new Cuota();
+        cuota.id = tipoCuota.id;
+        cuota.valorTarjeta = tipoCuota.valorTarjeta;
+        tipoCuotas.push(cuota);
+      });
+      console.log("Valores de las cuotas encontrados:", tipoCuotas);
+    } catch (error) {
+      console.error(
+        "Error al obtener los valores de las cuotas:",
+        error.message
+      );
+      throw error;
+    }
     return tipoCuotas;
   }
 
@@ -28,13 +37,19 @@ export class CuotasService {
     try {
       await this.cuotaRepository.query(`DELETE FROM Cuotas `);
     } catch (error) {
+      console.error(
+        "Error al eliminar los valores de las cuotas:",
+        error.message
+      );
       return error;
     }
+
     try {
       const arrCuotas = await this.cuotaRepository.create(cuotaDto);
       await this.cuotaRepository.save(arrCuotas);
       return "Se actualizaron las cuotas correctamente.";
     } catch (error) {
+      console.error("Error al actualizar los valores de las cuotas:", error.message);
       return error;
     }
   }

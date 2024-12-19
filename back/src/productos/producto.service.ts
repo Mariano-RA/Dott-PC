@@ -7,7 +7,6 @@ import { Producto } from "./entities/producto.entity";
 import { CuotasService } from "src/cuota/cuota.service";
 import { valorCuotaDto } from "./dto/valorCuotaDto";
 import { createProductoDto } from "./dto/createProductDto";
-import { Logger } from "@nestjs/common";
 import { ListDto } from "./dto/list.dto";
 import {
   ClientProxy,
@@ -27,14 +26,14 @@ function calcularValorCuotas(precio, listadoCuotas) {
     const { id, valorTarjeta } = cuota;
     const valorCuota = new valorCuotaDto();
     valorCuota.CantidadCuotas = id;
-    if(valorTarjeta > 100){
+    if (valorTarjeta > 100) {
       var interesCuota = 2 + (valorTarjeta - 100) / 100;
-      valorCuota.Total = Math.round(precio * interesCuota );
-      valorCuota.Cuota = Math.round(precio * interesCuota / id);
-    }else{
-      var interesCuota = 1 + valorTarjeta/ 100;
-      valorCuota.Total = Math.round(precio * interesCuota );
-      valorCuota.Cuota = Math.round(precio * interesCuota / id);
+      valorCuota.Total = Math.round(precio * interesCuota);
+      valorCuota.Cuota = Math.round((precio * interesCuota) / id);
+    } else {
+      var interesCuota = 1 + valorTarjeta / 100;
+      valorCuota.Total = Math.round(precio * interesCuota);
+      valorCuota.Cuota = Math.round((precio * interesCuota) / id);
     }
     listado.push(valorCuota);
   });
@@ -88,20 +87,19 @@ export class ProductosService {
     });
   }
 
-  private readonly logger = new Logger(ProductosService.name);
-
   async sendMessageData(newMessageDto) {
     const msg = {
       nombreProveedor: newMessageDto.nombreProveedor,
       base64: newMessageDto.base64,
     };
     await this.client.emit("api_python", msg);
+    console.log("Se envio el mensaje de carga a la API de python..");
     return "Se envio el mensaje de carga!";
   }
 
   async updateTable(data: newTableDto) {
     const productDto = data.resultado;
-    
+
     try {
       const id = productDto[0].proveedor;
       const proveedorExistente = await this.productoRepository.findOneBy({
@@ -111,9 +109,11 @@ export class ProductosService {
       if (!proveedorExistente) {
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
-        console.log(`Se crearon nuevos datos correspondientes a ${id} correctamente.`)
+        console.log(
+          `Se crearon nuevos datos correspondientes a ${id} correctamente.`
+        );
         return `Se crearon nuevos datos correspondientes a ${id} correctamente.`;
-      } else { 
+      } else {
         await this.productoRepository
           .createQueryBuilder("Productos")
           .delete()
@@ -123,18 +123,16 @@ export class ProductosService {
 
         const arrProductos = await this.productoRepository.create(productDto);
         await this.productoRepository.save(arrProductos);
-        this.logger.debug("Se actualizaron tablas");
-        console.log(`Se actualizo la tabla de ${id}`)
-        return OK
+        console.log(`Se actualizo la tabla de ${id}`);
+        return OK;
       }
     } catch (error) {
-      this.logger.error(error);
-      return error
+      console.error(`Error al actualizar la tabla: ${error.message}`);
+      throw error;
     }
   }
 
   async deleteTable(proveedorDto) {
-
     const idProveedor = proveedorDto.proveedor;
     try {
       const proveedorExistente = await this.productoRepository.findOneBy({
@@ -149,137 +147,40 @@ export class ProductosService {
           .where("proveedor = :id", { id: idProveedor })
           .execute();
 
-        this.logger.debug("Se borro tablas");
-        return `Se borro la tabla de: ${idProveedor}`
-      }
-      else{
-        this.logger.debug("No habia ningun proveedor con ese id");
-        return `No habia un listado del proveedor ${idProveedor}`
+        console.log(`Se borro la tabla de: ${idProveedor}`);
+        return `Se borro la tabla de: ${idProveedor}`;
+      } else {
+        console.log("No habia ningun proveedor con ese id");
+        return `No habia un listado del proveedor ${idProveedor}`;
       }
     } catch (error) {
-      this.logger.error(error);
-      console.log(error)
-      return error;
+      console.log(
+        `Error al eliminar la tabla de ${idProveedor}: ${error.message}`
+      );
+      throw error;
     }
   }
 
   async findAll(skip: number, take: number, orderBy: string) {
-    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-      this.productoRepository.find(),
-      this.dolaresService.findAll(),
-      this.cuotasService.findAll(),
-    ]);
+    try {
+      const [productos, arrayDolar, listadoCuotas] = await Promise.all([
+        this.productoRepository.find(),
+        this.dolaresService.findAll(),
+        this.cuotasService.findAll(),
+      ]);
 
-    let listadoProductos = [];
+      let listadoProductos = [];
 
-    // let arrayProductos = handleOrder(orderBy, productos);
-    let arrayProductos = productos;
-    arrayProductos.map((prod) => {
-      const dto = new ProductoDto();
-      dto.id = prod.id;
-      dto.proveedor = prod.proveedor;
-      dto.producto = prod.producto;
-      dto.categoria = prod.categoria;
-      const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
-      dto.precioEfectivo = obtenerPrecioEfectivo(
-        prod.precio,
-        valorDolar.precioDolar
-        );
-      dto.precioCuotas = calcularValorCuotas(dto.precioEfectivo, listadoCuotas);
-      listadoProductos.push(dto);
-    });
-
-    let listDto = new ListDto();
-    listDto.cantResultados = arrayProductos.length;
-    listadoProductos = handleOrder(orderBy, listadoProductos);
-    listDto.productos = pagination(skip, take, listadoProductos);
-    return listDto;
-  }
-
-  async findAllCategories() {
-    const productos = await this.productoRepository.find();
-    const categoriasSet = new Set();
-
-    productos.forEach((prod) => {
-      categoriasSet.add(prod.categoria);
-    });
-
-    const categorias = Array.from(categoriasSet); // Convertir el conjunto a un array
-
-    return categorias.sort();
-  }
-
-  async findByKeyWord(
-    keywords: String,
-    skip: number,
-    take: number,
-    orderBy: string
-  ) {
-    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-      this.productoRepository.find(),
-      this.dolaresService.findAll(),
-      this.cuotasService.findAll(),
-    ]);
-
-    const listadoPalabras = keywords.split(" ");
-
-    let listadoProductos = [];
-    // let arrayProductos = handleOrder(orderBy, productos);
-    let arrayProductos = productos;
-    arrayProductos
-      .filter((x) =>
-        listadoPalabras.every((word) =>
-          x.producto.toLowerCase().includes(word.toLowerCase())
-        )
-      )
-      .map((prod) => {
+      let arrayProductos = productos;
+      arrayProductos.map((prod) => {
         const dto = new ProductoDto();
         dto.id = prod.id;
         dto.proveedor = prod.proveedor;
         dto.producto = prod.producto;
         dto.categoria = prod.categoria;
-        const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
-        dto.precioEfectivo = obtenerPrecioEfectivo(
-        prod.precio,
-        valorDolar.precioDolar
+        const valorDolar = arrayDolar.find(
+          (x) => x.proveedor == prod.proveedor
         );
-        dto.precioCuotas = calcularValorCuotas(
-          dto.precioEfectivo,
-          listadoCuotas
-        );
-        listadoProductos.push(dto);
-      });
-    let listDto = new ListDto();
-    listDto.cantResultados = listadoProductos.length;
-    listadoProductos = handleOrder(orderBy, listadoProductos)
-    listDto.productos = pagination(skip, take, listadoProductos);
-    return listDto;
-  }
-
-  async findByCategory(
-    category: string,
-    skip: number,
-    take: number,
-    orderBy: string
-  ) {
-    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-      this.productoRepository.find(),
-      this.dolaresService.findAll(),
-      this.cuotasService.findAll(),
-    ]);
-
-    let listadoProductos = [];
-    // let productosSorted = handleOrder(orderBy, productos);
-    let arrayProductos = productos;
-    arrayProductos
-      .filter((x) => x.categoria.toLowerCase().includes(category.toLowerCase()))
-      .map((prod) => {
-        const dto = new ProductoDto();
-        dto.id = prod.id;
-        dto.proveedor = prod.proveedor;
-        dto.producto = prod.producto;
-        dto.categoria = prod.categoria;
-        const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
         dto.precioEfectivo = obtenerPrecioEfectivo(
           prod.precio,
           valorDolar.precioDolar
@@ -291,11 +192,150 @@ export class ProductosService {
         listadoProductos.push(dto);
       });
 
-    let listDto = new ListDto();
-    listDto.cantResultados = listadoProductos.length;
-    listadoProductos = handleOrder(orderBy, listadoProductos);
-    listDto.productos = pagination(skip, take, listadoProductos);
-    return listDto;
+      let listDto = new ListDto();
+      listDto.cantResultados = arrayProductos.length;
+      listadoProductos = handleOrder(orderBy, listadoProductos);
+      listDto.productos = pagination(skip, take, listadoProductos);
+      return listDto;
+    } catch (error) {
+      console.error(`Error al obtener los producots: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async findAllCategories() {
+    try {
+      const productos = await this.productoRepository.find();
+      const categoriasSet = new Set();
+
+      productos.forEach((prod) => {
+        categoriasSet.add(prod.categoria);
+      });
+
+      const categorias = Array.from(categoriasSet); // Convertir el conjunto a un array
+
+      console.log("Se obtuvieron todas las categorias!");
+      return categorias.sort();
+    } catch (error) {
+      console.error("Error al obtener las categorias:", error.message);
+      throw error;
+    }
+  }
+
+  async findByKeyWord(
+    keywords: String,
+    skip: number,
+    take: number,
+    orderBy: string
+  ) {
+    try {
+      const [productos, arrayDolar, listadoCuotas] = await Promise.all([
+        this.productoRepository.find(),
+        this.dolaresService.findAll(),
+        this.cuotasService.findAll(),
+      ]);
+
+      const listadoPalabras = keywords.split(" ");
+
+      let listadoProductos = [];
+      // let arrayProductos = handleOrder(orderBy, productos);
+      let arrayProductos = productos;
+      arrayProductos
+        .filter((x) =>
+          listadoPalabras.every((word) =>
+            x.producto.toLowerCase().includes(word.toLowerCase())
+          )
+        )
+        .map((prod) => {
+          const dto = new ProductoDto();
+          dto.id = prod.id;
+          dto.proveedor = prod.proveedor;
+          dto.producto = prod.producto;
+          dto.categoria = prod.categoria;
+          const valorDolar = arrayDolar.find(
+            (x) => x.proveedor == prod.proveedor
+          );
+          dto.precioEfectivo = obtenerPrecioEfectivo(
+            prod.precio,
+            valorDolar.precioDolar
+          );
+          dto.precioCuotas = calcularValorCuotas(
+            dto.precioEfectivo,
+            listadoCuotas
+          );
+          listadoProductos.push(dto);
+        });
+      let listDto = new ListDto();
+      listDto.cantResultados = listadoProductos.length;
+      listadoProductos = handleOrder(orderBy, listadoProductos);
+      listDto.productos = pagination(skip, take, listadoProductos);
+
+      console.log("Listado de productos obtenido exitosamente");
+
+      return listDto;
+    } catch (error) {
+      console.error("Error al obtener el listado de productos:", error.message);
+      throw error;
+    }
+  }
+
+  async findByCategory(
+    category: string,
+    skip: number,
+    take: number,
+    orderBy: string
+  ) {
+    try {
+      const [productos, arrayDolar, listadoCuotas] = await Promise.all([
+        this.productoRepository.find(),
+        this.dolaresService.findAll(),
+        this.cuotasService.findAll(),
+      ]);
+
+      let listadoProductos = [];
+      // let productosSorted = handleOrder(orderBy, productos);
+      let arrayProductos = productos;
+      arrayProductos
+        .filter((x) =>
+          x.categoria.toLowerCase().includes(category.toLowerCase())
+        )
+        .map((prod) => {
+          const dto = new ProductoDto();
+          dto.id = prod.id;
+          dto.proveedor = prod.proveedor;
+          dto.producto = prod.producto;
+          dto.categoria = prod.categoria;
+          const valorDolar = arrayDolar.find(
+            (x) => x.proveedor == prod.proveedor
+          );
+          dto.precioEfectivo = obtenerPrecioEfectivo(
+            prod.precio,
+            valorDolar.precioDolar
+          );
+          dto.precioCuotas = calcularValorCuotas(
+            dto.precioEfectivo,
+            listadoCuotas
+          );
+          listadoProductos.push(dto);
+        });
+
+      let listDto = new ListDto();
+      listDto.cantResultados = listadoProductos.length;
+      listadoProductos = handleOrder(orderBy, listadoProductos);
+      listDto.productos = pagination(skip, take, listadoProductos);
+
+      console.log(
+        "Se obtuvo el listado de productos de la categoria:",
+        category
+      );
+
+      return listDto;
+    } catch (error) {
+      console.error(
+        `Error al obtener el listado de productos de la categoria ${category}: ${error.message}`
+      );
+      throw error;
+    }
   }
 
   async findByKeyWordAndCategory(
@@ -305,43 +345,54 @@ export class ProductosService {
     take: number,
     orderBy: string
   ) {
-    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-      this.productoRepository.find(),
-      this.dolaresService.findAll(),
-      this.cuotasService.findAll(),
-    ]);
-    let listadoProductos = [];
-    // let productosSorted = handleOrder(orderBy, productos);
-    let arrayProductos = productos;
-    arrayProductos
-      .filter(
-        (x) =>
-          keywords.every((word) =>
-            x.producto.toLowerCase().includes(word.toLowerCase())
-          ) && x.categoria.toLowerCase().includes(category.toLowerCase())
-      )
-      .map((prod) => {
-        const dto = new ProductoDto();
-        dto.id = prod.id;
-        dto.proveedor = prod.proveedor;
-        dto.producto = prod.producto;
-        dto.categoria = prod.categoria;
-        const valorDolar = arrayDolar.find(x => x.proveedor == prod.proveedor)
-        dto.precioEfectivo = obtenerPrecioEfectivo(
-          prod.precio,
-          valorDolar.precioDolar
-        );
-        dto.precioCuotas = calcularValorCuotas(
-          dto.precioEfectivo,
-          listadoCuotas
-        );
-        listadoProductos.push(dto);
-      });
+    try {
+      const [productos, arrayDolar, listadoCuotas] = await Promise.all([
+        this.productoRepository.find(),
+        this.dolaresService.findAll(),
+        this.cuotasService.findAll(),
+      ]);
+      let listadoProductos = [];
+      let arrayProductos = productos;
+      arrayProductos
+        .filter(
+          (x) =>
+            keywords.every((word) =>
+              x.producto.toLowerCase().includes(word.toLowerCase())
+            ) && x.categoria.toLowerCase().includes(category.toLowerCase())
+        )
+        .map((prod) => {
+          const dto = new ProductoDto();
+          dto.id = prod.id;
+          dto.proveedor = prod.proveedor;
+          dto.producto = prod.producto;
+          dto.categoria = prod.categoria;
+          const valorDolar = arrayDolar.find(
+            (x) => x.proveedor == prod.proveedor
+          );
+          dto.precioEfectivo = obtenerPrecioEfectivo(
+            prod.precio,
+            valorDolar.precioDolar
+          );
+          dto.precioCuotas = calcularValorCuotas(
+            dto.precioEfectivo,
+            listadoCuotas
+          );
+          listadoProductos.push(dto);
+        });
 
-    let listDto = new ListDto();
-    listDto.cantResultados = listadoProductos.length;
-    listadoProductos = handleOrder(orderBy, listadoProductos);
-    listDto.productos = pagination(skip, take, listadoProductos);
-    return listDto;
+      let listDto = new ListDto();
+      listDto.cantResultados = listadoProductos.length;
+      listadoProductos = handleOrder(orderBy, listadoProductos);
+      listDto.productos = pagination(skip, take, listadoProductos);
+      console.log(
+        "Se obtuvo el listado de productos por categoria y palabras clave"
+      );
+      return listDto;
+    } catch (error) {
+      console.error(
+        `Error al obtener el listado de productos por categoria y palabras clave: ${error.message}`
+      );
+      throw error;
+    }
   }
 }

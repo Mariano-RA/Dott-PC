@@ -14,21 +14,34 @@ export class DolaresService {
 
   async findAll() {
     let valorDolar: Dolar[] = [];
-    const resDolar = await this.dolarRepository.find();
-    resDolar.forEach((tipoDolar) => {
-      let dolar = new Dolar();
-      dolar.id = tipoDolar.id;
-      dolar.precioDolar = tipoDolar.precioDolar;
-      dolar.proveedor= tipoDolar.proveedor;
-      valorDolar.push(dolar);
-    });
+    try{
+      const resDolar = await this.dolarRepository.find();
+      resDolar.forEach((tipoDolar) => {
+        let dolar = new Dolar();
+        dolar.id = tipoDolar.id;
+        dolar.precioDolar = tipoDolar.precioDolar;
+        dolar.proveedor= tipoDolar.proveedor;
+        valorDolar.push(dolar);
+      });
+      console.log("Valores del dólar encontrados:", valorDolar);
+    } catch (error) {
+      console.error("Error al obtener los valores del dólar:", error.message);
+      throw error;
+    }
     return valorDolar;
   }
 
   async getByProvider(proveedor: string){
-    const valorDolar =  await this.dolarRepository.findOneBy({
-      proveedor: proveedor,
-    });
+    try{
+      const valorDolar =  await this.dolarRepository.findOneBy({
+        proveedor: proveedor,
+      });
+      console.log(`Valor del dólar obtenido para el proveedor ${proveedor}:`, valorDolar);
+      return valorDolar;
+    }catch (error) {
+      console.error(`Error al obtener el valor del dólar para el proveedor ${proveedor}:`, error.message); // Log de error
+      throw error;
+    }
   }
 
   async create(arrayDolar: DolarDto[]) {
@@ -38,18 +51,21 @@ export class DolaresService {
           proveedor: valor.proveedor,
         });
         if(!valorDolar){
-          this.dolarRepository.save({proveedor: valor.proveedor, precioDolar:valor.precioDolar});
+          await this.dolarRepository.save({proveedor: valor.proveedor, precioDolar:valor.precioDolar});
+          console.log(`Nuevo valor del dólar guardado para el proveedor ${valor.proveedor}`);
         }else{
-          this.dolarRepository.createQueryBuilder()
-          .update(Dolar)
-          .set({ precioDolar: valor.precioDolar })
-          .where("proveedor = :id", { id: valor.proveedor })
-          .execute()
+          await this.dolarRepository
+            .createQueryBuilder()
+            .update(Dolar)
+            .set({ precioDolar: valor.precioDolar })
+            .where("proveedor = :id", { id: valor.proveedor })
+            .execute();
+            console.log(`Valor del dólar actualizado para el proveedor ${valor.proveedor}`);
         }
       };
-      // return Ok "Se crearon y/o actualizaron los valores correctamente";
-      return "Se actualizo el valor del colar correctamente";
+      return "Se actualizo el valor del dolar correctamente";
     } catch (error) {
+      console.error("Error al crear o actualizar los valores del dólar:", error.message);
       return error.message;
     }
   }
