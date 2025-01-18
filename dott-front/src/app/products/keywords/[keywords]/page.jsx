@@ -6,12 +6,18 @@ import CategoryColumn from "@/app/components/CategoryColumn";
 import Dropdown from "@/app/components/Dropdown";
 import Loading from "@/app/components/Loading";
 import { ContextGlobal } from "@/app/components/utils/global.context";
+import TableProducts from "@/app/components/TableProducts";
+import { ListBulletIcon, Squares2X2Icon } from "@heroicons/react/20/solid";
 
 const take = 20;
 
+function classNames(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
+
 const Page = ({ params }) => {
   useEffect(() => {
-    setPage(1)
+    setPage(1);
     handleLoadProducts();
   }, [params]);
 
@@ -21,6 +27,7 @@ const Page = ({ params }) => {
   const [page, setPage] = useState(1);
   const { state } = useContext(ContextGlobal);
   const [showLoading, setShowLoading] = useState(true);
+  const [showTypeGrid, setShowTypeGrid] = useState(true);
 
   function handleSelectedSort(sortType) {
     setSortType(sortType);
@@ -42,6 +49,38 @@ const Page = ({ params }) => {
     setShowLoading(false);
   }
 
+  function handleVisualizer(visualizerType) {
+    switch (visualizerType) {
+      case "List":
+        setShowTypeGrid(false);
+        break;
+      case "Grid":
+        setShowTypeGrid(true);
+        break;
+      default:
+        setShowTypeGrid(true);
+        break;
+    }
+  }
+
+  const renderProducts = () => {
+    if (showTypeGrid) {
+      return (
+        <>
+          {products.map((product) => (
+            <ProductCard product={product} key={product.id} />
+          ))}
+        </>
+      );
+    } else {
+      return (
+        <>
+          <TableProducts products={products} />
+        </>
+      );
+    }
+  };
+
   useEffect(() => {
     handleLoadProducts();
   }, [state, setSortType, sortType, setPage, page]);
@@ -57,12 +96,36 @@ const Page = ({ params }) => {
               <p className="text-red-950 font-bold text-lg">
                 Todos los productos
               </p>
-              <Dropdown handleSort={handleSelectedSort} />
+              <div className="flex flex-col sm:flex-row">
+                <div className="flex mr-2 justify-center mb-2 sm:mb-0">
+                  <button
+                    onClick={() => handleVisualizer("List")}
+                    className={classNames(
+                      !showTypeGrid
+                        ? "bg-gray-100 text-red-700"
+                        : "text-red-950",
+                      "block px-2 py-1 text-sm"
+                    )}
+                  >
+                    <ListBulletIcon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                  <button
+                    onClick={() => handleVisualizer("Grid")}
+                    className={classNames(
+                      showTypeGrid
+                        ? "bg-gray-100 text-red-700"
+                        : "text-red-950",
+                      "block px-2 py-1 text-sm"
+                    )}
+                  >
+                    <Squares2X2Icon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </div>
+                <Dropdown handleSort={handleSelectedSort} />
+              </div>{" "}
             </div>
             <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start max-xl:gap-x-[.3%] gap-x-[3%]">
-              {products?.map((product) => (
-                <ProductCard product={product} key={product.id} />
-              ))}
+              {renderProducts()}
             </div>
             <div className="px-14">
               <Pagination
