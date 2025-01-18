@@ -76,7 +76,7 @@ const TableProducts = ({ products }) => {
             <th colSpan={1} className="bg-gray-100 px-4 py-2">
               Más
             </th>
-            <th colSpan={1} className="bg-gray-100 px-4 py-2 rounded-e-md">
+            <th colSpan={1} className="bg-gray-100 px-4 py-2 rounded-e-md hidden sm:block">
               Carrito
             </th>
           </tr>
@@ -119,7 +119,7 @@ const TableProducts = ({ products }) => {
                   />
                 </button>
               </td>
-              <td colSpan={1} className="px-4 py-1 text-center">
+              <td colSpan={1} className="px-4 py-1 text-center hidden sm:block">
                 <button
                   className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto "
                   onClick={() => handleCart(product)}
