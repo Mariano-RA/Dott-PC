@@ -69,14 +69,20 @@ const TableProducts = ({ products }) => {
               Precio
             </th>
             {usrRoles.includes("admin") && (
-              <th colSpan={1} className="bg-gray-100 px-4 py-2 sm:px-0">
+              <th
+                colSpan={1}
+                className="bg-gray-100 px-4 py-2 sm:px-0 hidden sm:block"
+              >
                 Proveedor
               </th>
             )}
             <th colSpan={1} className="bg-gray-100 px-4 py-2">
               Más
             </th>
-            <th colSpan={1} className="bg-gray-100 px-4 py-2 rounded-e-md hidden sm:block">
+            <th
+              colSpan={1}
+              className="bg-gray-100 px-4 py-2 rounded-e-md hidden sm:block"
+            >
               Carrito
             </th>
           </tr>
@@ -100,24 +106,31 @@ const TableProducts = ({ products }) => {
                 </div>
               </td>
               {usrRoles.includes("admin") && (
-                <td colSpan={1} className="px-4 py-1">
+                <td colSpan={1} className="px-4 py-1 hidden sm:block">
                   <div className="mt-2 flex flex-wrap justify-center text-sm leading-6 text-red-950 flex-col items-center sm:flex-row">
-                    <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                    <dd className="flex items-center">
                       {product.proveedor?.toUpperCase()}
                     </dd>
                   </div>
                 </td>
               )}
               <td colSpan={1} className="px-4 py-1 text-center">
-                <button
-                  className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto "
-                  onClick={() => handleProductOverview(product)}
-                >
-                  <InformationCircleIcon
-                    className="h-6 w-6"
-                    aria-hidden="true"
-                  />
-                </button>
+                <div className="flex flex-wrap justify-center text-sm leading-6 text-red-950 flex-col items-center sm:flex-row">
+                  {usrRoles.includes("admin") && (
+                    <dd className="text-sm leading-6 text-gray-700 sm:col-span-2 sm:hidden block">
+                      {product.proveedor?.toUpperCase()}
+                    </dd>
+                  )}
+                  <button
+                    className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto "
+                    onClick={() => handleProductOverview(product)}
+                  >
+                    <InformationCircleIcon
+                      className="h-6 w-6"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
               </td>
               <td colSpan={1} className="px-4 py-1 text-center hidden sm:block">
                 <button
