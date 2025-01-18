@@ -6,12 +6,14 @@ import {
   ShoppingBagIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { useUser } from "@auth0/nextjs-auth0/client";
 
 const TableProducts = ({ products }) => {
   const [show, setShow] = useState(false);
   const [productDetail, setProductDetail] = useState({});
   const { state, addCart, removeCart } = useContext(ContextGlobal);
-  const [IsSelected, setIsSelected] = useState(false);
+  const [usrRoles, setUsrRoles] = useState([]);
+  const { user } = useUser();
 
   const handleProductOverview = (product) => {
     setProductDetail(product);
@@ -39,6 +41,15 @@ const TableProducts = ({ products }) => {
     }
   }
 
+  useEffect(() => {
+    if (user) {
+      const roles = user["http://localhost:3000/roles"];
+      setUsrRoles(roles);
+    } else {
+      setUsrRoles([]);
+    }
+  }, [user]);
+
   return (
     <div className="flex justify-center w-full">
       <table
@@ -48,7 +59,8 @@ const TableProducts = ({ products }) => {
       >
         <thead>
           <tr className=" text-red-950">
-            <th colSpan={9}
+            <th
+              colSpan={9}
               className=" bg-gray-100 px-4 py-2 text-left rounded-s-md"
             >
               Nombre
@@ -56,6 +68,11 @@ const TableProducts = ({ products }) => {
             <th colSpan={1} className="bg-gray-100 px-4 py-2 sm:px-0">
               Precio
             </th>
+            {usrRoles.includes("admin") && (
+              <th colSpan={1} className="bg-gray-100 px-4 py-2 sm:px-0">
+                Proveedor
+              </th>
+            )}
             <th colSpan={1} className="bg-gray-100 px-4 py-2">
               Más
             </th>
@@ -66,10 +83,7 @@ const TableProducts = ({ products }) => {
         </thead>
         <tbody>
           {products.map((product) => (
-            <tr
-              key={product.id}
-              className="border-b hover:bg-gray-50"
-            >
+            <tr key={product.id} className="border-b hover:bg-gray-50">
               <td className="px-4 py-1 rounded-s-md" colSpan={9}>
                 <p className="text-red-950 text-xs text-left font-light sm:font-semibold">
                   {product?.producto.toUpperCase()}
@@ -85,6 +99,15 @@ const TableProducts = ({ products }) => {
                   </dd>
                 </div>
               </td>
+              {usrRoles.includes("admin") && (
+                <td colSpan={1} className="px-4 py-1">
+                  <div className="mt-2 flex flex-wrap justify-center text-sm leading-6 text-red-950 flex-col items-center sm:flex-row">
+                    <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                      {product.proveedor?.toUpperCase()}
+                    </dd>
+                  </div>
+                </td>
+              )}
               <td colSpan={1} className="px-4 py-1 text-center">
                 <button
                   className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto "
