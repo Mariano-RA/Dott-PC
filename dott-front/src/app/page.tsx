@@ -1,34 +1,16 @@
 "use client";
 
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { cn } from "@/lib/utils"; // Asegúrate de que tienes esta función en tu proyecto
+
 const imagenes = [
-  {
-    id: 1,
-    url: "/img/promo/imagen1.jpg",
-  },
-  {
-    id: 2,
-    url: "/img/promo/imagen2.jpg",
-  },
-  {
-    id: 3,
-    url: "/img/promo/imagen3.png",
-  },
-  {
-    id: 4,
-    url: "/img/promo/imagen4.jpg",
-  },
-  {
-    id: 5,
-    url: "/img/promo/imagen5.jpg",
-  },
-  {
-    id: 6,
-    url: "/img/promo/imagen6.jpg",
-  },
-  {
-    id: 7,
-    url: "/img/promo/imagen7.jpg",
-  },
+  { id: 1, url: "/img/promo/imagen1.jpg" },
+  { id: 2, url: "/img/promo/imagen2.jpg" },
+  { id: 3, url: "/img/promo/imagen3.png" },
+  { id: 4, url: "/img/promo/imagen4.jpg" },
+  { id: 5, url: "/img/promo/imagen5.jpg" },
+  { id: 6, url: "/img/promo/imagen6.jpg" },
+  { id: 7, url: "/img/promo/imagen7.jpg" },
 ];
 
 export default function Inicio() {
@@ -47,7 +29,23 @@ export default function Inicio() {
         </p>
       </div>
 
-      <img src="/img/promo/imagen1.jpg" className="px-20 mb-20" />
+      <div className="w-full max-w-4xl mb-20">
+        <Carousel className="w-full">
+          <CarouselContent>
+            {imagenes.map((imagen) => (
+              <CarouselItem key={imagen.id} className="flex justify-center">
+                <img
+                  src={imagen.url}
+                  className="w-full h-auto rounded-lg shadow-lg object-cover"
+                  alt={`Slide ${imagen.id}`}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousel>
+      </div>
     </div>
   );
 }
