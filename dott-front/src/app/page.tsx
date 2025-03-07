@@ -29,7 +29,7 @@ export default function Inicio() {
         </p>
       </div>
 
-      <div className="w-full max-w-7xl">
+      <div className="md:w-4/5 w-2/3 pb-5">
         <Carousel className="w-full">
           <CarouselContent>
             {imagenes.map((imagen) => (
