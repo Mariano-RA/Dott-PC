@@ -58,7 +58,7 @@ const Page = ({ params }) => {
         setShowTypeGrid(true);
         break;
       default:
-        setShowTypeGrid(true);
+        setShowTypeGrid(false);
         break;
     }
   }

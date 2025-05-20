@@ -41,7 +41,7 @@ const Page = () => {
         setShowTypeGrid(true);
         break;
       default:
-        setShowTypeGrid(true);
+        setShowTypeGrid(false);
         break;
     }
   }
