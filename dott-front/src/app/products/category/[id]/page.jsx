@@ -26,7 +26,7 @@ const Page = ({ params }) => {
   const [productLength, setProductLength] = useState(0);
   const [page, setPage] = useState(1);
   const [showLoading, setShowLoading] = useState(true);
-  const [showTypeGrid, setShowTypeGrid] = useState(true);
+  const [showTypeGrid, setShowTypeGrid] = useState(false);
   const { state } = useContext(ContextGlobal);
 
   function handleSelectedSort(sortType) {

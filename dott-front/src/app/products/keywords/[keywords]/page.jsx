@@ -27,7 +27,7 @@ const Page = ({ params }) => {
   const [page, setPage] = useState(1);
   const { state } = useContext(ContextGlobal);
   const [showLoading, setShowLoading] = useState(true);
-  const [showTypeGrid, setShowTypeGrid] = useState(true);
+  const [showTypeGrid, setShowTypeGrid] = useState(false);
 
   function handleSelectedSort(sortType) {
     setSortType(sortType);
