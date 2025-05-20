@@ -35,9 +35,6 @@ rabbit_queue = os.environ["RABBITMQ_QUEUE"]
 rabbit_python_queue = os.environ["RABBITMQ_PYTHON_QUEUE"]
 
 # Direccion archivos
-listadosTemporales = "archivosPorCargar/temporales/"
-listadoCsv = "archivosPorCargar/csv/"
-listadoJson = "archivosPorCargar/archivosJson/"
 diccionarios = "nuevosScripts/diccionarios/diccionarios.json"
 
 def log_exception(message):

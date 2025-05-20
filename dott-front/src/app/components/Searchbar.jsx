@@ -12,7 +12,7 @@ const Searchbar = () => {
   function searchProduct(e) {
     e.preventDefault();
     if (searchValue) {
-      router.push(`/products/keywords/${searchValue}`);
+      router.push(`/products/keywords/${encodeURIComponent(searchValue)}`);
     } else {
       router.push("/products/list");
     }
