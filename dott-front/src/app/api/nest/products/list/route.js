@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@auth0/nextjs-auth0";
 import { apiUrl } from "../../utils/utils";
 import axios from "axios";
+import https from "https";
 
 const agent = new https.Agent({
   rejectUnauthorized: false,
