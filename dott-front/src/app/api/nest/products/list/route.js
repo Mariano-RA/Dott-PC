@@ -1,32 +1,45 @@
-import axios from "axios";
 import { NextResponse } from "next/server";
 import { getSession } from "@auth0/nextjs-auth0";
 import { apiUrl } from "../../utils/utils";
+import axios from "axios";
+
+const agent = new https.Agent({
+  rejectUnauthorized: false,
+});
 
 export async function GET(req) {
   try {
-    const url = new URL(req.url);
-    const skip = url.searchParams.get("skip");
-    const take = url.searchParams.get("take");
-    const orderBy = url.searchParams.get("orderBy");
+    const skip = req.nextUrl.searchParams.get("skip");
+    const take = req.nextUrl.searchParams.get("take");
+    const orderBy = req.nextUrl.searchParams.get("orderBy");
 
-    // Configuración de Axios
-    const config = {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    };
+
+    if (!skip || !take) {
+      return NextResponse.json(
+        { error: "Parámetros requeridos faltantes (skip, take)" },
+        { status: 400 }
+      );
+    }
 
     // Realizar la solicitud GET
-    const response = await axios.get(
-      `${apiUrl}/productos?skip=${skip}&take=${take}&orderBy=${orderBy}`,
-      config
-    );
+    const { data: response } = await axios.get(
+          `${apiUrl}/productos?skip=${skip}&take=${take}&orderBy=${orderBy}`,
+          {
+            httpsAgent: agent,
+            headers: {
+              "content-type": "application/json",
+            },
+            params: { skip, take, orderBy },
+          }
+        );
 
-    return NextResponse.json(response.data);
+    return NextResponse.json({ response }, { status: 200 });
   } catch (error) {
-    console.error("Error en la solicitud GET:", error);
-    return NextResponse.json({ error: "Error al obtener los datos" }, { status: 500 });
+    console.error("Error en GET /productos:", error?.response?.data || error.message);
+    return NextResponse.json(
+      { error: "Error al buscar productos" },
+      { status: 500 }
+    );
   }
 }
 
@@ -44,16 +57,17 @@ export async function POST(request) {
 
     const datoRequest = await request.json();
     const config = {
+      httpsAgent: agent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: "Bearer " + accessToken,
       },
     };
 
     // Realizar la solicitud POST
-    const response = await axios.post(`${apiUrl}/productos`, datoRequest, config);
+    const { data } = await axios.post(`${apiUrl}/productos`, datoRequest, config);
 
-    return NextResponse.json(response.data);
+    return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
     console.error("Error en la solicitud POST:", error);
     return NextResponse.json(
@@ -77,19 +91,20 @@ export async function DELETE(request) {
 
     const proveedor = await request.json();
     const config = {
+      httpsAgent: agent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: "Bearer " + accessToken,
       },
     };
 
     // Realizar la solicitud DELETE
-    const response = await axios.delete(`${apiUrl}/productos/delete`, {
+    const { data } = await axios.delete(`${apiUrl}/productos/delete`, {
       data: proveedor,
       ...config,
     });
 
-    return NextResponse.json(response.data);
+    return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
     console.error("Error en la solicitud DELETE:", error);
     return NextResponse.json(
