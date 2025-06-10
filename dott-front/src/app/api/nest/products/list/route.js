@@ -24,7 +24,7 @@ export async function GET(req) {
 
     // Realizar la solicitud GET
     const { data: response } = await axios.get(
-          `${apiUrl}/productos?skip=${skip}&take=${take}&orderBy=${orderBy}`,
+          `${apiUrl}/productos`,
           {
             httpsAgent: agent,
             headers: {
