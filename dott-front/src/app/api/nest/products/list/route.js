@@ -5,35 +5,44 @@ import { apiUrl } from "../../utils/utils";
 
 export async function GET(req) {
   try {
-    const skip = req.nextUrl.searchParams.get("skip");
-    const take = req.nextUrl.searchParams.get("take");
-    const orderBy = req.nextUrl.searchParams.get("orderBy");
+    const url = new URL(req.url);
+    const skip = url.searchParams.get("skip");
+    const take = url.searchParams.get("take");
+    const orderBy = url.searchParams.get("orderBy");
 
-    const response = await axios.get(`${apiUrl}/productos`, {
-      params: { skip, take, orderBy },
-      headers: { "Content-Type": "application/json" },
-    });
+    // Configuración de Axios
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    };
+
+    // Realizar la solicitud GET
+    const response = await axios.get(
+      `${apiUrl}/productos?skip=${skip}&take=${take}&orderBy=${orderBy}`,
+      config
+    );
 
     return NextResponse.json(response.data);
   } catch (error) {
-    console.error("Error in GET request:", error);
-    return NextResponse.json(
-      { message: "Error fetching products", error: error.message },
-      { status: 500 }
-    );
+    console.error("Error en la solicitud GET:", error);
+    return NextResponse.json({ error: "Error al obtener los datos" }, { status: 500 });
   }
 }
 
 export async function POST(request) {
   try {
-    const session = await getSession(request);
-    if (!session?.accessToken) {
-      return NextResponse.json(
-        { message: "Unauthorized: Missing access token" },
-        { status: 401 }
-      );
+    const session = await getSession(request, null, {
+      authorizationParams: {
+        scope: "create:tablas offline_access",
+      },
+    });
+
+    if (!session || !session.accessToken) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
+    const datoRequest = await request.json();
     const config = {
       headers: {
         "Content-Type": "application/json",
@@ -41,14 +50,14 @@ export async function POST(request) {
       },
     };
 
-    const datoRequest = await request.json();
+    // Realizar la solicitud POST
     const response = await axios.post(`${apiUrl}/productos`, datoRequest, config);
 
     return NextResponse.json(response.data);
   } catch (error) {
-    console.error("Error in POST request:", error);
+    console.error("Error en la solicitud POST:", error);
     return NextResponse.json(
-      { message: "Error creating product", error: error.message },
+      { error: "Error al crear el producto" },
       { status: 500 }
     );
   }
@@ -56,14 +65,17 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const session = await getSession(request);
-    if (!session?.accessToken) {
-      return NextResponse.json(
-        { message: "Unauthorized: Missing access token" },
-        { status: 401 }
-      );
+    const session = await getSession(request, null, {
+      authorizationParams: {
+        scope: "delete:tablas offline_access",
+      },
+    });
+
+    if (!session || !session.accessToken) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
+    const proveedor = await request.json();
     const config = {
       headers: {
         "Content-Type": "application/json",
@@ -71,14 +83,17 @@ export async function DELETE(request) {
       },
     };
 
-    const proveedor = await request.json();
-    const response = await axios.post(`${apiUrl}/productos/delete`, proveedor, config);
+    // Realizar la solicitud DELETE
+    const response = await axios.delete(`${apiUrl}/productos/delete`, {
+      data: proveedor,
+      ...config,
+    });
 
     return NextResponse.json(response.data);
   } catch (error) {
-    console.error("Error in DELETE request:", error);
+    console.error("Error en la solicitud DELETE:", error);
     return NextResponse.json(
-      { message: "Error deleting product", error: error.message },
+      { error: "Error al eliminar el producto" },
       { status: 500 }
     );
   }
