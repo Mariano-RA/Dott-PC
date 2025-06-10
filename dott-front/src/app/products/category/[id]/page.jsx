@@ -39,7 +39,10 @@ const Page = ({ params }) => {
 
   async function handleLoadProducts() {
     const resVal = await fetch(
-      `/api/nest/products/category?category=${params.id}&skip=${page}&take=${take}&orderBy=${sortType}`
+      `/api/nest/products/category?category=${params.id}&skip=${page}&take=${take}&orderBy=${sortType}`,
+      {
+        cache: "no-store",
+      }
     );
 
     const { response } = await resVal.json();

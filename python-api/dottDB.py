@@ -244,7 +244,7 @@ def tablaMega(archivo_bytesio):
                 registros.append({
                     "proveedor": "mega",
                     "producto": producto,
-                    "categoria": categoria,
+                    "categoria": encontrar_valor(obtenerDiccionario("mega"), categoria),
                     "precio": precio_final  # Precio con IVA aplicado y margen adicional
                 })    
         return registros
