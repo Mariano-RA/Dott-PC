@@ -132,34 +132,26 @@ export class ProductosService {
     }
   }
 
-  async deleteTable(proveedorDto) {
-    const idProveedor = proveedorDto.proveedor;
+  async deleteProductosByProveedor(dto: { proveedor: string }) {
+    const idProveedor = dto.proveedor;
     try {
-      const proveedorExistente = await this.productoRepository.findOneBy({
-        proveedor: idProveedor,
-      });
-
-      if (proveedorExistente) {
-        await this.productoRepository
-          .createQueryBuilder("Productos")
-          .delete()
-          .from(Producto)
-          .where("proveedor = :id", { id: idProveedor })
-          .execute();
-
-        console.log(`Se borro la tabla de: ${idProveedor}`);
-        return `Se borro la tabla de: ${idProveedor}`;
+      const result = await this.productoRepository
+        .createQueryBuilder("producto")
+        .delete()
+        .from(Producto)
+        .where("proveedor = :id", { id: idProveedor })
+        .execute();
+  
+      if (result.affected && result.affected > 0) {
+        return `Se eliminaron ${result.affected} productos del proveedor ${idProveedor}`;
       } else {
-        console.log("No habia ningun proveedor con ese id");
-        return `No habia un listado del proveedor ${idProveedor}`;
+        return `No había productos del proveedor ${idProveedor}`;
       }
     } catch (error) {
-      console.log(
-        `Error al eliminar la tabla de ${idProveedor}: ${error.message}`
-      );
+      console.error(`Error al eliminar productos del proveedor ${idProveedor}: ${error.message}`);
       throw error;
     }
-  }
+  }  
 
   async findAll(skip: number, take: number, orderBy: string) {
     try {

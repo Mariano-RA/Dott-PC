@@ -115,21 +115,37 @@ export default withPageAuthRequired(function Admin() {
   }
 
   async function handleBorrarListado() {
-    if (deleteProveedor != "") {
+    if (deleteProveedor.trim() === "") return;
+  
+    try {
       const resVal = await fetch(`/api/nest/products/list`, {
-        method: "delete",
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           proveedor: deleteProveedor,
         }),
-      })
+      });
+  
       const responseData = await resVal.json();
-      if(responseData){
-        setAlert(responseData.response);
+  
+      if (!resVal.ok) {
+        console.error("Error al eliminar proveedor:", responseData.error);
+        setAlert("Hubo un error al borrar el listado.");
         setShow(true);
-      }     
+        return;
+      }
+  
+      setAlert(responseData.response); // mensaje de éxito
+      setShow(true);
+    } catch (error) {
+      console.error("Error de red al borrar proveedor:", error);
+      setAlert("Error de conexión con el servidor.");
+      setShow(true);
     }
   }
-
+  
   const handleCuotaChange = (id, valorTarjeta) => {
     const nuevasCuotas = arrayCuotas.map((cuota) => {
       if (cuota.id === id) {

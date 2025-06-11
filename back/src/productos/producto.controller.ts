@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   ParseArrayPipe,
   Post,
   Query,
@@ -22,7 +23,6 @@ import {
 } from "@nestjs/microservices";
 import { newTableDto } from "./dto/newTableDto";
 import { newMessageDto } from "./dto/newMessageDto";
-import { deleteProveedorDto } from "./dto/deleteProveedorDto";
 
 @Controller("productos")
 export class ProductosController {
@@ -95,8 +95,8 @@ export class ProductosController {
 
   @UseGuards(AuthorizationGuard, PermissionGuard)
   @SetMetadata("permissions", ["create:tablas"])
-  @Post("delete/")
-  async delete(@Body() proveedorDto:deleteProveedorDto) {
-    return await this.productosService.deleteTable(proveedorDto)
+  @Delete(':idProveedor')
+  async delete(@Param('idProveedor') id: string) {
+    return await this.productosService.deleteProductosByProveedor({ proveedor: id });
   }
 }

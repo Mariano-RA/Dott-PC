@@ -90,24 +90,22 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
-    const proveedor = await request.json();
+    const proveedor = await request.json(); // { proveedor: '...' }
+
     const config = {
       httpsAgent: agent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + accessToken,
+        Authorization: "Bearer " + session.accessToken,
       },
+      data: proveedor, // body dentro de config
     };
 
-    // Realizar la solicitud DELETE
-    const { data } = await axios.delete(`${apiUrl}/productos/delete`, {
-      data: proveedor,
-      ...config,
-    });
+    const { data } = await axios.delete(`${apiUrl}/productos/delete`, config);
 
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
-    console.error("Error en la solicitud DELETE:", error);
+    console.error("Error en la solicitud DELETE:", error.response?.data || error.message);
     return NextResponse.json(
       { error: "Error al eliminar el producto" },
       { status: 500 }
