@@ -2,6 +2,7 @@
   "air": {
     "569": "Electro",
     "001-0001": "Impresoras e Insumos",
+    "001-0002": "Refrigeracion",
     "001-0010": "Accesorios",
     "001-0011": "Impresoras e Insumos",
     "001-0014": "Computadoras",
@@ -30,7 +31,9 @@
     "001-0190": "Gabinetes",
     "001-0200": "Accesorios",
     "001-0212": "Electro",
+    "001-0023": "Accesorios",
     "001-0231": "Accesorios",
+    "001-0248": "Gamer",
     "001-0251": "Impresoras e Insumos",
     "001-0252": "Impresoras e Insumos",
     "001-0254": "Impresoras e Insumos",
@@ -147,7 +150,13 @@
     "IT-FMC44": "Soportes",
     "IT-ETS44": "Soportes",
     "IT-F22": "Soportes",
-    "IT-T22": "Soportes"
+    "IT-T22": "Soportes",
+    "001-1616": "Computadoras",
+    "002-1616": "Computadoras",
+    "001-0341": "Gamer",
+    "001-0281": "Almacenamiento Portatil",
+    "001-0291": "Gamer",
+    "003-0362": "Memorias RAM"
   },
   "eikon": {
     "ACCESORIOS": "Accesorios",
@@ -232,7 +241,15 @@
     "BROTHER": "Impresoras e Insumos",
     "SOPORTES Y ACCESORIOS": "Soportes",
     "MICROFONOS": "Microfonos",
-    "PILAS Y CARGADORES": "Accesorios"
+    "PILAS Y CARGADORES": "Accesorios",
+    "CAMARAS IP": "Conectividad",
+    "COMBO MOUSE+TECLADO": "Teclados",
+    "GABINETES": "Gabinetes",
+    "GABINETES COOLER MASTER": "Gabinetes",
+    "MALETINES Y MOCHILAS": "Accesorios",
+    "MICROFONOS/AURICULARES": "Microfonos",
+    "MOUSE INALAMBRICO": "Mouses",
+    "PASTA TERMICA": "Refrigeracion"
   },
   "elit": {
     "Accesorios": "Accesorios",
@@ -290,7 +307,23 @@
     "Memorias Notebook": "Memorias RAM",
     "Placas de Video": "Placas de video",
     "Joysticks": "Gamer",
-    "Mouse Pad": "Auriculares"
+    "Mouse Pad": "Auriculares",
+    "Accesorios Videojuegos": "Gamer",
+    "Candados": "Accesorios",
+    "Cargadores Portátiles": "Almacenamiento Portatil",
+    "Cámaras IP": "Conectividad",
+    "Cámaras WiFi": "Conectividad",
+    "Dockings": "Conectividad",
+    "Extensores": "Conectividad",
+    "Impresoras Láser": "Impresoras e Insumos",
+    "Impresoras de Tickets": "Impresoras e Insumos",
+    "Micrófonos": "Microfonos",
+    "Mochilas": "Accesorios",
+    "Mouse Pads": "Mouses",
+    "Nas": "Discos",
+    "Pen Drives": "Almacenamiento Portatil",
+    "Switches": "Conectividad",
+    "Trituradora": "Electro"
   },
   "invid": {
     "Accesorios /Auriculares": "Auriculares",
@@ -377,7 +410,27 @@
     "Seguridad /Porteros": "Electro",
     "Notebooks /Corporativa": "Notebooks",
     "Varios /Papel Resma": "Impresoras e Insumos",
-    "Discos Rígidos /SSD /Disco Rígido Notebook": "Discos"
+    "Discos Rígidos /SSD /Disco Rígido Notebook": "Discos",
+    "Computadoras/Mini PC": "Computadoras",
+    "Conectividad/Cable de Red UTP/HDMI": "Conectividad",
+    "Conectividad/Media conv/módulos": "Conectividad",
+    "Consumibles/Consumibles HP": "Impresoras e Insumos",
+    "DESTACADOS": "Ofertas",
+    "Discos Rígidos/SSD/Carry Disk": "Almacenamiento Portatil",
+    "Electrodomésticos": "Electro",
+    "Gabinetes y fuentes": "Gabinetes",
+    "Gamers/Accesorios gamer": "Gamer",
+    "Periféricos/Auriculares": "Auriculares",
+    "Periféricos/Micrófonos": "Microfonos",
+    "Periféricos/Mouse": "Mouses",
+    "Periféricos/Mousepads": "Mouses",
+    "Periféricos/Parlantes": "Parlantes",
+    "Periféricos/Teclado + Mouse": "Teclados",
+    "Periféricos/Teclados": "Teclados",
+    "Periféricos/Web Cam": "Webcams",
+    "SUPER OFERTAS": "Ofertas",
+    "Seguridad/Kit cámaras wifi": "Conectividad",
+    "Tabletas": "Tablets"
   },
   "nb": {
     "ACCESORIOS": "Accesorios",
@@ -425,7 +478,10 @@
     "BAZAR": "Electro",
     "SOFTWARE": "Software",
     "NOTEBOOKS - CLOUDBOOKS": "Notebooks",
-    "PARLANTES": "Parlantes"
+    "PARLANTES": "Parlantes",
+    "CONTADORAS Y CLASIFICADORAS DE BILLETES": "Electro",
+    "HOGAR": "Electro",
+    "NOTEBOOKS Y PORTATILES": "Notebooks"
   },
   "mega": {
     "ACCESORIOS - Auriculares": "Accesorios",
@@ -642,6 +698,10 @@
     "Torre de Sonido": "Parlantes",
     "TV": "Electro",
     "Varios": "Cables y Adaptadores",
-    "WEBCAM": "Webcams"
+    "WEBCAM": "Webcams",
+    "Audio": "Parlantes",
+    "Car-Audio": "Parlantes",
+    "Electrónica": "Electro",
+    "Informática": "Computadoras"
   }
 }
