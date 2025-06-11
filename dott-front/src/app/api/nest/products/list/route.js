@@ -90,7 +90,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
-    const proveedor = await request.json(); // { proveedor: '...' }
+    const { proveedor } = await request.json();
 
     const config = {
       httpsAgent: agent,
@@ -98,10 +98,12 @@ export async function DELETE(request) {
         "Content-Type": "application/json",
         Authorization: "Bearer " + session.accessToken,
       },
-      data: proveedor, // body dentro de config
     };
 
-    const { data } = await axios.delete(`${apiUrl}/productos/delete`, config);
+    const { data } = await axios.delete(
+      `${apiUrl}/productos/delete/${encodeURIComponent(proveedor)}`,
+      config
+    );
 
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
