@@ -17,6 +17,8 @@ RUN pip install -r requeriments.txt && \
 # Copia el código de la aplicación a la imagen
 COPY . .
 
+RUN chmod -R 777 /app/nuevosScripts/diccionarios
+
 # Expone el puerto en el que la API estará escuchando
 EXPOSE 5000
 

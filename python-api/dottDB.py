@@ -11,6 +11,7 @@ import pika
 from unidecode import unidecode
 import sys
 import logging
+from normalizador_categorias import normalizar_categoria, guardar_categorias_nuevas
 
 
 # Directorios y configuración de logs
@@ -66,29 +67,12 @@ def procesar_proveedor(nombre_proveedor, archivo_base64):
         elif nombre_proveedor == 'nb':
             data = tablaNb(archivo_bytesio)
         elif nombre_proveedor == 'mega':
-            data = tablaMega(archivo_bytesio)        
+            data = tablaMega(archivo_bytesio)   
 
+        guardar_categorias_nuevas()
         enviar_resultado_a_rabbitmq(nombre_proveedor, data)
     except Exception as ex:
         log_exception(f"Error en {nombre_proveedor}: {ex}")
-
-def encontrar_valor(diccionario, clave):
-    if clave in diccionario:
-        return diccionario[clave]
-    else:
-        if (clave == "ESTABILIZADORES - UPS - Zapatillas Eléctricas"):
-            return diccionario["ESTABILIZADORES - UPS - Zapatillas Electricas"]
-        elif (clave == "GPS - De Exploración"):
-            return diccionario["GPS - De Exploracion"]
-        elif (clave == "TV - Iluminación"):
-            return diccionario["TV - Iluminacion"]
-        else:
-            return "Varios"
-
-def obtenerDiccionario(nombreDiccionario):
-    with open("nuevosScripts/diccionarios/diccionarios.json") as f:
-        diccionariosJson = json.load(f)
-    return diccionariosJson[nombreDiccionario]
 
 def tablaAir(archivo_bytesios):
     try:
@@ -101,7 +85,7 @@ def tablaAir(archivo_bytesios):
                 registro = {
                     'proveedor': 'air',
                     'producto': row[1],
-                    'categoria': encontrar_valor(obtenerDiccionario('air'), row[10]),
+                    'categoria': normalizar_categoria('air', row[10], row[1]),
                     'precio': calcular_precio(row[2], row[4])
                 }
                 data.append(registro)
@@ -120,7 +104,7 @@ def tablaEikon(archivo_bytesio):
             registro = {
                 "proveedor": "eikon",
                 "producto": row[1],
-                "categoria": encontrar_valor(obtenerDiccionario("eikon"), row[6]),
+                'categoria': normalizar_categoria('eikon', row[5], ''),
                 "precio": calcular_precio(row[3])
             }
 
@@ -140,7 +124,7 @@ def tablaElit(archivo_bytesio):
             registro = {
                 "proveedor": "elit",
                 "producto": row[1],
-                "categoria": encontrar_valor(obtenerDiccionario("elit"), row[5]),
+                'categoria': normalizar_categoria('elit', row[5], ''),
                 "precio": calcular_precio(row[8], float(row[9]) + float(row[10]))
             }
             data.append(registro)
@@ -158,7 +142,7 @@ def tablaHdc(archivo_bytesio):
                 registro = {
                     "proveedor": "hdc",
                     "producto": row[3],
-                    "categoria": encontrar_valor(obtenerDiccionario("hdc"), row[0]),
+                    'categoria': normalizar_categoria('hdc', row[0], ''),
                     "precio": calcular_precio(row[4], row[5])
                 }
                 data.append(registro)
@@ -182,7 +166,7 @@ def tablaInvid(archivo_bytesio):
                     "proveedor": "invid",
                     "producto": row[1],
                     "precio": calcular_precio(row[8]),
-                    "categoria": encontrar_valor(obtenerDiccionario("invid"), categoria_actual)  # Asignar la categoría actual
+                    'categoria': normalizar_categoria('invid', categoria_actual, '')
                 }
                 data.append(registro)
         return data
@@ -200,7 +184,7 @@ def tablaNb(archivo_bytesio):
             registro = {
                 "proveedor": "nb",
                 "producto": row[3],
-                "categoria": encontrar_valor(obtenerDiccionario("nb"), row[2]),
+                'categoria': normalizar_categoria('nb', row[2], ''),
                 "precio": calcular_precio(row[10])
             }
             data.append(registro)
@@ -244,7 +228,7 @@ def tablaMega(archivo_bytesio):
                 registros.append({
                     "proveedor": "mega",
                     "producto": producto,
-                    "categoria": encontrar_valor(obtenerDiccionario("mega"), categoria),
+                    'categoria': normalizar_categoria('mega', categoria, ''),
                     "precio": precio_final  # Precio con IVA aplicado y margen adicional
                 })    
         return registros
