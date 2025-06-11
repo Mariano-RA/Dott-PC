@@ -82,7 +82,7 @@ export async function DELETE(request) {
   try {
     const session = await getSession(request, null, {
       authorizationParams: {
-        scope: "delete:tablas offline_access",
+        scope: "create:tablas offline_access",
       },
     });
 
