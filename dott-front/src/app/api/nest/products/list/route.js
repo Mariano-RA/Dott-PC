@@ -61,7 +61,7 @@ export async function POST(request) {
       httpsAgent: agent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + accessToken,
+        Authorization: "Bearer " + session.accessToken,
       },
     };
 
