@@ -101,7 +101,7 @@ export async function DELETE(request) {
     };
 
     const { data } = await axios.delete(
-      `${apiUrl}/productos/delete/${encodeURIComponent(proveedor)}`,
+      `${apiUrl}/productos/${encodeURIComponent(proveedor)}`,
       config
     );
 
