@@ -45,8 +45,10 @@ const Page = ({ params }) => {
   }
 
   async function handleLoadProducts() {
+    const keywordsArray = params.keywords.trim().split(/\s+/);
+
     const paramsUrl = new URLSearchParams({
-      keywords: params.keywords,
+      keywords: keywordsArray.join(","),
       skip: page.toString(),
       take: take.toString(),
       orderBy: sortType,
