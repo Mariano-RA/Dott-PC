@@ -128,10 +128,10 @@ const Page = () => {
                     <Squares2X2Icon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                <Dropdown className="me-2" handleSort={handleSelectedSort} />
-                <ProveedorDropdown
-                  handleSelectProveedor={handleSelectProveedor}
-                />
+                  <Dropdown className="me-2" handleSort={handleSelectedSort} />
+                  <ProveedorDropdown
+                    handleSelectProveedor={handleSelectProveedor}
+                  />
               </div>
             </div>
             <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start max-xl:gap-x-[.3%] gap-x-[3%]">
