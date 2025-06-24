@@ -4,6 +4,7 @@ import ProductCard from "@/app/components/ProductCard";
 import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import Dropdown from "@/app/components/Dropdown";
+import ProveedorDropdown from "@/app/components/ProveedorDropdown";
 import Loading from "@/app/components/Loading";
 import { ContextGlobal } from "@/app/components/utils/global.context";
 import TableProducts from "@/app/components/TableProducts";
