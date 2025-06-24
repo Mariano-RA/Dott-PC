@@ -33,10 +33,9 @@ const Page = () => {
     setPage(newPage);
   }
 
-  function handleSelectProveedor(event) {
-    const selected = event.target.value;
-    setFilterProveedor(selected);
-    setPage(1); // Reinicia paginado
+  function handleSelectProveedor(proveedorKey) {
+    setFilterProveedor(proveedorKey);
+    setPage(1); // resetear paginado si es necesario
   }
 
   function handleVisualizer(visualizerType) {
@@ -129,22 +128,9 @@ const Page = () => {
                   </button>
                 </div>
                 <Dropdown handleSort={handleSelectedSort} />
-                <select
-                  className="w-full sm:w-auto rounded-md px-4 py-1 border text-sm text-red-950"
-                  id="proveedorSelect"
-                  aria-label="Seleccionar proveedor"
-                  value={filterProveedor}
-                  onChange={handleSelectProveedor}
-                >
-                  <option value="">Todos los proveedores</option>
-                  <option value="air">Air</option>
-                  <option value="eikon">Eikon</option>
-                  <option value="elit">Elit</option>
-                  <option value="mega">Mega</option>
-                  <option value="hdc">Hdc</option>
-                  <option value="invid">Invid</option>
-                  <option value="nb">Nb</option>
-                </select>
+                <ProveedorDropdown
+                  handleSelectProveedor={handleSelectProveedor}
+                />
               </div>
             </div>
             <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start max-xl:gap-x-[.3%] gap-x-[3%]">
