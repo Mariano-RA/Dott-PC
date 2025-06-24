@@ -45,7 +45,7 @@ const Page = ({ params }) => {
   }
 
   async function handleLoadProducts() {
-    const keywordsArray = params.keywords.trim().split(/\s+/);
+    const keywordsArray = params.keywords?.trim().split(/\s+/) || [];
 
     const paramsUrl = new URLSearchParams({
       keywords: keywordsArray.join(","),
