@@ -44,9 +44,10 @@ export class ProductosController {
   findAll(
     @Query("skip") skip: number,
     @Query("take") take: number,
-    @Query("orderBy") orderBy: string
+    @Query("orderBy") orderBy: string,
+    @Query("proveedor") proveedor?: string
   ) {
-    return this.productosService.findAll(skip, take, orderBy);
+    return this.productosService.findAll(skip, take, orderBy, proveedor);
   }
 
   @Get("categorias/")
@@ -60,9 +61,10 @@ export class ProductosController {
     @Query("keywords") keywords: string,
     @Query("skip") skip: number,
     @Query("take") take: number,
-    @Query("orderBy") orderBy: string
+    @Query("orderBy") orderBy: string,
+    @Query("proveedor") proveedor?: string
   ) {
-    return this.productosService.findByKeyWord(keywords, skip, take, orderBy);
+    return this.productosService.findByKeyWord(keywords, skip, take, orderBy, proveedor);
   }
 
   @Get("categoria/")
@@ -70,9 +72,10 @@ export class ProductosController {
     @Query("category") category: string,
     @Query("skip") skip: number,
     @Query("take") take: number,
-    @Query("orderBy") orderBy: string
+    @Query("orderBy") orderBy: string,
+    @Query("proveedor") proveedor?: string
   ) {
-    return this.productosService.findByCategory(category, skip, take, orderBy);
+    return this.productosService.findByCategory(category, skip, take, orderBy, proveedor);
   }
 
   @Get("palabrasClavesYCategoria/")
@@ -82,21 +85,25 @@ export class ProductosController {
     keywords: String[],
     @Query("skip") skip: number,
     @Query("take") take: number,
-    @Query("orderBy") orderBy: string
+    @Query("orderBy") orderBy: string,
+    @Query("proveedor") proveedor?: string
   ) {
     return this.productosService.findByKeyWordAndCategory(
       keywords,
       category,
       skip,
       take,
-      orderBy
+      orderBy,
+      proveedor
     );
   }
 
   @UseGuards(AuthorizationGuard, PermissionGuard)
   @SetMetadata("permissions", ["create:tablas"])
-  @Delete(':idProveedor')
-  async delete(@Param('idProveedor') id: string) {
-    return await this.productosService.deleteProductosByProveedor({ proveedor: id });
+  @Delete(":idProveedor")
+  async delete(@Param("idProveedor") id: string) {
+    return await this.productosService.deleteProductosByProveedor({
+      proveedor: id,
+    });
   }
 }

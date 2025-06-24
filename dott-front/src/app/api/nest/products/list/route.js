@@ -13,6 +13,7 @@ export async function GET(req) {
     const skip = req.nextUrl.searchParams.get("skip");
     const take = req.nextUrl.searchParams.get("take");
     const orderBy = req.nextUrl.searchParams.get("orderBy");
+    const proveedor = req.nextUrl.searchParams.get("proveedor");
 
 
     if (!skip || !take) {
@@ -30,7 +31,7 @@ export async function GET(req) {
             headers: {
               "content-type": "application/json",
             },
-            params: { skip, take, orderBy },
+            params: { skip, take, orderBy, proveedor },
           }
         );
 

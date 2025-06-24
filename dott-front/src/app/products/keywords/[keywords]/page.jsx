@@ -28,6 +28,7 @@ const Page = ({ params }) => {
   const { state } = useContext(ContextGlobal);
   const [showLoading, setShowLoading] = useState(true);
   const [showTypeGrid, setShowTypeGrid] = useState(false);
+  const [filterProveedor, setFilterProveedor] = useState("");
 
   function handleSelectedSort(sortType) {
     setSortType(sortType);
@@ -37,11 +38,25 @@ const Page = ({ params }) => {
     setPage(newPage);
   }
 
-  async function handleLoadProducts() {
-    const resVal = await fetch(
-      `/api/nest/products/keywords?keywords=${params.keywords}&skip=${page}&take=${take}&orderBy=${sortType}`
-    );
+  function handleSelectProveedor(event) {
+    const selected = event.target.value;
+    setFilterProveedor(selected);
+    setPage(1); // Reinicia paginado
+  }
 
+  async function handleLoadProducts() {
+    const paramsUrl = new URLSearchParams({
+      keywords: params.keywords,
+      skip: page.toString(),
+      take: take.toString(),
+      orderBy: sortType,
+    });
+
+    if (filterProveedor) paramsUrl.append("proveedor", filterProveedor);
+
+    const resVal = await fetch(
+      `/api/nest/products/keywords?${paramsUrl.toString()}`
+    );
     const { response } = await resVal.json();
 
     setProducts(response.productos);
@@ -83,7 +98,7 @@ const Page = ({ params }) => {
 
   useEffect(() => {
     handleLoadProducts();
-  }, [state, setSortType, sortType, setPage, page]);
+  }, [state, setSortType, sortType, setPage, page, filterProveedor]);
   return (
     <div className="flex">
       {showLoading ? (
@@ -122,6 +137,22 @@ const Page = ({ params }) => {
                   </button>
                 </div>
                 <Dropdown handleSort={handleSelectedSort} />
+                <select
+                  className="w-full sm:w-auto rounded-md px-4 py-1 border text-sm text-red-950"
+                  id="proveedorSelect"
+                  aria-label="Seleccionar proveedor"
+                  value={filterProveedor}
+                  onChange={handleSelectProveedor}
+                >
+                  <option value="">Todos los proveedores</option>
+                  <option value="air">Air</option>
+                  <option value="eikon">Eikon</option>
+                  <option value="elit">Elit</option>
+                  <option value="mega">Mega</option>
+                  <option value="hdc">Hdc</option>
+                  <option value="invid">Invid</option>
+                  <option value="nb">Nb</option>
+                </select>
               </div>{" "}
             </div>
             <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start max-xl:gap-x-[.3%] gap-x-[3%]">

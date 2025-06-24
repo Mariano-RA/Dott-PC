@@ -141,19 +141,26 @@ export class ProductosService {
         .from(Producto)
         .where("proveedor = :id", { id: idProveedor })
         .execute();
-  
+
       if (result.affected && result.affected > 0) {
         return `Se eliminaron ${result.affected} productos del proveedor ${idProveedor}`;
       } else {
         return `No había productos del proveedor ${idProveedor}`;
       }
     } catch (error) {
-      console.error(`Error al eliminar productos del proveedor ${idProveedor}: ${error.message}`);
+      console.error(
+        `Error al eliminar productos del proveedor ${idProveedor}: ${error.message}`
+      );
       throw error;
     }
-  }  
+  }
 
-  async findAll(skip: number, take: number, orderBy: string) {
+  async findAll(
+    skip: number,
+    take: number,
+    orderBy: string,
+    proveedor?: string
+  ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
         this.productoRepository.find(),
@@ -164,6 +171,13 @@ export class ProductosService {
       let listadoProductos = [];
 
       let arrayProductos = productos;
+
+      if (proveedor) {
+        arrayProductos = arrayProductos.filter((x) =>
+          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+        );
+      }
+
       arrayProductos.map((prod) => {
         const dto = new ProductoDto();
         dto.id = prod.id;
@@ -218,7 +232,8 @@ export class ProductosService {
     keywords: String,
     skip: number,
     take: number,
-    orderBy: string
+    orderBy: string,
+    proveedor?: string
   ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
@@ -230,8 +245,14 @@ export class ProductosService {
       const listadoPalabras = keywords.split(" ");
 
       let listadoProductos = [];
-      // let arrayProductos = handleOrder(orderBy, productos);
       let arrayProductos = productos;
+
+      if (proveedor) {
+        arrayProductos = arrayProductos.filter((x) =>
+          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+        );
+      }
+
       arrayProductos
         .filter((x) =>
           listadoPalabras.every((word) =>
@@ -275,7 +296,8 @@ export class ProductosService {
     category: string,
     skip: number,
     take: number,
-    orderBy: string
+    orderBy: string,
+    proveedor?: string
   ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
@@ -285,8 +307,14 @@ export class ProductosService {
       ]);
 
       let listadoProductos = [];
-      // let productosSorted = handleOrder(orderBy, productos);
       let arrayProductos = productos;
+
+      if (proveedor) {
+        arrayProductos = arrayProductos.filter((x) =>
+          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+        );
+      }
+
       arrayProductos
         .filter((x) =>
           x.categoria.toLowerCase().includes(category.toLowerCase())
@@ -335,7 +363,8 @@ export class ProductosService {
     category: string,
     skip: number,
     take: number,
-    orderBy: string
+    orderBy: string,
+    proveedor?: string
   ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
@@ -345,6 +374,13 @@ export class ProductosService {
       ]);
       let listadoProductos = [];
       let arrayProductos = productos;
+
+      if (proveedor) {
+        arrayProductos = arrayProductos.filter((x) =>
+          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+        );
+      }
+
       arrayProductos
         .filter(
           (x) =>

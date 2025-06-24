@@ -23,6 +23,7 @@ const Page = () => {
   const { state } = useContext(ContextGlobal);
   const [showLoading, setShowLoading] = useState(true);
   const [showTypeGrid, setShowTypeGrid] = useState(false);
+  const [filterProveedor, setFilterProveedor] = useState("");
 
   function handleSelectedSort(sortType) {
     setSortType(sortType);
@@ -30,6 +31,12 @@ const Page = () => {
 
   function handlePagination(newPage) {
     setPage(newPage);
+  }
+
+  function handleSelectProveedor(event) {
+    const selected = event.target.value;
+    setFilterProveedor(selected);
+    setPage(1); // Reinicia paginado
   }
 
   function handleVisualizer(visualizerType) {
@@ -65,11 +72,16 @@ const Page = () => {
   };
 
   async function handleLoadProducts() {
-    const data = await fetch(
-      `/api/nest/products/list?skip=${page}&take=${take}&orderBy=${sortType}`
-    );
+    const params = new URLSearchParams({
+      skip: page.toString(),
+      take: take.toString(),
+      orderBy: sortType,
+    });
 
-    const { response } = await data.json();
+    if (filterProveedor) params.append("proveedor", filterProveedor);
+
+    const res = await fetch(`/api/nest/products/list?${params.toString()}`);
+    const { response } = await res.json();
 
     setProducts(response.productos);
     setProductLength(response.cantResultados);
@@ -78,7 +90,7 @@ const Page = () => {
 
   useEffect(() => {
     handleLoadProducts();
-  }, [state, setSortType, sortType, setPage, page]);
+  }, [state, setSortType, sortType, setPage, page, filterProveedor]);
   return (
     <div className="flex">
       {showLoading ? (
@@ -117,6 +129,22 @@ const Page = () => {
                   </button>
                 </div>
                 <Dropdown handleSort={handleSelectedSort} />
+                <select
+                  className="w-full sm:w-auto rounded-md px-4 py-1 border text-sm text-red-950"
+                  id="proveedorSelect"
+                  aria-label="Seleccionar proveedor"
+                  value={filterProveedor}
+                  onChange={handleSelectProveedor}
+                >
+                  <option value="">Todos los proveedores</option>
+                  <option value="air">Air</option>
+                  <option value="eikon">Eikon</option>
+                  <option value="elit">Elit</option>
+                  <option value="mega">Mega</option>
+                  <option value="hdc">Hdc</option>
+                  <option value="invid">Invid</option>
+                  <option value="nb">Nb</option>
+                </select>
               </div>
             </div>
             <div className="flex flex-grow flex-wrap justify-evenly md:justify-start w-full items-start px-0 md:px-14 content-start max-xl:gap-x-[.3%] gap-x-[3%]">
