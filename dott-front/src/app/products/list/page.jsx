@@ -128,7 +128,7 @@ const Page = () => {
                     <Squares2X2Icon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                  <Dropdown className="me-2" handleSort={handleSelectedSort} />
+                  <Dropdown handleSort={handleSelectedSort} />
                   <ProveedorDropdown
                     handleSelectProveedor={handleSelectProveedor}
                   />
