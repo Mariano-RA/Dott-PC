@@ -43,17 +43,36 @@ const Page = ({ params }) => {
     setFilterProveedor(proveedorKey);
     setPage(1); // resetear paginado si es necesario
   }
+  
 
-  async function handleLoadProducts() {
-    let url = `/api/nest/products/keywords?keywords=${encodeURIComponent(
-      params.keywords
-    )}&skip=${page}&take=${take}&orderBy=${sortType}`;
+  // async function handleLoadProducts() {
+  //   const decodedKeywords = decodeURIComponent(params.keywords || "");
+  //   const keywordsArray = decodedKeywords?.trim().split(/\s+/) || [];
+  //   const keywordsParam = keywordsArray.join(",");
 
-    if (filterProveedor) {
-      url += `&proveedor=${encodeURIComponent(filterProveedor)}`;
-    }
+  //   const paramsUrl = new URLSearchParams({
+  //     keywords: keywordsParam,
+  //     skip: page.toString(),
+  //     take: take.toString(),
+  //     orderBy: sortType,
+  //   });
 
-    const resVal = await fetch(url);
+  //   if (filterProveedor) paramsUrl.append("proveedor", filterProveedor);
+
+  //   const resVal = await fetch(
+  //     `/api/nest/products/keywords?${paramsUrl.toString()}`
+  //   );
+  //   const { response } = await resVal.json();
+
+  //   setProducts(response.productos);
+  //   setProductLength(response.cantResultados);
+  //   setShowLoading(false);
+  // }
+
+    async function handleLoadProducts() {
+    const resVal = await fetch(
+      `/api/nest/products/keywords?keywords=${params.keywords}&skip=${page}&take=${take}&orderBy=${sortType}`
+    );
 
     const { response } = await resVal.json();
 
@@ -61,7 +80,7 @@ const Page = ({ params }) => {
     setProductLength(response.cantResultados);
     setShowLoading(false);
   }
-
+  
   function handleVisualizer(visualizerType) {
     switch (visualizerType) {
       case "List":
