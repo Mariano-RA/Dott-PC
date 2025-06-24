@@ -7,7 +7,7 @@ function classNames(...classes) {
 }
 
 const proveedores = [
-  { key: "", value: "Todos los proveedores" },
+  { key: "", value: "Proveedores" },
   { key: "air", value: "Air" },
   { key: "eikon", value: "Eikon" },
   { key: "elit", value: "Elit" },

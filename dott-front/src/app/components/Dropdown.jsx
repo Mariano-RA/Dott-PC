@@ -36,7 +36,7 @@ export default function Dropdown({ handleSort }) {
   return (
     <Menu
       as="div"
-      className="relative inline-block text-left me-2"
+      className="relative inline-block text-left me-2 sm:mb-2"
       style={{ width: "140px" }}
     >
       <div>
