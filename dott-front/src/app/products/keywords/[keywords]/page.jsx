@@ -45,20 +45,16 @@ const Page = ({ params }) => {
   }
 
   async function handleLoadProducts() {
-    const keywordsArray = params.keywords?.trim().split(/\s+/) || [];
+    let url = `/api/nest/products/keywords?keywords=${encodeURIComponent(
+      params.keywords
+    )}&skip=${page}&take=${take}&orderBy=${sortType}`;
 
-    const paramsUrl = new URLSearchParams({
-      keywords: keywordsArray.join(","),
-      skip: page.toString(),
-      take: take.toString(),
-      orderBy: sortType,
-    });
+    if (filterProveedor) {
+      url += `&proveedor=${encodeURIComponent(filterProveedor)}`;
+    }
 
-    if (filterProveedor) paramsUrl.append("proveedor", filterProveedor);
+    const resVal = await fetch(url);
 
-    const resVal = await fetch(
-      `/api/nest/products/keywords?${paramsUrl.toString()}`
-    );
     const { response } = await resVal.json();
 
     setProducts(response.productos);
