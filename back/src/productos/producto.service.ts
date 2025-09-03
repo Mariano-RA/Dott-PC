@@ -16,8 +16,56 @@ import {
 import { newTableDto } from "./dto/newTableDto";
 import { OK } from "sqlite3";
 
-function obtenerPrecioEfectivo(monto, dolar) {
-  return Math.round(monto * dolar);
+function obtenerMargenPorCategoria(categoria: string): number {
+  switch (categoria.trim().toLowerCase()) {
+    // Bajo margen
+    case "placas de video":
+    case "procesadores":
+    case "motherboards":
+    case "memorias ram":
+    case "discos":
+    case "notebooks":
+    case "computadoras":
+    case "tablets":
+    case "telefonia":
+    case "monitores":
+      return 0.12;
+
+    // Margen medio
+    case "fuentes":
+    case "gabinetes":
+    case "impresoras e insumos":
+    case "refrigeracion":
+    case "estabilizadores y ups":
+    case "sillas":
+    case "electro":
+      return 0.2;
+
+    // Alto margen
+    case "accesorios":
+    case "auriculares":
+    case "mouses":
+    case "teclados":
+    case "parlantes":
+    case "microfonos":
+    case "webcams":
+    case "smartwatch":
+    case "conectividad":
+    case "cables y adaptadores":
+    case "soportes":
+    case "almacenamiento portatil":
+    case "software":
+      return 0.35;
+
+    // Margen por defecto
+    default:
+      return 0.15;
+  }
+}
+
+function obtenerPrecioEfectivo(monto, dolar, categoria) {
+  const margen = obtenerMargenPorCategoria(categoria);
+  return Math.round(monto * dolar * (1 + margen));
 }
 
 function calcularValorCuotas(precio, listadoCuotas) {
@@ -189,7 +237,8 @@ export class ProductosService {
         );
         dto.precioEfectivo = obtenerPrecioEfectivo(
           prod.precio,
-          valorDolar.precioDolar
+          valorDolar.precioDolar,
+          prod.categoria
         );
         dto.precioCuotas = calcularValorCuotas(
           dto.precioEfectivo,
@@ -270,7 +319,8 @@ export class ProductosService {
           );
           dto.precioEfectivo = obtenerPrecioEfectivo(
             prod.precio,
-            valorDolar.precioDolar
+            valorDolar.precioDolar,
+            prod.categoria
           );
           dto.precioCuotas = calcularValorCuotas(
             dto.precioEfectivo,
@@ -330,7 +380,8 @@ export class ProductosService {
           );
           dto.precioEfectivo = obtenerPrecioEfectivo(
             prod.precio,
-            valorDolar.precioDolar
+            valorDolar.precioDolar,
+            prod.categoria
           );
           dto.precioCuotas = calcularValorCuotas(
             dto.precioEfectivo,
@@ -399,7 +450,8 @@ export class ProductosService {
           );
           dto.precioEfectivo = obtenerPrecioEfectivo(
             prod.precio,
-            valorDolar.precioDolar
+            valorDolar.precioDolar,
+            prod.categoria
           );
           dto.precioCuotas = calcularValorCuotas(
             dto.precioEfectivo,

@@ -45,7 +45,7 @@ def calcular_precio(precio, iva=0):
     precio = float(precio.replace(',', '.')) if isinstance(precio, str) else float(precio)
     iva = float(iva.replace(',', '.')) if isinstance(iva, str) else float(iva)
 
-    return round(float(precio) * (1 + float(iva)/100) * 1.1)
+    return round(float(precio) * (1 + float(iva)/100))
 
 
 def procesar_proveedor(nombre_proveedor, archivo_base64):
