@@ -24,33 +24,38 @@
 
 # CMD ["python", "dottDB.py"]
 
-# python-api/Dockerfile
-# Usamos Python 3.9 por compat con pandas==1.3.3 / openpyxl==3.0.9
-FROM python:3.9-slim AS base
+# Usamos Python 3.9 por compatibilidad con pandas==1.3.3 / openpyxl==3.0.9
+FROM python:3.9-slim
+
+# Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
+# Variables de entorno recomendadas
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Instala dependencias del sistema necesarias para compilación de paquetes Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Cache fuerte: primero requirements
+# Copia el archivo de requisitos e instala las dependencias
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Código
+# Copia el código de la aplicación a la imagen
 COPY . .
 
-# Permisos: evitá 777; dejé 755
+# Crea el directorio y ajusta permisos (evita 777, usa 755)
 RUN mkdir -p /app/nuevosScripts/diccionarios && \
     chmod -R 755 /app/nuevosScripts/diccionarios
 
-# Usuario no-root
+# Crea usuario no-root y lo usa para correr la app
 RUN useradd -m appuser
 USER appuser
 
+# Expone el puerto en el que la API estará escuchando
 EXPOSE 5000
-# Si es web, considerá gunicorn. Por ahora respetamos lo tuyo:
+
+# Comando por defecto para iniciar la aplicación
 CMD ["python", "dottDB.py"]

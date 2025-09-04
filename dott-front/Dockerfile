@@ -51,26 +51,31 @@
 
 # CMD ["node", "server.js"]
 
-# dott-front/Dockerfile
+# --- Base image ---
 FROM node:20-alpine AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
-# --- Deps por lockfile
+# --- Dependencies ---
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
-COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm i; fi
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+RUN \
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
+  else echo "No lockfile found." && exit 1; \
+  fi
 
-# --- Build Next (output standalone)
+# --- Build (Next.js standalone) ---
 FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# --- Runner (standalone, no-root)
+# --- Production runner (non-root) ---
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
