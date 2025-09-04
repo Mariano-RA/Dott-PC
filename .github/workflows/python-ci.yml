@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "python-api/**"           # cualquier archivo dentro de python-api/
-      - ".github/workflows/ci.yml" # opcional: para que se ejecute si cambiás el propio workflow
+      - ".github/workflows/python-ci.yml" # opcional: para que se ejecute si cambiás el propio workflow
   pull_request:
     branches: ["main"]
     paths:
