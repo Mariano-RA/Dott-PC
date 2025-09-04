@@ -3,6 +3,9 @@ name: Publish images
 on:
   push:
     branches: ["main"]     # solo publica al mergear a main
+    paths:
+      - "back/**"           # cualquier archivo dentro de python-api/
+      - ".github/workflows/backend-ci.yml" # opcional: para que se ejecute si cambiás el propio workflow
   workflow_dispatch:        # opcional: para forzar builds manuales
 
 env:
