@@ -24,23 +24,31 @@
 
 # CMD ["python", "dottDB.py"]
 
-FROM python:3.8-slim
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# Copiá primero requirements para aprovechar cache
+# Crear usuario no-root antes de copiar para usar --chown
+RUN groupadd -g 10001 app && useradd -m -u 10001 -g 10001 -s /usr/sbin/nologin app
+
+# Dependencias de Python (aprovecha caché)
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalación: no usás apt, así que apt-get clean y rm de listas no aportan.
-# Dejalo simple y robusto:
-RUN pip install --no-cache-dir -r requirements.txt && \
-    rm -rf /root/.cache
+# Copiar el código como usuario dueño
+COPY --chown=app:app . .
 
-# Ahora sí copiá el resto
-COPY . .
+# Si tu app necesita escribir en este folder, crealo y dá permisos razonables
+RUN mkdir -p /app/nuevosScripts/diccionarios \
+ && chown -R app:app /app/nuevosScripts/diccionarios \
+ && chmod -R 775 /app/nuevosScripts/diccionarios
 
-# Permisos (ideal 755; si tu app necesita escritura, ajustá dueño/UID)
-RUN chmod -R 777 /app/nuevosScripts/diccionarios || true
+USER app
 
 EXPOSE 5000
 CMD ["python", "dottDB.py"]
