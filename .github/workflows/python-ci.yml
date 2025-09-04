@@ -1,0 +1,66 @@
+name: Publish python-api
+
+on:
+  push:
+    branches: ["main"]         # publica solo al mergear a main
+  workflow_dispatch:            # ejecución manual opcional
+
+env:
+  DOCKERHUB_NAMESPACE: marianora
+
+jobs:
+  build_and_push_python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Builder del daemon: estable en GHA
+      - name: Set up Buildx (daemon)
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+          install: true
+
+      - name: Derive tags
+        run: |
+          REPO="${{ env.DOCKERHUB_NAMESPACE }}/dott-python"
+          echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
+          echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
+          echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Docker meta (labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REPO }}
+          flavor: latest=false
+          labels: |
+            org.opencontainers.image.title=dott-python
+            org.opencontainers.image.description=python-api image
+            org.opencontainers.image.url=https://hub.docker.com/r/${{ env.DOCKERHUB_NAMESPACE }}/dott-python
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push (python-api)
+        uses: docker/build-push-action@v6
+        with:
+          context: python-api
+          file: python-api/Dockerfile
+          platforms: linux/amd64
+          pull: true
+          push: true
+          tags: |
+            ${{ env.EDGE_TAG }}
+            ${{ env.SHA_TAG }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=python-api
+          cache-to: type=gha,scope=python-api,mode=max
+          provenance: false
+          sbom: false
