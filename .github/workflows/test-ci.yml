@@ -2,8 +2,8 @@ name: Publish images
 
 on:
   push:
-    branches: ["main"]     # solo publica al mergear a main
-  workflow_dispatch:        # opcional: para forzar builds manuales
+    branches: ["main"]      # publica solo al mergear a main
+  workflow_dispatch:        # opcional: disparo manual
 
 env:
   DOCKERHUB_NAMESPACE: marianora
@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - name: back
@@ -28,15 +29,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Buildx
+      # Builder del daemon: más estable en GHA que docker-container
+      - name: Set up Buildx (daemon)
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+          install: true
 
       - name: Derive tags
         id: vars
         run: |
           REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}"
           echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
-          # Tags para main
           echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
           echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
 
@@ -53,6 +57,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      # Login ANTES del build para evitar rate limit al tirar la base
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -65,6 +70,7 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
+          pull: true
           push: true
           tags: |
             ${{ env.EDGE_TAG }}
