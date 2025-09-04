@@ -22,10 +22,6 @@ jobs:
             image: dott-back                 # <--- nombre del repo en Docker Hub
             context: back
             dockerfile: back/Dockerfile
-          - name: dott-front
-            image: dott-front
-            context: dott-front
-            dockerfile: dott-front/Dockerfile
           - name: python-api
             image: dott-python               # <--- publica como marianora/dott-python
             context: python-api
