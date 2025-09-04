@@ -75,13 +75,16 @@ jobs:
           echo "  NAMESPACE=$NAMESPACE"
           echo "  IMAGE_NAME=$IMAGE_NAME"
 
-      - name: Set up QEMU (opcional)
-        uses: docker/setup-qemu-action@v3
+      # - name: Set up QEMU (solo si vas a multi-arch)
+      #   uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
+      - name: Set up Docker Buildx (driver docker-container con BuildKit estable)
         uses: docker/setup-buildx-action@v3
         with:
           install: true
+          driver: docker-container
+          driver-opts: image=moby/buildkit:buildx-stable-1
+          buildkitd-flags: --debug
 
       - name: Docker Hub login
         if: ${{ github.event_name != 'pull_request' && steps.vars.outputs.namespace != '' }}
@@ -115,3 +118,18 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false    # ← evita attestation de provenance (crashes esporádicos)
+          sbom: false          # ← evita generación de SBOM
+
+      - name: Dump BuildKit logs (solo on-failure)
+        if: failure()
+        run: |
+          set -x
+          docker ps -a
+          BK_CONTAINER=$(docker ps -a --filter "name=buildx_buildkit_" --format "{{.Names}}" | head -n1)
+          if [ -n "$BK_CONTAINER" ]; then
+            echo "==> Logs de $BK_CONTAINER"
+            docker logs --tail=500 "$BK_CONTAINER" || true
+          else
+            echo "No encontré contenedor buildkit"
+          fi
