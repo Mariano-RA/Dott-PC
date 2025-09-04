@@ -24,6 +24,8 @@
 
 # CMD ["python", "dottDB.py"]
 
+# syntax=docker/dockerfile:1
+
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -33,20 +35,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Crear usuario no-root antes de copiar para usar --chown
+# Crear usuario no-root
 RUN groupadd -g 10001 app && useradd -m -u 10001 -g 10001 -s /usr/sbin/nologin app
 
-# Dependencias de Python (aprovecha caché)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# (Opcional) libstdc++/gomp por si alguna wheel las usa
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libstdc++6 libgomp1 \
+  && rm -rf /var/lib/apt/lists/*
 
-# Copiar el código como usuario dueño
+# Instalar deps primero (cache)
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# Copiar código
 COPY --chown=app:app . .
 
-# Si tu app necesita escribir en este folder, crealo y dá permisos razonables
+# Si tu app necesita esos archivos para escritura/lectura:
 RUN mkdir -p /app/nuevosScripts/diccionarios \
- && chown -R app:app /app/nuevosScripts/diccionarios \
- && chmod -R 775 /app/nuevosScripts/diccionarios
+ && chown -R app:app /app/nuevosScripts \
+ && chmod -R 775 /app/nuevosScripts
 
 USER app
 

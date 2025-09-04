@@ -14,34 +14,21 @@ productosDB.sqlite
 test.py
 FILTROS PARA LISTAS.ods
 .git
-# VCS
-.git
-.gitignore
-
-# Python caches y entornos
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.pytest_cache/
+.pytest_cache/
+.mypy_cache/
+.env
 .venv/
 venv/
-.env
-.env.*
-
-# Distribución
-build/
-dist/
-*.egg-info/
-
-# Node (si hubiera)
 node_modules/
-
-# IDE/editor
+.git/
+.gitignore
 .vscode/
 .idea/
-
-# ⚠️ No ignores el Dockerfile ni requirements.txt dentro del contexto
-# Dockerfile
-# requirements.txt
-
+*.log
+*.sqlite
+dist/
+build/
