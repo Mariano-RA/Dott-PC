@@ -1,60 +1,37 @@
-name: Publish python-api (buildx)
+name: Build and Publish images
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
     paths:
-      - "python-api/**"
-      - ".github/workflows/python-ci.yml"
-  workflow_dispatch: {}
-
-env:
-  DOCKERHUB_NAMESPACE: marianora
-  IMAGE_NAME: dott-python
-  DOCKERFILE_DIR: python-api
+      - 'python-api/**'
+      - '.github/workflows/python-ci.yml'
+      # Agregá otros Dockerfiles si querés que disparen el workflow
 
 jobs:
-  build-and-push:
+  publish_images:
     runs-on: ubuntu-latest
-    concurrency:
-      group: python-api-build
-      cancel-in-progress: true
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx (pinned BuildKit)
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:latest
-          buildkitd-flags: --debug
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=long
+      - name: Build & Push python-api
+        run: |
+          docker build ./python-api \
+            -f ./python-api/Dockerfile \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/dott-python:latest
 
-      - name: Build & Push (Buildx + cache, sin provenance)
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ env.DOCKERFILE_DIR }}
-          file: ${{ env.DOCKERFILE_DIR }}/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          pull: true
-          provenance: false   # ← clave
-          sbom: false         # ← opcional, también desactiva SBOM
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/dott-python:latest
+
+      # Si querés otro servicio (ejemplo front-end), duplicás el bloque:
+      # - name: Build & Push front-end
+      #   run: |
+      #     docker build ./front-end-nextjs \
+      #       -f ./front-end-nextjs/Dockerfile \
+      #       -t ${{ secrets.DOCKERHUB_USERNAME }}/dott-frontend:latest
+      #     docker push ${{ secrets.DOCKERHUB_USERNAME }}/dott-frontend:latest
