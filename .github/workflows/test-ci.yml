@@ -1,35 +1,21 @@
-name: Publish images
+name: Publish back
 
 on:
   push:
-    branches: ["main"]      # publica solo al mergear a main
-  workflow_dispatch:        # opcional: disparo manual
+    branches: ["main"]         # publica solo al mergear a main
+  workflow_dispatch:            # ejecución manual opcional
 
 env:
   DOCKERHUB_NAMESPACE: marianora
 
 jobs:
-  build_and_push:
+  build_and_push_back:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        include:
-          - name: back
-            image: dott-back
-            context: back
-            dockerfile: back/Dockerfile
-          - name: python-api
-            image: dott-python
-            context: python-api
-            dockerfile: python-api/Dockerfile
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Builder del daemon: más estable en GHA que docker-container
+      # Builder del daemon: estable en GHA
       - name: Set up Buildx (daemon)
         uses: docker/setup-buildx-action@v3
         with:
@@ -37,9 +23,8 @@ jobs:
           install: true
 
       - name: Derive tags
-        id: vars
         run: |
-          REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}"
+          REPO="${{ env.DOCKERHUB_NAMESPACE }}/dott-back"
           echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
           echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
           echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
@@ -51,24 +36,23 @@ jobs:
           images: ${{ env.IMAGE_REPO }}
           flavor: latest=false
           labels: |
-            org.opencontainers.image.title=${{ matrix.image }}
-            org.opencontainers.image.description=${{ matrix.name }} image
-            org.opencontainers.image.url=https://hub.docker.com/r/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}
+            org.opencontainers.image.title=dott-back
+            org.opencontainers.image.description=back image
+            org.opencontainers.image.url=https://hub.docker.com/r/${{ env.DOCKERHUB_NAMESPACE }}/dott-back
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      # Login ANTES del build para evitar rate limit al tirar la base
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push
+      - name: Build & Push (back)
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: back
+          file: back/Dockerfile
           platforms: linux/amd64
           pull: true
           push: true
@@ -76,7 +60,7 @@ jobs:
             ${{ env.EDGE_TAG }}
             ${{ env.SHA_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+          cache-from: type=gha,scope=back
+          cache-to: type=gha,scope=back,mode=max
           provenance: false
           sbom: false
