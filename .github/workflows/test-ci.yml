@@ -1,19 +1,16 @@
-name: Test CI
+name: Publish images
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches: ["main"]     # solo publica al mergear a main
+  workflow_dispatch:        # opcional: para forzar builds manuales
 
 env:
   DOCKERHUB_NAMESPACE: marianora
 
 jobs:
-  build_scan_push:
-    name: Build, Scan & (Push en main) (${{ matrix.name }})
+  build_and_push:
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
@@ -31,29 +28,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Derive tags & flags
-        run: |
-          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            TAGS="${REPO}:pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::7}"
-            PUSH=false
-            SCAN_REF="${TAGS}"
-          else
-            TAGS="${REPO}:edge
-            ${REPO}:${GITHUB_SHA::7}"
-            PUSH=true
-            SCAN_REF="${REPO}:${GITHUB_SHA::7}"
-          fi
-          echo "IMAGE_REPO=${REPO}" >> $GITHUB_ENV
-          printf "TAGS<<EOF\n%s\nEOF\n" "${TAGS}" >> $GITHUB_ENV
-          echo "PUSH=${PUSH}" >> $GITHUB_ENV
-          echo "SCAN_REF=${SCAN_REF}" >> $GITHUB_ENV
-
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker meta
+      - name: Derive tags
+        id: vars
+        run: |
+          REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}"
+          echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
+          # Tags para main
+          echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
+          echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Docker meta (labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -66,80 +53,22 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      # ===== Solo PYTHON-API: build sin BuildKit y export a TAR =====
-      - name: Build image to TAR (for scan) [python only, legacy builder]
-        if: matrix.name == 'python-api'
-        env:
-          DOCKER_BUILDKIT: "0"   # fuerza legacy builder para evitar el EOF
-        run: |
-          # Trae la base explícitamente (opcional pero ayuda con flakiness)
-          docker pull python:3.9-slim
-      
-          # IMPORTANTE: sin --progress (no existe en legacy) 
-          # Podés dejar --no-cache para evitar cualquier interacción con caché
-          docker build --no-cache \
-            -t ${{ env.IMAGE_REPO }}:scan \
-            -f ${{ matrix.dockerfile }} ${{ matrix.context }}
-      
-          docker save ${{ env.IMAGE_REPO }}:scan -o /tmp/${{ matrix.image }}.tar
-      
-      - name: Security scan (Trivy) against TAR [python only]
-        if: matrix.name == 'python-api'
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: image
-          input: /tmp/${{ matrix.image }}.tar
-          severity: CRITICAL
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          format: 'table'
-          exit-code: '1'
-          
-      # ===== Resto (back u otros): tu método actual con buildx/load =====
-      - name: Build (load) for scan [others]
-        if: matrix.name != 'python-api'
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
-          load: true
-          push: false
-          tags: ${{ env.TAGS }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=max
-          provenance: false
-          sbom: false
-
-      - name: Security scan (Trivy) [others]
-        if: matrix.name != 'python-api'
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: image
-          image-ref: ${{ env.SCAN_REF }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          format: 'table'
-          exit-code: '1'
-
-      - name: Login to Docker Hub (only on main)
-        if: env.PUSH == 'true'
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push (main)
-        if: env.PUSH == 'true'
+      - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: true
-          tags: ${{ env.TAGS }}
+          tags: |
+            ${{ env.EDGE_TAG }}
+            ${{ env.SHA_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,scope=${{ matrix.name }},mode=max
