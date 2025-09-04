@@ -2,27 +2,40 @@ name: Publish python-api image
 
 on:
   push:
-    branches: ["main"]      # publica solo al mergear a main
+    branches: ["main"]            # publica solo al mergear a main
     paths:
       - "python-api/**"
-      - ".github/workflows/python-ci.yml"
+      - ".github/workflows/publish-python-api.yml"
   pull_request:
-    branches: ["main"]      # en PR solo construye (sin push)
+    branches: ["main"]            # en PR solo construye (sin push)
     paths:
       - "python-api/**"
-      - ".github/workflows/python-ci.yml"
-  workflow_dispatch:         # opcional: ejecutar manualmente
+      - ".github/workflows/publish-python-api.yml"
+  workflow_dispatch:
+
+# Menos privilegios por defecto
+permissions:
+  contents: read
+  packages: write
+
+# Evita builds viejos en la misma rama
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  # ⚠️ Cambiá esto por tu namespace real de Docker Hub
-  DOCKERHUB_NAMESPACE: marianora
+  DOCKERHUB_NAMESPACE: marianora     # <--- cambiá si hace falta
+  IMAGE_NAME: python-api             # nombre de la imagen en Docker Hub
+  WORKDIR: python-api                # carpeta del proyecto
+  PY_VERSION: "3.11"
 
 jobs:
-  lint:
+  # --- Lint + Tests obligatorios (fallan si hay problemas) ---
+  lint_and_test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: python-api
+        working-directory: ${{ env.WORKDIR }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,59 +43,88 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PY_VERSION }}
 
       - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('python-api/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/requirements*.txt', env.WORKDIR)) }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install deps (runtime + dev si aplica)
+      - name: Install runtime + tooling (ruff/pytest)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
-    
+          # runtime
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # dev (opcional)
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          # tooling que debe existir
+          pip install ruff pytest
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+  # --- Lint del Dockerfile ---
+  dockerfile_lint:
+    runs-on: ubuntu-latest
+    needs: [lint_and_test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hadolint (Dockerfile)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ env.WORKDIR }}/Dockerfile
+
+  # --- Build & (según caso) Push ---
   build_and_push:
-    # si no querés tests, borrá la línea "needs"
-    needs: [lint]
+    needs: [dockerfile_lint]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: python-api
-            image: python-api            # nombre de la imagen en Docker Hub
-            context: python-api          # carpeta del build
-            dockerfile: python-api/Dockerfile
+            image: ${{ env.IMAGE_NAME }}
+            context: ${{ env.WORKDIR }}
+            dockerfile: ${{ env.WORKDIR }}/Dockerfile
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # (Opcional) para multi-arch
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Derive tags
+      - name: Derive image repo & tags
         id: vars
         run: |
           REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}"
           echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
           echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
           echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
-          # (Opcional) tag "latest" solo en main:
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+          # latest solo en push a main
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
             echo "LATEST_TAG=${REPO}:latest" >> $GITHUB_ENV
           fi
 
-      - name: Docker meta (labels)
+      - name: Docker meta (labels & tags)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_REPO }}
           flavor: latest=false
+          tags: |
+            type=raw,value=edge
+            type=sha,format=short
+            type=ref,event=tag
           labels: |
             org.opencontainers.image.title=${{ matrix.image }}
             org.opencontainers.image.description=${{ matrix.name }} image
@@ -90,7 +132,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Login to Docker Hub
+      - name: Login to Docker Hub (solo para push)
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
@@ -98,11 +140,13 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build (PR) / Build & Push (main)
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
+          # Elegí la/las plataformas que necesites
+          platforms: linux/amd64 #,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.EDGE_TAG }}
@@ -111,5 +155,27 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,scope=${{ matrix.name }},mode=max
-          provenance: false
-          sbom: false
+          provenance: true
+          sbom: true
+
+      - name: Mostrar digest en el Summary
+        if: always()
+        run: |
+          echo "Imagen: ${{ env.IMAGE_REPO }}" >> $GITHUB_STEP_SUMMARY
+          echo "Tags: ${{ env.EDGE_TAG }}, ${{ env.SHA_TAG }}${{ env.LATEST_TAG && format(', {0}', env.LATEST_TAG) || '' }}" >> $GITHUB_STEP_SUMMARY
+          echo "Digest: ${{ steps.build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+
+  # --- Escaneo de vulnerabilidades (sobre la imagen construida/enviada) ---
+  scan_image:
+    needs: [build_and_push]
+    if: github.event_name != 'pull_request'   # escanea cuando hay push real
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.2
+
+      - name: Scan edge tag (rápido)
+        run: trivy image --exit-code 0 --severity HIGH,CRITICAL ${{ env.EDGE_TAG }}
+
+      - name: Scan sha tag (falla si hay CRITICAL)
+        run: trivy image --exit-code 1 --severity CRITICAL ${{ env.SHA_TAG }}
