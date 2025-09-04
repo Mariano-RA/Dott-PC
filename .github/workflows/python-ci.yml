@@ -35,9 +35,10 @@ jobs:
           IMAGE="${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}"
           DOCKERFILE="${{ env.DOCKERFILE_DIR }}/Dockerfile"
           CONTEXT="${{ env.DOCKERFILE_DIR }}"
-
+      
           echo "Building $IMAGE:latest from $DOCKERFILE (context=$CONTEXT)"
           docker build -f "$DOCKERFILE" -t "$IMAGE:latest" "$CONTEXT"
-
+      
           echo "Pushing $IMAGE:latest"
+          docker push "$IMAGE:latest"
           docker push "$IMAGE:latest"
