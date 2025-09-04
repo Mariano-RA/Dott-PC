@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 env:
-  DOCKERHUB_NAMESPACE: marianora   # <--- tu namespace de Docker Hub
+  DOCKERHUB_NAMESPACE: marianora
 
 jobs:
   build_scan_push:
@@ -19,17 +19,25 @@ jobs:
       matrix:
         include:
           - name: back
-            image: dott-back                 # <--- nombre del repo en Docker Hub
+            image: dott-back
             context: back
             dockerfile: back/Dockerfile
           - name: python-api
-            image: dott-python               # <--- publica como marianora/dott-python
+            image: dott-python
             context: python-api
             dockerfile: python-api/Dockerfile
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Fuerza buildx actualizado (mitiga crashes EOF)
+      - name: Set up Buildx (latest)
+        uses: docker/setup-buildx-action@v3
+        with:
+          # driver docker-container (default); si vieras más EOF, podés probar driver: docker
+          # driver: docker
+          buildkitd-flags: --debug
 
       - name: Derive tags & flags
         run: |
@@ -51,9 +59,6 @@ jobs:
           echo "SCAN_REF=${SCAN_REF}" >> $GITHUB_ENV
           echo "Using repo: ${REPO}"
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -67,39 +72,44 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Login to Docker Hub (only on main)
-        if: env.PUSH == 'true'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}   # usuario de login
-          password: ${{ secrets.DOCKERHUB_TOKEN }}      # access token RW
-
-      - name: Build (export tar) for scan
+      # 🔁 Build para escaneo: exporta a TAR (evita --load) y NO escribe cache (mitiga EOF)
+      - name: Build image to TAR (for scan)
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
+          outputs: type=docker,dest=/tmp/${{ matrix.image }}.tar
           push: false
           tags: ${{ env.TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=max
-          outputs: type=oci,dest=/tmp/${{ matrix.image || matrix.name }}.tar
+          # 👇 deshabilito cache-to en este build para evitar el bug de exportación al cache
+          # cache-to: type=gha,scope=${{ matrix.name }},mode=max
           provenance: false
           sbom: false
 
-      - name: Security scan (Trivy on tar)
+      # 🔍 Trivy escanea el TAR directamente (sin depender de --load)
+      - name: Security scan (Trivy) against TAR
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
-          input: /tmp/${{ matrix.image || matrix.name }}.tar
+          input: /tmp/${{ matrix.image }}.tar
           severity: CRITICAL
           ignore-unfixed: true
           vuln-type: 'os,library'
           format: 'table'
           exit-code: '1'
 
+      # Login solo si vamos a pushear
+      - name: Login to Docker Hub (only on main)
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 🚀 Build & Push final (acá sí podés reactivar cache-to)
       - name: Build & Push (main)
         if: env.PUSH == 'true'
         uses: docker/build-push-action@v6
