@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "python-api/**"
-      - ".github/workflows/ci.yml"
+      - ".github/workflows/python-ci.yml"
   pull_request:
     branches: ["main"]
     paths:
