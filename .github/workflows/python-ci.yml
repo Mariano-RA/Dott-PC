@@ -2,16 +2,16 @@ name: Publish python-api image
 
 on:
   push:
-    branches: ["main"]      # publica solo al mergear a main
+    branches: ["main"]
     paths:
-      - "python-api/**"
-      - ".github/workflows/ci.yml"
+      - "python-api/**"           # cualquier archivo dentro de python-api/
+      - ".github/workflows/ci.yml" # opcional: para que se ejecute si cambiás el propio workflow
   pull_request:
-    branches: ["main"]      # en PR solo construye (sin push)
+    branches: ["main"]
     paths:
       - "python-api/**"
       - ".github/workflows/ci.yml"
-  workflow_dispatch:         # opcional: ejecutar manualmente
+  workflow_dispatch:
 
 env:
   # ⚠️ Cambiá esto por tu namespace real de Docker Hub
