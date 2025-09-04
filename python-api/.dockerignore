@@ -13,3 +13,13 @@ nuevosScripts\Nb
 productosDB.sqlite
 test.py
 FILTROS PARA LISTAS.ods
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+.git
+.gitignore
+Dockerfile
+.dockerignore
