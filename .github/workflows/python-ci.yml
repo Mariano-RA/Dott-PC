@@ -79,12 +79,11 @@ jobs:
           echo "== Tamaño del contexto =="
           du -sh "${{ steps.vars.outputs.dockerfile_dir }}" | cat
 
-      # QEMU solo si vas a multi-arch. Si no, dejalo comentado.
+      # QEMU solo si hacés multi-arch; si no, dejalo comentado.
       # - name: Set up QEMU
       #   uses: docker/setup-qemu-action@v3
 
-      # Builder con paralelismo bajo para reducir RAM pico
-      - name: Set up Docker Buildx (low parallelism)
+      - name: Set up Docker Buildx (paralelismo bajo + GC)
         uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
@@ -122,16 +121,15 @@ jobs:
           context: ${{ steps.vars.outputs.dockerfile_dir }}
           file: ${{ steps.vars.outputs.dockerfile_dir }}/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          # platforms: linux/amd64,linux/arm64   # solo si necesitás multi-arch
+          # platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Cache GHA en modo 'min' para reducir uso de memoria
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-          # evitar trabajo extra del builder
+          # Cache GHA acotada por scope; si falla el backend, no rompe el build
+          cache-from: type=gha,scope=${{ steps.vars.outputs.image_name }},ignore-error=true
+          cache-to: type=gha,scope=${{ steps.vars.outputs.image_name }},mode=min,ignore-error=true
           provenance: false
           sbom: false
-          # logs más verbosos sin usar 'progress' (no es input válido)
+          # logs más verbosos sin usar parámetro 'progress'
           build-args: |
             BUILDKIT_PROGRESS=plain
 
@@ -144,4 +142,6 @@ jobs:
           if [ -n "$BK" ]; then
             echo "=== Últimos logs de $BK ==="
             docker logs "$BK" --since 30m || true
+          else
+            echo "No encontré contenedor buildkit"
           fi
