@@ -34,16 +34,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Builder estable + debug
       - name: Set up Buildx (pinned + debug)
         id: buildx
         uses: docker/setup-buildx-action@v3
         with:
-          version: v0.16.2           # Buildx estable
+          version: v0.16.2
           driver: docker-container
           buildkitd-flags: --debug
-          driver-opts: |
-            image=moby/buildkit:v0.13.2  # BuildKit estable dentro del builder
+          # ⚠️ IMPORTANTE: una sola línea, sin comentarios ni comillas extra
+          driver-opts: image=moby/buildkit:buildx-stable-1
+
 
       - name: Derive tags
         id: vars
