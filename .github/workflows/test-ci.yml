@@ -22,10 +22,6 @@ jobs:
             image: dott-back                 # <--- nombre del repo en Docker Hub
             context: back
             dockerfile: back/Dockerfile
-          - name: dott-front
-            image: dott-front
-            context: dott-front
-            dockerfile: dott-front/Dockerfile
           - name: python-api
             image: dott-python               # <--- publica como marianora/dott-python
             context: python-api
@@ -78,26 +74,26 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}   # usuario de login
           password: ${{ secrets.DOCKERHUB_TOKEN }}      # access token RW
 
-      - name: Build (load) for scan
+      - name: Build (export tar) for scan
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
-          load: true
           push: false
           tags: ${{ env.TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,scope=${{ matrix.name }},mode=max
+          outputs: type=oci,dest=/tmp/${{ matrix.image || matrix.name }}.tar
           provenance: false
           sbom: false
 
-      - name: Security scan (Trivy)
+      - name: Security scan (Trivy on tar)
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
-          image-ref: ${{ env.SCAN_REF }}
+          input: /tmp/${{ matrix.image || matrix.name }}.tar
           severity: CRITICAL
           ignore-unfixed: true
           vuln-type: 'os,library'
