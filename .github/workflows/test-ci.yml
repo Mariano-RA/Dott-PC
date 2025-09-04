@@ -70,13 +70,17 @@ jobs:
       - name: Build image to TAR (for scan) [python only, legacy builder]
         if: matrix.name == 'python-api'
         env:
-          DOCKER_BUILDKIT: "0"   # <--- desactiva BuildKit en 'docker build'
+          DOCKER_BUILDKIT: "0"   # fuerza legacy builder para evitar el EOF
         run: |
-          docker version
+          # Trae la base explícitamente (opcional pero ayuda con flakiness)
           docker pull python:3.9-slim
-          docker build --no-cache --progress=plain \
+      
+          # IMPORTANTE: sin --progress (no existe en legacy) 
+          # Podés dejar --no-cache para evitar cualquier interacción con caché
+          docker build --no-cache \
             -t ${{ env.IMAGE_REPO }}:scan \
             -f ${{ matrix.dockerfile }} ${{ matrix.context }}
+      
           docker save ${{ env.IMAGE_REPO }}:scan -o /tmp/${{ matrix.image }}.tar
       
       - name: Security scan (Trivy) against TAR [python only]
@@ -90,8 +94,7 @@ jobs:
           vuln-type: 'os,library'
           format: 'table'
           exit-code: '1'
-
-
+          
       # ===== Resto (back u otros): tu método actual con buildx/load =====
       - name: Build (load) for scan [others]
         if: matrix.name != 'python-api'
