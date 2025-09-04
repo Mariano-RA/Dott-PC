@@ -6,121 +6,110 @@ on:
     paths:
       - "python-api/**"
       - ".github/workflows/python-ci.yml"
+    tags:
+      - "v*"
   pull_request:
     branches: ["main"]      # en PR solo construye (sin push)
     paths:
       - "python-api/**"
       - ".github/workflows/python-ci.yml"
-  workflow_dispatch:         # opcional: ejecutar manualmente
+  workflow_dispatch:
+    inputs:
+      dockerfile_dir:
+        description: "Carpeta donde está el Dockerfile"
+        required: false
+        default: "python-api"
+      dockerhub_namespace:
+        description: "Namespace de Docker Hub (usuario/organización)"
+        required: false
+        default: "marianora"
+      image_name:
+        description: "Nombre de imagen (si vacío usa el nombre del repo)"
+        required: false
+        default: ""
 
 env:
-  # ⚠️ Cambiá esto por tu namespace real de Docker Hub
+  # ⚠️ Podés sobreescribir estos por Variables del repo (Settings → Variables → Actions)
   DOCKERHUB_NAMESPACE: marianora
+  DOCKERFILE_DIR: python-api
+  # IMAGE_NAME: python-api
+
+permissions:
+  contents: read
 
 jobs:
-  # --- Opcional: Lint + Tests antes de construir/pushear ---
-  lint_and_test:
+  build-and-push:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python-api
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('python-api/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install deps (runtime + dev si aplica)
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
-          # si tenés requirements-dev.txt, descomentá:
-          # pip install -r requirements-dev.txt || true
-
-      - name: Lint (ruff) - opcional
-        run: |
-          if command -v ruff >/dev/null 2>&1; then
-            ruff check .
-          else
-            echo "Ruff no instalado (saltando)."
-          fi
-
-  build_and_push:
-    # si no querés tests, borrá la línea "needs"
-    needs: [lint_and_test]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: python-api
-            image: python-api            # nombre de la imagen en Docker Hub
-            context: python-api          # carpeta del build
-            dockerfile: python-api/Dockerfile
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Buildx
+      - name: Resolver variables (inputs/variables/env)
+        id: vars
+        env:
+          # Inputs
+          IN_DOCKERFILE_DIR: ${{ github.event.inputs.dockerfile_dir }}
+          IN_NAMESPACE: ${{ github.event.inputs.dockerhub_namespace }}
+          IN_IMAGE_NAME: ${{ github.event.inputs.image_name }}
+          # Repo Variables (Actions → Variables)
+          VARS_DOCKERFILE_DIR: ${{ vars.DOCKERFILE_DIR }}
+          VARS_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+          VARS_IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          # Env
+          ENV_DOCKERFILE_DIR: ${{ env.DOCKERFILE_DIR }}
+          ENV_NAMESPACE: ${{ env.DOCKERHUB_NAMESPACE }}
+          ENV_IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          DOCKERFILE_DIR="${IN_DOCKERFILE_DIR:-${VARS_DOCKERFILE_DIR:-${ENV_DOCKERFILE_DIR:-python-api}}}"
+          NAMESPACE="${IN_NAMESPACE:-${VARS_NAMESPACE:-${ENV_NAMESPACE}}}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE_NAME="${IN_IMAGE_NAME:-${VARS_IMAGE_NAME:-${ENV_IMAGE_NAME:-$REPO_NAME}}}"
+
+          echo "dockerfile_dir=$DOCKERFILE_DIR" >> "$GITHUB_OUTPUT"
+          echo "namespace=$NAMESPACE"           >> "$GITHUB_OUTPUT"
+          echo "image_name=$IMAGE_NAME"         >> "$GITHUB_OUTPUT"
+
+          echo "Usando:"
+          echo "  DOCKERFILE_DIR=$DOCKERFILE_DIR"
+          echo "  NAMESPACE=$NAMESPACE"
+          echo "  IMAGE_NAME=$IMAGE_NAME"
+
+      - name: Set up QEMU (opcional)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Derive tags
-        id: vars
-        run: |
-          REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}"
-          echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
-          echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
-          echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
-          # (Opcional) tag "latest" solo en main:
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "LATEST_TAG=${REPO}:latest" >> $GITHUB_ENV
-          fi
-
-      - name: Docker meta (labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_REPO }}
-          flavor: latest=false
-          labels: |
-            org.opencontainers.image.title=${{ matrix.image }}
-            org.opencontainers.image.description=${{ matrix.name }} image
-            org.opencontainers.image.url=https://hub.docker.com/r/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
+      - name: Docker Hub login
+        if: ${{ github.event_name != 'pull_request' && steps.vars.outputs.namespace != '' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build (PR) / Build & Push (main)
+      - name: Docker metadata (tags/labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.namespace }}/${{ steps.vars.outputs.image_name }}
+          tags: |
+            # latest en main (push)
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+            # tag por SHA
+            type=sha,format=long
+            # si se pushea un tag vX.Y.Z
+            type=ref,event=tag
+
+      - name: Build (PR) o Build & Push (main/tags)
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
+          context: ${{ steps.vars.outputs.dockerfile_dir }}
+          file: ${{ steps.vars.outputs.dockerfile_dir }}/Dockerfile
+          # En PR NO hace push, en main/tags SÍ
           push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.EDGE_TAG }}
-            ${{ env.SHA_TAG }}
-            ${{ env.LATEST_TAG }}
+          # platforms: linux/amd64,linux/arm64   # descomentar si querés multi-arch
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=max
-          provenance: false
-          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
