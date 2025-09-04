@@ -36,53 +36,45 @@
 
 # CMD ["npm", "run", "prod"]
 
-# back/Dockerfile
+# Etapa base
 FROM node:20-alpine AS base
 WORKDIR /app
-ENV NODE_ENV=production
 
-# --- Dependencias cacheables por lockfile
+# Etapa dependencias
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm i; fi
 
-# --- Build
+# Etapa build
 FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# ARG/ENV disponibles si tu build los usa
-ARG ISSUER_BASE_URL
-ARG AUDIENCE
-ARG CLIENT_ORIGIN_URL
-ARG RABBIT_MQ_URI
-ARG RABBITMQ_QUEUE
-ARG RABBITMQ_PYTHON_QUEUE
-ENV ISSUER_BASE_URL=$ISSUER_BASE_URL \
-    AUDIENCE=$AUDIENCE \
-    CLIENT_ORIGIN_URL=$CLIENT_ORIGIN_URL \
-    RABBIT_MQ_URI=$RABBIT_MQ_URI \
-    RABBITMQ_QUEUE=$RABBITMQ_QUEUE \
-    RABBITMQ_PYTHON_QUEUE=$RABBITMQ_PYTHON_QUEUE
-
+# Si querés usar ARG para variables de entorno en build, descomentá y usá:
+# ARG ISSUER_BASE_URL
+# ARG AUDIENCE
+# ARG CLIENT_ORIGIN_URL
+# ARG RABBIT_MQ_URI
+# ARG RABBITMQ_QUEUE
+# ARG RABBITMQ_PYTHON_QUEUE
 RUN npm run build
 RUN npm prune --omit=dev
 
-# --- Runtime (no-root)
+# Etapa runner (producción)
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup -S app && adduser -S app -G app
 USER app
 
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/node_modules ./node_modules
-# COPY --from=build /app/secrets ./secrets           # <- solo si realmente lo necesitás
+# Copia solo lo necesario para producción
+COPY --from=build /app/package.json ./
 COPY --from=build /app/dist ./dist
-
-# HEALTHCHECK opcional (ajustá endpoint):
-# HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -qO- http://localhost:3000/health || exit 1
+COPY --from=build /app/secrets ./secrets
+# Si usás .env, descomentá la siguiente línea:
+# COPY --from=build /app/.env ./.env
 
 EXPOSE 3000
+
 CMD ["npm", "run", "prod"]
