@@ -2,114 +2,142 @@ name: Publish python-api image
 
 on:
   push:
-    branches: ["main"]      # publica solo al mergear a main
+    branches: ["main"]
     paths:
       - "python-api/**"
       - ".github/workflows/python-ci.yml"
+    tags:
+      - "v*"
   pull_request:
-    branches: ["main"]      # en PR solo construye (sin push)
+    branches: ["main"]
     paths:
       - "python-api/**"
       - ".github/workflows/python-ci.yml"
-  workflow_dispatch:         # opcional: ejecutar manualmente
+  workflow_dispatch:
+    inputs:
+      dockerfile_dir:
+        description: "Carpeta donde está el Dockerfile"
+        required: false
+        default: "python-api"
+      dockerhub_namespace:
+        description: "Namespace de Docker Hub (usuario/organización)"
+        required: false
+        default: "marianora"
+      image_name:
+        description: "Nombre de imagen (si vacío usa el nombre del repo)"
+        required: false
+        default: ""
 
 env:
-  # ⚠️ Cambiá esto por tu namespace real de Docker Hub
   DOCKERHUB_NAMESPACE: marianora
+  DOCKERFILE_DIR: python-api
+  # IMAGE_NAME: python-api
+
+permissions:
+  contents: read
 
 jobs:
-  lint:
+  build-and-push:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python-api
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('python-api/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install deps (runtime + dev si aplica)
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
-    
-  build_and_push:
-    # si no querés tests, borrá la línea "needs"
-    needs: [lint]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: python-api
-            image: python-api            # nombre de la imagen en Docker Hub
-            context: python-api          # carpeta del build
-            dockerfile: python-api/Dockerfile
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Derive tags
+      - name: Resolver variables (inputs/variables/env)
         id: vars
+        env:
+          IN_DOCKERFILE_DIR: ${{ github.event.inputs.dockerfile_dir }}
+          IN_NAMESPACE: ${{ github.event.inputs.dockerhub_namespace }}
+          IN_IMAGE_NAME: ${{ github.event.inputs.image_name }}
+          VARS_DOCKERFILE_DIR: ${{ vars.DOCKERFILE_DIR }}
+          VARS_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+          VARS_IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          ENV_DOCKERFILE_DIR: ${{ env.DOCKERFILE_DIR }}
+          ENV_NAMESPACE: ${{ env.DOCKERHUB_NAMESPACE }}
+          ENV_IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
-          REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}"
-          echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
-          echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
-          echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
-          # (Opcional) tag "latest" solo en main:
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "LATEST_TAG=${REPO}:latest" >> $GITHUB_ENV
-          fi
+          DOCKERFILE_DIR="${IN_DOCKERFILE_DIR:-${VARS_DOCKERFILE_DIR:-${ENV_DOCKERFILE_DIR:-python-api}}}"
+          NAMESPACE="${IN_NAMESPACE:-${VARS_NAMESPACE:-${ENV_NAMESPACE}}}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE_NAME="${IN_IMAGE_NAME:-${VARS_IMAGE_NAME:-${ENV_IMAGE_NAME:-$REPO_NAME}}}"
 
-      - name: Docker meta (labels)
-        id: meta
-        uses: docker/metadata-action@v5
+          echo "dockerfile_dir=$DOCKERFILE_DIR" >> "$GITHUB_OUTPUT"
+          echo "namespace=$NAMESPACE"           >> "$GITHUB_OUTPUT"
+          echo "image_name=$IMAGE_NAME"         >> "$GITHUB_OUTPUT"
+
+          echo "Usando:"
+          echo "  DOCKERFILE_DIR=$DOCKERFILE_DIR"
+          echo "  NAMESPACE=$NAMESPACE"
+          echo "  IMAGE_NAME=$IMAGE_NAME"
+
+      - name: Mostrar recursos del runner (útil para diagnosticar)
+        run: |
+          echo "== Memoria ==" && free -h || true
+          echo "== CPU cores ==" && nproc
+          echo "== Disco ==" && df -h
+
+      - name: Set up QEMU (opcional, solo si vas a multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      # Builder aislado con paralelismo limitado y GC para no ahogarse
+      - name: Set up Docker Buildx (low parallelism + GC)
+        id: buildx
+        uses: docker/setup-buildx-action@v3
         with:
-          images: ${{ env.IMAGE_REPO }}
-          flavor: latest=false
-          labels: |
-            org.opencontainers.image.title=${{ matrix.image }}
-            org.opencontainers.image.description=${{ matrix.name }} image
-            org.opencontainers.image.url=https://hub.docker.com/r/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          driver: docker-container
+          install: true
+          buildkitd-config-inline: |
+            # /etc/buildkit/buildkitd.toml
+            [worker.oci]
+              # Reduce tareas simultáneas -> menor pico de RAM
+              max-parallelism = 2
 
-      - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
+            # Políticas de GC para no llenar disco en el runner
+            [[worker.oci.gcpolicy]]
+              all = true
+              keepDuration = "168h"      # 7 días
+              reservedSpace = "3GB"
+              maxUsedSpace = "20GB"
+
+      - name: Docker Hub login
+        if: ${{ github.event_name != 'pull_request' && steps.vars.outputs.namespace != '' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build (PR) / Build & Push (main)
+      - name: Docker metadata (tags/labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.namespace }}/${{ steps.vars.outputs.image_name }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+            type=sha,format=long
+            type=ref,event=tag
+
+      - name: Build (PR) o Build & Push (main/tags)
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
+          context: ${{ steps.vars.outputs.dockerfile_dir }}
+          file: ${{ steps.vars.outputs.dockerfile_dir }}/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.EDGE_TAG }}
-            ${{ env.SHA_TAG }}
-            ${{ env.LATEST_TAG }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=max
-          provenance: false
-          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false         # menos memoria (evita generar attestation)
+          sbom: false               # idem
+          progress: plain           # logs más lineales
+
+      - name: Logs de BuildKit si falla
+        if: failure()
+        run: |
+          echo "=== Contenedores activos ==="
+          docker ps -a || true
+          BID=$(docker ps --filter "name=buildx_buildkit" --format "{{.ID}}" | head -n1)
+          if [ -n "$BID" ]; then
+            echo "=== Últimos logs de buildkitd ==="
+            docker logs "$BID" --since 30m || true
+          fi
