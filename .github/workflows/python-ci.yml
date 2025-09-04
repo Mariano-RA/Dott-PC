@@ -71,18 +71,20 @@ jobs:
           echo "  NAMESPACE=$NAMESPACE"
           echo "  IMAGE_NAME=$IMAGE_NAME"
 
-      - name: Mostrar recursos del runner (útil para diagnosticar)
+      - name: Mostrar recursos del runner
         run: |
           echo "== Memoria ==" && free -h || true
           echo "== CPU cores ==" && nproc
           echo "== Disco ==" && df -h
+          echo "== Tamaño del contexto =="
+          du -sh "${{ steps.vars.outputs.dockerfile_dir }}" | cat
 
-      - name: Set up QEMU (opcional, solo si vas a multi-arch)
-        uses: docker/setup-qemu-action@v3
+      # QEMU solo si vas a multi-arch. Si no, dejalo comentado.
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v3
 
-      # Builder aislado con paralelismo limitado y GC para no ahogarse
-      - name: Set up Docker Buildx (low parallelism + GC)
-        id: buildx
+      # Builder con paralelismo bajo para reducir RAM pico
+      - name: Set up Docker Buildx (low parallelism)
         uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
@@ -90,13 +92,10 @@ jobs:
           buildkitd-config-inline: |
             # /etc/buildkit/buildkitd.toml
             [worker.oci]
-              # Reduce tareas simultáneas -> menor pico de RAM
-              max-parallelism = 2
-
-            # Políticas de GC para no llenar disco en el runner
+              max-parallelism = 1
             [[worker.oci.gcpolicy]]
               all = true
-              keepDuration = "168h"      # 7 días
+              keepDuration = "168h"
               reservedSpace = "3GB"
               maxUsedSpace = "20GB"
 
@@ -123,21 +122,26 @@ jobs:
           context: ${{ steps.vars.outputs.dockerfile_dir }}
           file: ${{ steps.vars.outputs.dockerfile_dir }}/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
+          # platforms: linux/amd64,linux/arm64   # solo si necesitás multi-arch
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Cache GHA en modo 'min' para reducir uso de memoria
           cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: false         # menos memoria (evita generar attestation)
-          sbom: false               # idem
-          progress: plain           # logs más lineales
+          cache-to: type=gha,mode=min
+          # evitar trabajo extra del builder
+          provenance: false
+          sbom: false
+          # logs más verbosos sin usar 'progress' (no es input válido)
+          build-args: |
+            BUILDKIT_PROGRESS=plain
 
       - name: Logs de BuildKit si falla
         if: failure()
         run: |
           echo "=== Contenedores activos ==="
           docker ps -a || true
-          BID=$(docker ps --filter "name=buildx_buildkit" --format "{{.ID}}" | head -n1)
-          if [ -n "$BID" ]; then
-            echo "=== Últimos logs de buildkitd ==="
-            docker logs "$BID" --since 30m || true
+          BK=$(docker ps -a --filter "name=buildx_buildkit" --format "{{.Names}}" | head -n1)
+          if [ -n "$BK" ]; then
+            echo "=== Últimos logs de $BK ==="
+            docker logs "$BK" --since 30m || true
           fi
