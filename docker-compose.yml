@@ -33,7 +33,7 @@ services:
       - "3000:3000"
     environment:
       - ISSUER_BASE_URL=https://dev-3hmy3galmqfty1xt.us.auth0.com
-      - AUDIENCE=https://dott-pc-server.com
+      - AUDIENCE=https://be.dott-pc.com.ar
       - CLIENT_ORIGIN_URL=https://dott-pc.com.ar/
       - RABBIT_MQ_URI=amqp://dottpc-rabbit:5672
       - RABBITMQ_QUEUE=RABBIT_MR_DOTT_QUEUE
