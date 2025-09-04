@@ -1,102 +1,48 @@
-name: CI (build & scan)
+name: Test CI
 
 on:
-  pull_request:
-    branches: [ "main" ]
   push:
     branches: [ "main" ]
-
-permissions:
-  contents: read
-  packages: write
-
-env:
-  DOCKERHUB_NAMESPACE: miusuario          # <--- CAMBIÁ por tu user/org de Docker Hub
-  PLATFORMS: linux/amd64
-  CACHE_MODE: max
-  TRIVY_SEVERITY: CRITICAL
-  TRIVY_IGNORE_UNFIXED: true
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  # Dejamos un job "lint_test" minimal por si en el futuro sumás tests.
   lint_test:
     name: (Opcional) Tests (${{ matrix.name }})
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
-    matrix:
-      include:
-        - name: back
-          context: back
-          type: node
-          node_version: "20"
-          lint_cmd: ""       # <- sin ESLint
-          test_cmd: ""       # <- sin tests (ajustá cuando tengas)
-        - name: dott-front
-          context: dott-front
-          type: node
-          node_version: "20"
-          lint_cmd: ""
-          test_cmd: ""
-        - name: python-api
-          context: python-api
-          type: python
-          python_version: "3.9"  # <- compat con tus pins
-          lint_cmd: ""           # p/ahora sin flake8
-          test_cmd: ""           # p/ahora sin pytest
+      matrix:
+        include:
+          - name: back
+            context: back
+            type: node
+            node_version: "20"
+            lint_cmd: ""
+            test_cmd: ""
+          - name: dott-front
+            context: dott-front
+            type: node
+            node_version: "20"
+            lint_cmd: ""
+            test_cmd: ""
+          - name: python-api
+            context: python-api
+            type: python
+            python_version: "3.9"
+            lint_cmd: ""
+            test_cmd: ""
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Python (solo se setea si lo usás más adelante)
-      - name: Setup Python
-        if: matrix.type == 'python' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python_version }}
-          cache: 'pip'
-          cache-dependency-path: |
-            ${{ matrix.context }}/requirements.txt
-            ${{ matrix.context }}/requirements-dev.txt
-
-      - name: Install deps (Python)
-        if: matrix.type == 'python' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
-        working-directory: ${{ matrix.context }}
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-
-      # Node (solo si algún día activás tests/lint)
-      - name: Setup Node
-        if: matrix.type == 'node' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node_version }}
-          cache: 'npm'
-          cache-dependency-path: ${{ matrix.context }}/package-lock.json
-
-      - name: Install deps (Node)
-        if: matrix.type == 'node' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
-        working-directory: ${{ matrix.context }}
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm i; fi
-
-      - name: Lint
-        if: matrix.lint_cmd != ''
-        working-directory: ${{ matrix.context }}
-        run: ${{ matrix.lint_cmd }}
-
-      - name: Test
-        if: matrix.test_cmd != ''
-        working-directory: ${{ matrix.context }}
-        run: ${{ matrix.test_cmd }}
-
   build_scan_push:
     name: Build, Scan & (Push en main) (${{ matrix.name }})
     runs-on: ubuntu-latest
     needs: [ lint_test ]
+
     strategy:
       fail-fast: false
       matrix:
@@ -118,7 +64,7 @@ jobs:
       - name: Derive tags & flags
         run: |
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.name }}"
+          REPO="${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.name }}"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             TAGS="${REPO}:pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::7}"
             PUSH=false
@@ -137,18 +83,12 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker meta (labels OCI)
+      - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_REPO }}
           flavor: latest=false
-          labels: |
-            org.opencontainers.image.title=${{ matrix.name }}
-            org.opencontainers.image.description=${{ matrix.name }} image
-            org.opencontainers.image.url=https://hub.docker.com/r/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.name }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Login to Docker Hub (only on main)
         if: env.PUSH == 'true'
@@ -157,27 +97,26 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build local (load) para escanear antes de publicar
       - name: Build (load) for scan
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          platforms: ${{ env.PLATFORMS }}
+          platforms: linux/amd64
           load: true
           push: false
           tags: ${{ env.TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ env.CACHE_MODE }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
 
       - name: Security scan (Trivy)
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
           image-ref: ${{ env.SCAN_REF }}
-          severity: ${{ env.TRIVY_SEVERITY }}
-          ignore-unfixed: ${{ env.TRIVY_IGNORE_UNFIXED }}
+          severity: CRITICAL
+          ignore-unfixed: true
           vuln-type: 'os,library'
           format: 'table'
           exit-code: '1'
@@ -188,9 +127,9 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          platforms: ${{ env.PLATFORMS }}
+          platforms: linux/amd64
           push: true
           tags: ${{ env.TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ env.CACHE_MODE }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
