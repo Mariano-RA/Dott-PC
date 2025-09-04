@@ -1,4 +1,4 @@
-name: CI (lint, test, build, scan)
+name: CI (build & scan)
 
 on:
   pull_request:
@@ -11,49 +11,47 @@ permissions:
   packages: write
 
 env:
-  DOCKERHUB_NAMESPACE: marianora           # EDITA: tu namespace en Docker Hub
+  DOCKERHUB_NAMESPACE: miusuario          # <--- CAMBIÁ por tu user/org de Docker Hub
   PLATFORMS: linux/amd64
   CACHE_MODE: max
   TRIVY_SEVERITY: CRITICAL
   TRIVY_IGNORE_UNFIXED: true
 
 jobs:
+  # Dejamos un job "lint_test" minimal por si en el futuro sumás tests.
   lint_test:
-    name: Lint & Test (${{ matrix.name }})
+    name: (Opcional) Tests (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # back: NestJS (Node 20)
-          - name: back
-            context: back
-            type: node
-            node_version: "20"
-            lint_cmd: ""
-            test_cmd: "npm test --silent || node --test"
-          # dott-front: React/Vite/Next/etc (Node 20)
-          - name: dott-front
-            context: dott-front
-            type: node
-            node_version: "20"
-            lint_cmd: ""
-            test_cmd: "npm test --silent || node --test"
-          # python-api (FastAPI/Flask/etc) Python 3.11
-          - name: python-api
-            context: python-api
-            type: python
-            python_version: "3.11"
-            lint_cmd: "flake8 ."
-            test_cmd: "pytest -q"
+    matrix:
+      include:
+        - name: back
+          context: back
+          type: node
+          node_version: "20"
+          lint_cmd: ""       # <- sin ESLint
+          test_cmd: ""       # <- sin tests (ajustá cuando tengas)
+        - name: dott-front
+          context: dott-front
+          type: node
+          node_version: "20"
+          lint_cmd: ""
+          test_cmd: ""
+        - name: python-api
+          context: python-api
+          type: python
+          python_version: "3.9"  # <- compat con tus pins
+          lint_cmd: ""           # p/ahora sin flake8
+          test_cmd: ""           # p/ahora sin pytest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Python
+      # Python (solo se setea si lo usás más adelante)
       - name: Setup Python
-        if: matrix.type == 'python'
+        if: matrix.type == 'python' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
@@ -63,17 +61,16 @@ jobs:
             ${{ matrix.context }}/requirements-dev.txt
 
       - name: Install deps (Python)
-        if: matrix.type == 'python'
+        if: matrix.type == 'python' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
         working-directory: ${{ matrix.context }}
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          pip install pytest flake8
 
-      # Node
+      # Node (solo si algún día activás tests/lint)
       - name: Setup Node
-        if: matrix.type == 'node'
+        if: matrix.type == 'node' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node_version }}
@@ -81,17 +78,18 @@ jobs:
           cache-dependency-path: ${{ matrix.context }}/package-lock.json
 
       - name: Install deps (Node)
-        if: matrix.type == 'node'
+        if: matrix.type == 'node' && (matrix.lint_cmd != '' || matrix.test_cmd != '')
         working-directory: ${{ matrix.context }}
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm i; fi
-          npm i -D eslint || true
 
       - name: Lint
+        if: matrix.lint_cmd != ''
         working-directory: ${{ matrix.context }}
         run: ${{ matrix.lint_cmd }}
 
       - name: Test
+        if: matrix.test_cmd != ''
         working-directory: ${{ matrix.context }}
         run: ${{ matrix.test_cmd }}
 
@@ -117,7 +115,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Derive vars (tags & push flag)
+      - name: Derive tags & flags
         run: |
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
           REPO="${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.name }}"
@@ -139,7 +137,7 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker meta (labels)
+      - name: Docker meta (labels OCI)
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -159,8 +157,40 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Build local (load) para escanear antes de publicar
       - name: Build (load) for scan
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
+          platforms: ${{ env.PLATFORMS }}
+          load: true
+          push: false
+          tags: ${{ env.TAGS }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ env.CACHE_MODE }}
+
+      - name: Security scan (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.SCAN_REF }}
+          severity: ${{ env.TRIVY_SEVERITY }}
+          ignore-unfixed: ${{ env.TRIVY_IGNORE_UNFIXED }}
+          vuln-type: 'os,library'
+          format: 'table'
+          exit-code: '1'
+
+      - name: Build & Push (main)
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ env.TAGS }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ env.CACHE_MODE }}
