@@ -7,7 +7,6 @@ on:
     paths:
       - 'python-api/**'
       - '.github/workflows/python-ci.yml'
-      # Agregá otros Dockerfiles si querés que disparen el workflow
 
 jobs:
   publish_images:
