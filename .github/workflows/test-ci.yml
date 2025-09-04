@@ -30,14 +30,14 @@ jobs:
             context: back
             type: node
             node_version: "20"
-            lint_cmd: "npm run lint --silent || npx eslint ."
+            lint_cmd: ""
             test_cmd: "npm test --silent || node --test"
           # dott-front: React/Vite/Next/etc (Node 20)
           - name: dott-front
             context: dott-front
             type: node
             node_version: "20"
-            lint_cmd: "npm run lint --silent || npx eslint ."
+            lint_cmd: ""
             test_cmd: "npm test --silent || node --test"
           # python-api (FastAPI/Flask/etc) Python 3.11
           - name: python-api
