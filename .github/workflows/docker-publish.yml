@@ -11,6 +11,8 @@ on:
     paths:
       - "python-api/**"
       - ".github/workflows/docker-python-api.yml"
+  workflow_dispatch:                  # ejecutar manualmente
+
 
 env:
   REGISTRY: docker.io
