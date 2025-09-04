@@ -2,14 +2,14 @@ name: Publish python-api image
 
 on:
   push:
-    branches: ["main"]      # publica solo al mergear a main
+    branches: ["main"]
     paths:
       - "python-api/**"
       - ".github/workflows/python-ci.yml"
     tags:
       - "v*"
   pull_request:
-    branches: ["main"]      # en PR solo construye (sin push)
+    branches: ["main"]
     paths:
       - "python-api/**"
       - ".github/workflows/python-ci.yml"
@@ -29,7 +29,6 @@ on:
         default: ""
 
 env:
-  # ⚠️ Podés sobreescribir estos por Variables del repo (Settings → Variables → Actions)
   DOCKERHUB_NAMESPACE: marianora
   DOCKERFILE_DIR: python-api
   # IMAGE_NAME: python-api
@@ -48,15 +47,12 @@ jobs:
       - name: Resolver variables (inputs/variables/env)
         id: vars
         env:
-          # Inputs
           IN_DOCKERFILE_DIR: ${{ github.event.inputs.dockerfile_dir }}
           IN_NAMESPACE: ${{ github.event.inputs.dockerhub_namespace }}
           IN_IMAGE_NAME: ${{ github.event.inputs.image_name }}
-          # Repo Variables (Actions → Variables)
           VARS_DOCKERFILE_DIR: ${{ vars.DOCKERFILE_DIR }}
           VARS_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
           VARS_IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-          # Env
           ENV_DOCKERFILE_DIR: ${{ env.DOCKERFILE_DIR }}
           ENV_NAMESPACE: ${{ env.DOCKERHUB_NAMESPACE }}
           ENV_IMAGE_NAME: ${{ env.IMAGE_NAME }}
@@ -75,16 +71,34 @@ jobs:
           echo "  NAMESPACE=$NAMESPACE"
           echo "  IMAGE_NAME=$IMAGE_NAME"
 
-      # - name: Set up QEMU (solo si vas a multi-arch)
-      #   uses: docker/setup-qemu-action@v3
+      - name: Mostrar recursos del runner (útil para diagnosticar)
+        run: |
+          echo "== Memoria ==" && free -h || true
+          echo "== CPU cores ==" && nproc
+          echo "== Disco ==" && df -h
 
-      - name: Set up Docker Buildx (driver docker-container con BuildKit estable)
+      - name: Set up QEMU (opcional, solo si vas a multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      # Builder aislado con paralelismo limitado y GC para no ahogarse
+      - name: Set up Docker Buildx (low parallelism + GC)
+        id: buildx
         uses: docker/setup-buildx-action@v3
         with:
-          install: true
           driver: docker-container
-          driver-opts: image=moby/buildkit:v0.24.0
-          buildkitd-flags: --debug
+          install: true
+          buildkitd-config-inline: |
+            # /etc/buildkit/buildkitd.toml
+            [worker.oci]
+              # Reduce tareas simultáneas -> menor pico de RAM
+              max-parallelism = 2
+
+            # Políticas de GC para no llenar disco en el runner
+            [[worker.oci.gcpolicy]]
+              all = true
+              keepDuration = "168h"      # 7 días
+              reservedSpace = "3GB"
+              maxUsedSpace = "20GB"
 
       - name: Docker Hub login
         if: ${{ github.event_name != 'pull_request' && steps.vars.outputs.namespace != '' }}
@@ -99,11 +113,8 @@ jobs:
         with:
           images: ${{ steps.vars.outputs.namespace }}/${{ steps.vars.outputs.image_name }}
           tags: |
-            # latest en main (push)
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-            # tag por SHA
             type=sha,format=long
-            # si se pushea un tag vX.Y.Z
             type=ref,event=tag
 
       - name: Build (PR) o Build & Push (main/tags)
@@ -111,25 +122,22 @@ jobs:
         with:
           context: ${{ steps.vars.outputs.dockerfile_dir }}
           file: ${{ steps.vars.outputs.dockerfile_dir }}/Dockerfile
-          # En PR NO hace push, en main/tags SÍ
           push: ${{ github.event_name != 'pull_request' }}
-          # platforms: linux/amd64,linux/arm64   # descomentar si querés multi-arch
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: false    # ← evita attestation de provenance (crashes esporádicos)
-          sbom: false          # ← evita generación de SBOM
+          provenance: false         # menos memoria (evita generar attestation)
+          sbom: false               # idem
+          progress: plain           # logs más lineales
 
-      - name: Dump BuildKit logs (solo on-failure)
+      - name: Logs de BuildKit si falla
         if: failure()
         run: |
-          set -x
-          docker ps -a
-          BK_CONTAINER=$(docker ps -a --filter "name=buildx_buildkit_" --format "{{.Names}}" | head -n1)
-          if [ -n "$BK_CONTAINER" ]; then
-            echo "==> Logs de $BK_CONTAINER"
-            docker logs --tail=500 "$BK_CONTAINER" || true
-          else
-            echo "No encontré contenedor buildkit"
+          echo "=== Contenedores activos ==="
+          docker ps -a || true
+          BID=$(docker ps --filter "name=buildx_buildkit" --format "{{.ID}}" | head -n1)
+          if [ -n "$BID" ]; then
+            echo "=== Últimos logs de buildkitd ==="
+            docker logs "$BID" --since 30m || true
           fi
