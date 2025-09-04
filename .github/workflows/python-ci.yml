@@ -10,40 +10,33 @@ on:
     branches: ["main"]
     paths:
       - "python-api/**"
-      - ".github/workflows/ci.yml"
+      - ".github/workflows/python-ci.yml"
   workflow_dispatch:
 
 env:
+  # ⚠️ Cambiá por tu namespace real en Docker Hub
   DOCKERHUB_NAMESPACE: marianora
-  # Toggle rápido para cache GHA (true/false)
-  USE_CACHE: "false"
 
 jobs:
   build_and_push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: python-api
-            image: python-api
-            context: python-api
+            image: python-api            # nombre de la imagen en Docker Hub
+            context: python-api          # carpeta del build
             dockerfile: python-api/Dockerfile
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Buildx (pinned + debug)
-        id: buildx
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          version: v0.16.2
           driver: docker-container
-          buildkitd-flags: --debug
-          # ⚠️ IMPORTANTE: una sola línea, sin comentarios ni comillas extra
-          driver-opts: image=moby/buildkit:buildx-stable-1
-
 
       - name: Derive tags
         id: vars
@@ -69,7 +62,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      # En PR: build sin push (sin login)
+      # En PR: build sin push (no hace login)
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -77,25 +70,55 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build con logs "plain" y builder pinneado
-      - name: Build (PR) / Build & Push (main)
-        uses: docker/build-push-action@v6
-        env:
-          # Logs detallados para ver el punto de fallo real
-          BUILDKIT_PROGRESS: plain
+      # (Best-effort) limpiar builders/estado previo
+      - name: Prune buildx builders (best-effort)
+        run: |
+          docker buildx ls || true
+          docker buildx prune -f || true
+
+      # 🔁 Build & Push con reintentos y logs "plain"
+      - name: Build & Push (retry x3)
+        uses: nick-fields/retry@v3
         with:
-          builder: ${{ steps.buildx.outputs.name }}
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.EDGE_TAG }}
-            ${{ env.SHA_TAG }}
-            ${{ env.LATEST_TAG }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # ⚙️ Caché GHA: desactivada por defecto; activala poniendo USE_CACHE="true"
-          cache-from: ${{ env.USE_CACHE == 'true' && format('type=gha,scope={0}', matrix.name) || '' }}
-          cache-to: ${{ env.USE_CACHE == 'true' && format('type=gha,scope={0},mode=max', matrix.name) || '' }}
-          provenance: false
-          sbom: false
+          timeout_minutes: 25
+          max_attempts: 3
+          retry_on: error
+          command: |
+            set -euo pipefail
+            echo "=== Attempt $(date) ==="
+            docker buildx version || true
+            docker info || true
+
+            # Armar tags (edge + sha + latest si corresponde)
+            TAG_ARGS=(--tag "${EDGE_TAG}" --tag "${SHA_TAG}")
+            if [[ -n "${LATEST_TAG:-}" ]]; then
+              TAG_ARGS+=(--tag "${LATEST_TAG}")
+            fi
+
+            BUILDKIT_PROGRESS=plain \
+            docker buildx build \
+              --builder default \
+              --file "${{ matrix.dockerfile }}" \
+              --platform linux/amd64 \
+              --pull \
+              $([[ "${{ github.event_name }}" != "pull_request" ]] && echo "--push" || echo "") \
+              --provenance=false \
+              --sbom=false \
+              "${TAG_ARGS[@]}" \
+              "${{ matrix.context }}"
+
+      # 🧪 Si falla: volcar logs detallados de buildkit
+      - name: Dump buildkit logs (on failure)
+        if: failure()
+        run: |
+          echo "== Containers =="
+          docker ps -a || true
+          echo "== Buildx ls =="
+          docker buildx ls || true
+          echo "== Guess buildkit container(s) =="
+          BK=$(docker ps -a --format '{{.ID}} {{.Image}} {{.Names}}' | grep -Ei 'buildkit|buildx' || true)
+          echo "$BK"
+          for ID in $(echo "$BK" | awk '{print $1}'); do
+            echo "---- logs for $ID ----"
+            docker logs "$ID" || true
+          done
