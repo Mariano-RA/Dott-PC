@@ -31,14 +31,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Fuerza buildx actualizado (mitiga crashes EOF)
-      - name: Set up Buildx (latest)
-        uses: docker/setup-buildx-action@v3
-        with:
-          # driver docker-container (default); si vieras más EOF, podés probar driver: docker
-          # driver: docker
-          buildkitd-flags: --debug
-
       - name: Derive tags & flags
         run: |
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
@@ -57,7 +49,9 @@ jobs:
           printf "TAGS<<EOF\n%s\nEOF\n" "${TAGS}" >> $GITHUB_ENV
           echo "PUSH=${PUSH}" >> $GITHUB_ENV
           echo "SCAN_REF=${SCAN_REF}" >> $GITHUB_ENV
-          echo "Using repo: ${REPO}"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Docker meta
         id: meta
@@ -72,25 +66,15 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      # 🔁 Build para escaneo: exporta a TAR (evita --load) y NO escribe cache (mitiga EOF)
-      - name: Build image to TAR (for scan)
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
-          outputs: type=docker,dest=/tmp/${{ matrix.image }}.tar
-          push: false
-          tags: ${{ env.TAGS }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          # 👇 deshabilito cache-to en este build para evitar el bug de exportación al cache
-          # cache-to: type=gha,scope=${{ matrix.name }},mode=max
-          provenance: false
-          sbom: false
+      # ===== Solo PYTHON-API: build con Docker clásico y export a TAR =====
+      - name: Build image to TAR (for scan) [python only]
+        if: matrix.name == 'python-api'
+        run: |
+          docker build -t ${{ env.IMAGE_REPO }}:scan -f ${{ matrix.dockerfile }} ${{ matrix.context }}
+          docker save ${{ env.IMAGE_REPO }}:scan -o /tmp/${{ matrix.image }}.tar
 
-      # 🔍 Trivy escanea el TAR directamente (sin depender de --load)
-      - name: Security scan (Trivy) against TAR
+      - name: Security scan (Trivy) against TAR [python only]
+        if: matrix.name == 'python-api'
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
@@ -101,7 +85,35 @@ jobs:
           format: 'table'
           exit-code: '1'
 
-      # Login solo si vamos a pushear
+      # ===== Resto (back u otros): tu método actual con buildx/load =====
+      - name: Build (load) for scan [others]
+        if: matrix.name != 'python-api'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.TAGS }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+          provenance: false
+          sbom: false
+
+      - name: Security scan (Trivy) [others]
+        if: matrix.name != 'python-api'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.SCAN_REF }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          format: 'table'
+          exit-code: '1'
+
       - name: Login to Docker Hub (only on main)
         if: env.PUSH == 'true'
         uses: docker/login-action@v3
@@ -109,7 +121,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 🚀 Build & Push final (acá sí podés reactivar cache-to)
       - name: Build & Push (main)
         if: env.PUSH == 'true'
         uses: docker/build-push-action@v6
