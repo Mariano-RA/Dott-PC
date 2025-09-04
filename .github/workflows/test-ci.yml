@@ -66,13 +66,19 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      # ===== Solo PYTHON-API: build con Docker clásico y export a TAR =====
-      - name: Build image to TAR (for scan) [python only]
+      # ===== Solo PYTHON-API: build sin BuildKit y export a TAR =====
+      - name: Build image to TAR (for scan) [python only, legacy builder]
         if: matrix.name == 'python-api'
+        env:
+          DOCKER_BUILDKIT: "0"   # <--- desactiva BuildKit en 'docker build'
         run: |
-          docker build -t ${{ env.IMAGE_REPO }}:scan -f ${{ matrix.dockerfile }} ${{ matrix.context }}
+          docker version
+          docker pull python:3.9-slim
+          docker build --no-cache --progress=plain \
+            -t ${{ env.IMAGE_REPO }}:scan \
+            -f ${{ matrix.dockerfile }} ${{ matrix.context }}
           docker save ${{ env.IMAGE_REPO }}:scan -o /tmp/${{ matrix.image }}.tar
-
+      
       - name: Security scan (Trivy) against TAR [python only]
         if: matrix.name == 'python-api'
         uses: aquasecurity/trivy-action@0.28.0
@@ -84,6 +90,7 @@ jobs:
           vuln-type: 'os,library'
           format: 'table'
           exit-code: '1'
+
 
       # ===== Resto (back u otros): tu método actual con buildx/load =====
       - name: Build (load) for scan [others]
