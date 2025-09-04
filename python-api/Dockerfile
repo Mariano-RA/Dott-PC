@@ -41,8 +41,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copia el archivo de requisitos e instala las dependencias
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+    
 # Copia el código de la aplicación a la imagen
 COPY . .
 
