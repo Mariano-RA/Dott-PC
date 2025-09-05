@@ -1,18 +1,33 @@
-# Utiliza una imagen base de Python
+# Base Alpine (ligera)
 FROM python:3.11-alpine
-# Establece el directorio de trabajo dentro del contenedor
+
+# Directorio de trabajo
 WORKDIR /app
-# Copia el archivo de requisitos e instala las dependencias
-COPY /requirements.txt requirements.txt
-# RUN pip install -r requeriments.txt
-RUN pip install -r requirements.txt && \
-    rm -rf /root/.cache && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /tmp/*
-# Copia el código de la aplicación a la imagen
+
+# (Opcional) dependencias de build si alguna wheel requiere compilar
+# Si tu build ya pasó sin esto, podés dejarlo comentado.
+# RUN apk add --no-cache build-base linux-headers libffi-dev openssl-dev
+
+# Copiar requirements desde el contexto (sin barra inicial)
+COPY requirements.txt .
+
+# Instalar dependencias de Python sin cache
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar el resto del código
 COPY . .
-RUN chmod -R 777 /app/nuevosScripts/diccionarios
-# Expone el puerto en el que la API estará escuchando
+
+# Ajustar permisos de la carpeta (mejor 755 y/o chown que 777)
+# Si querés correr como no-root, descomentá el bloque de usuario abajo
+RUN chmod -R 755 /app/nuevosScripts/diccionarios || true
+
+# (Opcional) crear usuario no-root y ajustar ownership
+# RUN addgroup -S app && adduser -S app -G app \
+#     && chown -R app:app /app
+# USER app
+
+# Exponer puerto de la API
 EXPOSE 5000
+
+# Entry point
 CMD ["python", "dottDB.py"]
