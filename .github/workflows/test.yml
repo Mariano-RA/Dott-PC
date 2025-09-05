@@ -27,7 +27,7 @@ jobs:
       - name: Build (no push)
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: python-api/
           file: ./Dockerfile
           push: false
           tags: local/dott-python:ci
