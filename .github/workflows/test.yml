@@ -1,9 +1,26 @@
-name: Build Docker image
+name: Build Publish Backend
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
+    branches: ["main"]                # publica solo al mergear a main
+    paths:
+      - "python-api/**"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:                  # ejecutar manualmente
+    inputs:
+      dockerhub_namespace:
+        description: "Namespace de Docker Hub"
+        required: false
+        default: "marianora"
+
+permissions:
+  contents: read
+
+env:
+  # Valor por defecto. Podés sobreescribirlo con:
+  #  - Input del workflow_dispatch
+  #  - Variable del repo: Settings → Variables → Actions → DOCKERHUB_NAMESPACE
+  DOCKERHUB_NAMESPACE: marianora
 
 jobs:
   build_and_push:
