@@ -48,33 +48,23 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm i; fi
 
 # Etapa build
 FROM base AS build
-WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Si querés usar ARG para variables de entorno en build, descomentá y usá:
-# ARG ISSUER_BASE_URL
-# ARG AUDIENCE
-# ARG CLIENT_ORIGIN_URL
-# ARG RABBIT_MQ_URI
-# ARG RABBITMQ_QUEUE
-# ARG RABBITMQ_PYTHON_QUEUE
 RUN npm run build
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev   # deja solo deps de prod
 
 # Etapa runner (producción)
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup -S app && adduser -S app -G app
-USER app
 
 # Copia solo lo necesario para producción
 COPY --from=build /app/package.json ./
+COPY --from=build /app/node_modules ./node_modules   # <--- IMPORTANTE
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/secrets ./secrets
-# Si usás .env, descomentá la siguiente línea:
-# COPY --from=build /app/.env ./.env
 
+USER app
 EXPOSE 3000
-
 CMD ["npm", "run", "prod"]
