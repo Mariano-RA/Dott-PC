@@ -1,33 +1,35 @@
-# Base Alpine (ligera)
+# Imagen base ligera (musl)
 FROM python:3.11-alpine
+
+# Ajustes de runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 # Directorio de trabajo
 WORKDIR /app
 
-# (Opcional) dependencias de build si alguna wheel requiere compilar
-# Si tu build ya pasó sin esto, podés dejarlo comentado.
+# (Opcional) toolchain si algún wheel necesita compilar en el futuro
 # RUN apk add --no-cache build-base linux-headers libffi-dev openssl-dev
 
-# Copiar requirements desde el contexto (sin barra inicial)
+# Copiá primero requirements para aprovechar cache de capas
 COPY requirements.txt .
 
 # Instalar dependencias de Python sin cache
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Copiar el resto del código
 COPY . .
 
-# Ajustar permisos de la carpeta (mejor 755 y/o chown que 777)
-# Si querés correr como no-root, descomentá el bloque de usuario abajo
+# Permisos razonables (evitá 777)
 RUN chmod -R 755 /app/nuevosScripts/diccionarios || true
 
-# (Opcional) crear usuario no-root y ajustar ownership
-# RUN addgroup -S app && adduser -S app -G app \
-#     && chown -R app:app /app
-# USER app
+# Usuario no-root
+RUN addgroup -S app && adduser -S app -G app && chown -R app:app /app
+USER app
 
-# Exponer puerto de la API
+# Puerto de la API
 EXPOSE 5000
 
-# Entry point
+# Comando (ajustá si usás gunicorn)
 CMD ["python", "dottDB.py"]
