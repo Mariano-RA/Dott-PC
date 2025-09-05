@@ -15,13 +15,16 @@ from normalizador_categorias import normalizar_categoria, guardar_categorias_nue
 
 
 # Directorios y configuración de logs
-log_directory = "/logs"
+
+log_directory = os.path.join(os.getcwd(), "logs")  # ahora es /app/logs
 if not os.path.exists(log_directory):
-    os.makedirs(log_directory)
+    os.makedirs(log_directory, exist_ok=True)
+
 log_file = os.path.join(log_directory, "app.log")
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(log_file),
         logging.StreamHandler()
