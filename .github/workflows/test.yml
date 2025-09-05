@@ -63,7 +63,6 @@ jobs:
         with:
           driver: docker
       
-      # 👇 Fuerza a usar ese builder
       - name: Build (PR) o Build & Push (main/tags)
         uses: docker/build-push-action@v6
         with:
@@ -71,17 +70,17 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
-          # Para PRs, si querés evitar push por completo, podés usar load:true
-          # load: ${{ github.event_name == 'pull_request' }}
+          # load: ${{ github.event_name == 'pull_request' }} # opcional para PRs
           tags: |
             ${{ env.SHA_TAG }}
             ${{ env.EDGE_TAG }}
             ${{ env.SEMVER_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.cache_scope }}
-          cache-to: type=gha,scope=${{ matrix.cache_scope }},mode=max
+          pull: true
           provenance: false
           sbom: false
+          # 🔴 Sin cache-to / cache-from porque el driver=docker no los soporta
+
 
 
 
