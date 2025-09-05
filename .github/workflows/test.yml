@@ -6,56 +6,97 @@ on:
   pull_request:
 
 jobs:
-  docker:
+  build_and_push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write   # necesario solo si vas a publicar a GHCR
-    env:
-      DOCKER_BUILDKIT: "1"   # fuerza BuildKit para soportar --chown en COPY
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: python-api
+            image: dott-python
+            context: python-api
+            dockerfile: python-api/Dockerfile
+            cache_scope: python-api
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
+      - name: Resolver namespace
+        id: ns
+        env:
+          IN_NS: ${{ github.event.inputs.dockerhub_namespace }}
+          VAR_NS: ${{ vars.DOCKERHUB_NAMESPACE }}
+          ENV_NS: ${{ env.DOCKERHUB_NAMESPACE }}
+        run: |
+          NS="${IN_NS:-${VAR_NS:-${ENV_NS}}}"
+          echo "namespace=$NS" >> "$GITHUB_OUTPUT"
+          echo "Usando NAMESPACE=$NS"
+
+      - name: Set up QEMU (opcional multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ===== VARIANTE A: SOLO BUILD (sin push) =====
-      - name: Build (no push)
+      - name: Derive image coordinates & tags base
+        id: vars
+        run: |
+          REPO="${{ steps.ns.outputs.namespace }}/${{ matrix.image }}"
+          echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
+
+          # Siempre tag por SHA corto
+          echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+          # 'edge' solo en push a main
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
+          else
+            echo "EDGE_TAG=" >> $GITHUB_ENV
+          fi
+
+          # Si es un tag (vX.Y.Z), usarlo como tag semántico
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"       # ej: v1.2.3
+            echo "SEMVER_TAG=${REPO}:${VERSION#v}" >> $GITHUB_ENV  # 1.2.3 (sin la 'v')
+          else
+            echo "SEMVER_TAG=" >> $GITHUB_ENV
+          fi
+
+      - name: Docker meta (labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REPO }}
+          flavor: latest=false
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.description=${{ matrix.name }} image
+            org.opencontainers.image.url=https://hub.docker.com/r/${{ steps.ns.outputs.namespace }}/${{ matrix.image }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Login to Docker Hub (solo si se va a pushear)
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build (PR) o Build & Push (main/tags)
         uses: docker/build-push-action@v6
         with:
-          context: ./python-api/
-          file: Dockerfile   # <-- o simplemente borralo y deja que use el default
-          push: false
-          tags: local/dott-python:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-
-      # ===== VARIANTE B: PUBLICAR EN GHCR =====
-      # Descomenta estas 3 tareas si querés publicar
-      # - name: Login to GHCR
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-      #
-      # - name: Extract image tag
-      #   id: meta
-      #   run: |
-      #     REPO=${{ github.repository }}
-      #     IMAGE=ghcr.io/${REPO,,}/dott-python
-      #     echo "image=$IMAGE" >> $GITHUB_OUTPUT
-      #
-      # - name: Build & Push
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: .
-      #     file: ./Dockerfile
-      #     push: true
-      #     tags: |
-      #       ${{ steps.meta.outputs.image }}:latest
-      #       ${{ steps.meta.outputs.image }}:${{ github.sha }}
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          # Descomentar para multi-arch:
+          # platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.SHA_TAG }}
+            ${{ env.EDGE_TAG }}
+            ${{ env.SEMVER_TAG }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.cache_scope }}
+          cache-to: type=gha,scope=${{ matrix.cache_scope }},mode=max
+          provenance: false
+          sbom: false
