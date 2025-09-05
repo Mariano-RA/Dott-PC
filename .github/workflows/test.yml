@@ -7,11 +7,6 @@ on:
       - "python-api/**"
       - ".github/workflows/test.yml"
   workflow_dispatch:
-    inputs:
-      dockerhub_namespace:
-        description: "Namespace de Docker Hub"
-        required: false
-        default: "marianora"
 
 permissions:
   contents: read
@@ -22,15 +17,6 @@ env:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: python-api
-            image: dott-python
-            context: python-api
-            dockerfile: python-api/Dockerfile
-            cache_scope: python-api
 
     steps:
       - name: Checkout
@@ -38,51 +24,24 @@ jobs:
 
       - name: Resolver namespace
         id: ns
-        env:
-          IN_NS: ${{ github.event.inputs.dockerhub_namespace }}
-          VAR_NS: ${{ vars.DOCKERHUB_NAMESPACE }}
-          ENV_NS: ${{ env.DOCKERHUB_NAMESPACE }}
         run: |
-          NS="${IN_NS:-${VAR_NS:-${ENV_NS}}}"
+          NS="${{ github.event.inputs.dockerhub_namespace || vars.DOCKERHUB_NAMESPACE || env.DOCKERHUB_NAMESPACE }}"
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
-          echo "Usando NAMESPACE=$NS"
-          
-      - name: Derive image coordinates & tags base
-        id: vars
-        run: |
-          REPO="${{ steps.ns.outputs.namespace }}/${{ matrix.image }}"
-          echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
 
-          # Siempre tag por SHA corto
+      - name: Derive image coordinates & tags base
+        run: |
+          REPO="${{ steps.ns.outputs.namespace }}/dott-python"
+          echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
           echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-          # 'edge' solo en push a main
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
-          else
-            echo "EDGE_TAG=" >> $GITHUB_ENV
           fi
 
-          # Si es un tag (vX.Y.Z), usarlo como tag semántico
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${{ github.ref_name }}"       # ej: v1.2.3
-            echo "SEMVER_TAG=${REPO}:${VERSION#v}" >> $GITHUB_ENV  # 1.2.3 (sin la 'v')
-          else
-            echo "SEMVER_TAG=" >> $GITHUB_ENV
+            VERSION="${{ github.ref_name }}"
+            echo "SEMVER_TAG=${REPO}:${VERSION#v}" >> $GITHUB_ENV
           fi
-
-      - name: Docker meta (labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_REPO }}
-          flavor: latest=false
-          labels: |
-            org.opencontainers.image.title=${{ matrix.image }}
-            org.opencontainers.image.description=${{ matrix.name }} image
-            org.opencontainers.image.url=https://hub.docker.com/r/${{ steps.ns.outputs.namespace }}/${{ matrix.image }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Login to Docker Hub (solo si se va a pushear)
         if: ${{ github.event_name != 'pull_request' }}
@@ -91,20 +50,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build (PR) o Build & Push (main/tags)
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          # Descomentar para multi-arch:
-          # platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.SHA_TAG }}
-            ${{ env.EDGE_TAG }}
-            ${{ env.SEMVER_TAG }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.cache_scope }}
-          cache-to: type=gha,scope=${{ matrix.cache_scope }},mode=max
-          provenance: false
-          sbom: false
+      - name: Build & Push con Docker nativo
+        run: |
+          TAGS="-t ${{ env.SHA_TAG }}"
+          [ -n "${EDGE_TAG}" ] && TAGS="$TAGS -t ${EDGE_TAG}"
+          [ -n "${SEMVER_TAG}" ] && TAGS="$TAGS -t ${SEMVER_TAG}"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            docker build $TAGS -f python-api/Dockerfile python-api
+          else
+            docker build $TAGS -f python-api/Dockerfile python-api
+            docker push --all-tags ${{ env.IMAGE_REPO }}
+          fi
