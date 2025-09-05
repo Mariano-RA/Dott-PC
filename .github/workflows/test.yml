@@ -91,17 +91,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # -------- Pre-pull con retries (evita EOF intermitente) --------
-      - name: Pre-pull base image (retry)
-        run: |
-          for i in 1 2 3 4 5; do
-            echo "Pull intento $i..."
-            docker pull python:3.11-alpine && exit 0
-            sleep $((5*i))
-          done
-          echo "Fallo el pull luego de varios intentos" >&2
-          exit 1
-
       # -------- Build clásico (sin BuildKit) + push --------
       - name: Build & Push con Docker clásico (sin BuildKit)
         env:
