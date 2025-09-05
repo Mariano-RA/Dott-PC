@@ -47,9 +47,6 @@ jobs:
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
           echo "Usando NAMESPACE=$NS"
           
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v1
-
       - name: Derive image coordinates & tags base
         id: vars
         run: |
