@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "python-api/**"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/python-ci.yml"
   workflow_dispatch:
 
 permissions:
