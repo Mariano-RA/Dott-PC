@@ -40,18 +40,19 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 
-# Etapa dependencias
+# Etapa dependencias (para cachear node_modules de build)
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm i; fi
 
-# Etapa build
+# Etapa build (compila tu app)
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Si necesitás variables en build, podés agregar ARG acá
 RUN npm run build
-RUN npm prune --omit=dev   # deja solo deps de prod
+# (No prunes acá: instalaremos deps de prod en el runner)
 
 # Etapa runner (producción)
 FROM node:20-alpine AS runner
@@ -59,9 +60,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup -S app && adduser -S app -G app
 
-# Copia solo lo necesario para producción
-COPY --from=build /app/package.json ./
-COPY --from=build /app/node_modules ./node_modules   # <--- IMPORTANTE
+# Instalar SOLO dependencias de producción en el contenedor final
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm i --omit=dev; fi
+
+# Copiar artefactos de build
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/secrets ./secrets
 
