@@ -28,11 +28,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: python-api/
-          file: ./Dockerfile
+          file: python-api/Dockerfile   # <-- o simplemente borralo y deja que use el default
           push: false
           tags: local/dott-python:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
       # ===== VARIANTE B: PUBLICAR EN GHCR =====
       # Descomenta estas 3 tareas si querés publicar
