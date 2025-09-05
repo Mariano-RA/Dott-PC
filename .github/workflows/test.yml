@@ -45,32 +45,31 @@ jobs:
         run: |
           NS="${IN_NS:-${VAR_NS:-${ENV_NS}}}"
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
-          if [ -z "$NS" ]; then
-            echo "⚠️ No se detectó NAMESPACE; se usará repo sin namespace (solo build local / PR)."
-          else
-            echo "Usando NAMESPACE=$NS"
-          fi
+          echo "Usando NAMESPACE=$NS"
+          
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v1
 
       - name: Derive image coordinates & tags base
         id: vars
         run: |
-          if [ -n "${{ steps.ns.outputs.namespace }}" ]; then
-            REPO="${{ steps.ns.outputs.namespace }}/${{ matrix.image }}"
-          else
-            REPO="${{ matrix.image }}"
-          fi
+          REPO="${{ steps.ns.outputs.namespace }}/${{ matrix.image }}"
           echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
+
+          # Siempre tag por SHA corto
           echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ] && [ -n "${{ steps.ns.outputs.namespace }}" ]; then
+          # 'edge' solo en push a main
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
           else
             echo "EDGE_TAG=" >> $GITHUB_ENV
           fi
 
-          if [[ "${{ github.ref }}" == refs/tags/v* ]] && [ -n "${{ steps.ns.outputs.namespace }}" ]; then
-            VERSION="${{ github.ref_name }}"
-            echo "SEMVER_TAG=${REPO}:${VERSION#v}" >> $GITHUB_ENV
+          # Si es un tag (vX.Y.Z), usarlo como tag semántico
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"       # ej: v1.2.3
+            echo "SEMVER_TAG=${REPO}:${VERSION#v}" >> $GITHUB_ENV  # 1.2.3 (sin la 'v')
           else
             echo "SEMVER_TAG=" >> $GITHUB_ENV
           fi
@@ -84,48 +83,31 @@ jobs:
           labels: |
             org.opencontainers.image.title=${{ matrix.image }}
             org.opencontainers.image.description=${{ matrix.name }} image
-            org.opencontainers.image.url=https://hub.docker.com/r/${{ steps.ns.outputs.namespace || 'library' }}/${{ matrix.image }}
+            org.opencontainers.image.url=https://hub.docker.com/r/${{ steps.ns.outputs.namespace }}/${{ matrix.image }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Prepare tags
-        id: prep
-        run: |
-          T="${{ env.SHA_TAG }}"
-          [ -n "${{ env.EDGE_TAG }}" ] && T="$T,${{ env.EDGE_TAG }}"
-          [ -n "${{ env.SEMVER_TAG }}" ] && T="$T,${{ env.SEMVER_TAG }}"
-          echo "tags=$T" >> "$GITHUB_OUTPUT"
-
-      - name: Set up QEMU (opcional multi-arch)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Buildx (pinned buildkit)
-        id: buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
-          buildkitd-flags: --debug
-
       - name: Login to Docker Hub (solo si se va a pushear)
-        if: ${{ github.event_name != 'pull_request' && steps.ns.outputs.namespace != '' }}
+        if: ${{ github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push (con caché GHA)
+      - name: Build (PR) o Build & Push (main/tags)
         uses: docker/build-push-action@v6
         with:
-          builder: ${{ steps.buildx.outputs.name }}
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
+          # Descomentar para multi-arch:
           # platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' && steps.ns.outputs.namespace != '' }}
-          tags: ${{ steps.prep.outputs.tags }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.SHA_TAG }}
+            ${{ env.EDGE_TAG }}
+            ${{ env.SEMVER_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.cache_scope }}
           cache-to: type=gha,scope=${{ matrix.cache_scope }},mode=max
-          pull: true
           provenance: false
           sbom: false
