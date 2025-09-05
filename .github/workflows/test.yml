@@ -1,4 +1,4 @@
-name: Build Publish Backend
+name: Build Publish
 
 on:
   push:
@@ -6,12 +6,17 @@ on:
     paths:
       - "python-api/**"
       - ".github/workflows/test.yml"
+  # Si querés que taggee 1.2.3 al pushear un tag v1.2.3, descomenta esto:
+  # push:
+  #   tags:
+  #     - "v*"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
+  # default; también podés definirlo como Repository/Org Variable (DOCKERHUB_NAMESPACE)
   DOCKERHUB_NAMESPACE: marianora
 
 jobs:
@@ -22,43 +27,71 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # -------- Namespace con fallback --------
       - name: Resolver namespace
         id: ns
+        env:
+          IN_NS: ${{ github.event.inputs.dockerhub_namespace }}   # si algún día agregás inputs
+          VAR_NS: ${{ vars.DOCKERHUB_NAMESPACE }}
+          ENV_NS: ${{ env.DOCKERHUB_NAMESPACE }}
         run: |
-          NS="${{ github.event.inputs.dockerhub_namespace || vars.DOCKERHUB_NAMESPACE || env.DOCKERHUB_NAMESPACE }}"
+          NS="${IN_NS:-${VAR_NS:-${ENV_NS}}}"
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
+          if [ -z "$NS" ]; then
+            echo "⚠️ No se detectó NAMESPACE; se construirá sin namespace (no se hará push)."
+          else
+            echo "Usando NAMESPACE=$NS"
+          fi
 
+      # -------- Derivar repos y tags (con fallback y sin vacíos) --------
       - name: Derive image coordinates & tags base
+        id: vars
+        env:
+          IMG_NAME: dott-python
         run: |
-          REPO="${{ steps.ns.outputs.namespace }}/dott-python"
+          IMAGE="${IMG_NAME}"
+          NS="${{ steps.ns.outputs.namespace }}"
+          if [ -n "$NS" ]; then
+            REPO="${NS}/${IMAGE}"
+          else
+            REPO="${IMAGE}"
+          fi
+
           echo "IMAGE_REPO=$REPO" >> $GITHUB_ENV
           echo "SHA_TAG=${REPO}:${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          # Tag 'edge' solo si es push a main y hay namespace
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ] && [ -n "$NS" ]; then
             echo "EDGE_TAG=${REPO}:edge" >> $GITHUB_ENV
+          else
+            echo "EDGE_TAG=" >> $GITHUB_ENV
           fi
 
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          # Tag semver solo si el ref es vX.Y.Z y hay namespace
+          if [[ "${{ github.ref }}" == refs/tags/v* ]] && [ -n "$NS" ]; then
             VERSION="${{ github.ref_name }}"
             echo "SEMVER_TAG=${REPO}:${VERSION#v}" >> $GITHUB_ENV
+          else
+            echo "SEMVER_TAG=" >> $GITHUB_ENV
           fi
 
-      - name: Login to Docker Hub (solo si se va a pushear)
-        if: ${{ github.event_name != 'pull_request' }}
+      - name: Prepare tags (sin vacíos)
+        id: prep
+        run: |
+          T="${{ env.SHA_TAG }}"
+          [ -n "${{ env.EDGE_TAG }}" ] && T="$T,${{ env.EDGE_TAG }}"
+          [ -n "${{ env.SEMVER_TAG }}" ] && T="$T,${{ env.SEMVER_TAG }}"
+          echo "tags=$T" >> "$GITHUB_OUTPUT"
+
+      # -------- (Opcional) loguearse antes del pull para evitar rate limit --------
+      - name: Login to Docker Hub (antes del build)
+        if: ${{ github.event_name != 'pull_request' && steps.ns.outputs.namespace != '' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            # (Opcional pero recomendable) Loguearse antes del pull para evitar rate limit
-      - name: Login to Docker Hub (antes del build)
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      # Pre-pull con reintentos: evita EOF al descargar la base
+      # -------- Pre-pull con retries (evita EOF intermitente) --------
       - name: Pre-pull base image (retry)
         run: |
           for i in 1 2 3 4 5; do
@@ -68,26 +101,36 @@ jobs:
           done
           echo "Fallo el pull luego de varios intentos" >&2
           exit 1
-      
-      # 👇 Build clásico (sin BuildKit) + push
+
+      # -------- Build clásico (sin BuildKit) + push --------
       - name: Build & Push con Docker clásico (sin BuildKit)
         env:
-          DOCKER_BUILDKIT: "0"         # fuerza el builder legacy → no usa buildx/buildkit
+          DOCKER_BUILDKIT: "0"   # fuerza builder legacy y evita rpc EOF de BuildKit
         run: |
           set -euo pipefail
-      
-          # Asegurá que IMAGE_REPO y tags ya estén seteados en pasos previos (ns/vars)
-          TAGS="-t ${IMAGE_REPO}:${GITHUB_SHA::7}"
-          [ -n "${EDGE_TAG:-}" ] && TAGS="$TAGS -t ${EDGE_TAG}"
-          [ -n "${SEMVER_TAG:-}" ] && TAGS="$TAGS -t ${SEMVER_TAG}"
-      
-          echo "Construyendo con: $TAGS"
-          docker build $TAGS -f "${{ matrix.dockerfile }}" "${{ matrix.context }}"
-      
-          # En PR no pusheamos
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            docker push "${IMAGE_REPO}:${GITHUB_SHA::7}"
-            [ -n "${EDGE_TAG:-}" ] && docker push "${EDGE_TAG}"
-            [ -n "${SEMVER_TAG:-}" ] && docker push "${SEMVER_TAG}"
-          fi
+          CONTEXT="python-api"
+          DOCKERFILE="python-api/Dockerfile"
 
+          # checks defensivos
+          [ -d "$CONTEXT" ] || { echo "❌ No existe contexto $CONTEXT"; exit 1; }
+          [ -f "$DOCKERFILE" ] || { echo "❌ No existe Dockerfile $DOCKERFILE"; exit 1; }
+
+          # armar flags -t desde la lista 'tags' preparada
+          TAGS_FLAGS=""
+          IFS=',' read -ra TAGLIST <<< "${{ steps.prep.outputs.tags }}"
+          for t in "${TAGLIST[@]}"; do
+            TAGS_FLAGS="$TAGS_FLAGS -t $t"
+          done
+
+          echo "Construyendo con: $TAGS_FLAGS"
+          docker build $TAGS_FLAGS -f "$DOCKERFILE" "$CONTEXT"
+
+          # push sólo si no es PR y hay namespace (si no, no tiene sentido publicar)
+          if [ "${{ github.event_name }}" != "pull_request" ] && [ -n "${{ steps.ns.outputs.namespace }}" ]; then
+            for t in "${TAGLIST[@]}"; do
+              echo "Pushing $t"
+              docker push "$t"
+            done
+          else
+            echo "Saltando push (PR o sin namespace)."
+          fi
