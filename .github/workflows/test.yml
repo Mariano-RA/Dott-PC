@@ -17,9 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (opcional si querés multi-arch)
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -27,8 +24,8 @@ jobs:
       - name: Build (no push)
         uses: docker/build-push-action@v6
         with:
-          context: python-api/
-          file: python-api/Dockerfile   # <-- o simplemente borralo y deja que use el default
+          context: ./python-api/
+          file: Dockerfile   # <-- o simplemente borralo y deja que use el default
           push: false
           tags: local/dott-python:ci
           cache-from: type=gha
