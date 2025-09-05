@@ -50,15 +50,44 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push con Docker nativo
+            # (Opcional pero recomendable) Loguearse antes del pull para evitar rate limit
+      - name: Login to Docker Hub (antes del build)
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      # Pre-pull con reintentos: evita EOF al descargar la base
+      - name: Pre-pull base image (retry)
         run: |
-          TAGS="-t ${{ env.SHA_TAG }}"
-          [ -n "${EDGE_TAG}" ] && TAGS="$TAGS -t ${EDGE_TAG}"
-          [ -n "${SEMVER_TAG}" ] && TAGS="$TAGS -t ${SEMVER_TAG}"
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            docker build $TAGS -f python-api/Dockerfile python-api
-          else
-            docker build $TAGS -f python-api/Dockerfile python-api
-            docker push --all-tags ${{ env.IMAGE_REPO }}
+          for i in 1 2 3 4 5; do
+            echo "Pull intento $i..."
+            docker pull python:3.11-alpine && exit 0
+            sleep $((5*i))
+          done
+          echo "Fallo el pull luego de varios intentos" >&2
+          exit 1
+      
+      # 👇 Build clásico (sin BuildKit) + push
+      - name: Build & Push con Docker clásico (sin BuildKit)
+        env:
+          DOCKER_BUILDKIT: "0"         # fuerza el builder legacy → no usa buildx/buildkit
+        run: |
+          set -euo pipefail
+      
+          # Asegurá que IMAGE_REPO y tags ya estén seteados en pasos previos (ns/vars)
+          TAGS="-t ${IMAGE_REPO}:${GITHUB_SHA::7}"
+          [ -n "${EDGE_TAG:-}" ] && TAGS="$TAGS -t ${EDGE_TAG}"
+          [ -n "${SEMVER_TAG:-}" ] && TAGS="$TAGS -t ${SEMVER_TAG}"
+      
+          echo "Construyendo con: $TAGS"
+          docker build $TAGS -f "${{ matrix.dockerfile }}" "${{ matrix.context }}"
+      
+          # En PR no pusheamos
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "${IMAGE_REPO}:${GITHUB_SHA::7}"
+            [ -n "${EDGE_TAG:-}" ] && docker push "${EDGE_TAG}"
+            [ -n "${SEMVER_TAG:-}" ] && docker push "${SEMVER_TAG}"
           fi
+
