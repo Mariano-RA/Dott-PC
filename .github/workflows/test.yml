@@ -53,8 +53,32 @@ jobs:
       - name: Set up QEMU (opcional multi-arch)
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Set up Buildx (driver=docker)
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+      
+      # 👇 Fuerza a usar ese builder
+      - name: Build (PR) o Build & Push (main/tags)
+        uses: docker/build-push-action@v6
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          # Para PRs, si querés evitar push por completo, podés usar load:true
+          # load: ${{ github.event_name == 'pull_request' }}
+          tags: |
+            ${{ env.SHA_TAG }}
+            ${{ env.EDGE_TAG }}
+            ${{ env.SEMVER_TAG }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.cache_scope }}
+          cache-to: type=gha,scope=${{ matrix.cache_scope }},mode=max
+          provenance: false
+          sbom: false
+
 
       - name: Derive image coordinates & tags base
         id: vars
@@ -117,3 +141,6 @@ jobs:
           cache-to: type=gha,scope=${{ matrix.cache_scope }},mode=max
           provenance: false
           sbom: false
+
+
+          
