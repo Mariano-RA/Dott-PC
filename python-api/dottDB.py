@@ -198,7 +198,7 @@ def tablaNb(archivo_bytesio):
 
 def tablaMega(archivo_bytesio):
     try:
-        csv_data = archivo_bytesio.read().decode('utf-8').splitlines()
+        csv_data = archivo_bytesio.read().decode("utf-8", errors="replace").splitlines()
         registros = []    
         current_category = ""
         
