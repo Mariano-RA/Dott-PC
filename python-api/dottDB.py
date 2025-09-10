@@ -196,133 +196,48 @@ def tablaNb(archivo_bytesio):
         logging.exception(f"Error procesando datos del proveedor NB: {ex}")
         return []
 
-# def tablaMega(archivo_bytesio):
-#     try:
-#         csv_data = archivo_bytesio.read().decode('utf-8').splitlines()
-#         registros = []    
-#         current_category = ""
-        
-#         for line in csv_data:
-#             if line.endswith(";;;;"):
-#                 # Si la línea es una categoría, actualizamos la variable
-#                 current_category = line.split(';')[0].strip()
-#             else:
-#                 # Si no es una categoría, procesamos el producto
-#                 partes = line.strip().split(';')
-                
-#                 if len(partes) < 5:
-#                     continue
-
-#                 producto = partes[1].strip().replace('"', '') 
-#                 precio_ars = float(partes[2].replace('U$s', '').strip())
-                
-#                 # Extraemos y procesamos el IVA
-#                 iva_porcentaje = float(partes[4].strip().replace('+', '').replace('%', ''))
-                
-#                 # Calculamos precioFinal
-#                 precio_final = calcular_precio(precio_ars, iva_porcentaje)
-                
-#                 # Aseguramos que la categoría no esté vacía
-#                 if current_category:
-#                     categoria = current_category
-#                 else:
-#                     categoria = ""
-                
-#                 registros.append({
-#                     "proveedor": "mega",
-#                     "producto": producto,
-#                     'categoria': normalizar_categoria('mega', categoria, ''),
-#                     "precio": precio_final  # Precio con IVA aplicado y margen adicional
-#                 })    
-#         return registros
-#     except Exception as ex:
-#         logging.exception(f"Error procesando datos del proveedor MEGA: {ex}")
-#         return []
-
 def tablaMega(archivo_bytesio):
-    def _to_float(s):
-        if s is None:
-            return None
-        s = str(s).strip()
-        s = (s.replace('U$s', '')
-               .replace('u$s', '')
-               .replace('USD', '')
-               .replace('$', '')
-               .replace('\xa0', '')
-               .replace(' ', ''))
-        # normalizar separadores decimales/miles
-        if s.count(',') == 1 and s.count('.') == 0:
-            s = s.replace(',', '.')
-        else:
-            if s.count('.') > 1:
-                s = s.replace('.', '')
-            s = s.replace(',', '')
-        try:
-            return float(s) if s else None
-        except Exception:
-            return None
-
     try:
-        # asegurar lectura desde el inicio
-        try:
-            archivo_bytesio.seek(0)
-        except Exception:
-            pass
-
-        raw = archivo_bytesio.read()
-
-        # decodificar con fallback
-        try:
-            text = raw.decode('utf-8')
-        except UnicodeDecodeError:
-            text = raw.decode('latin-1')
-
-        reader = csv.reader(io.StringIO(text), delimiter=';', skipinitialspace=True)
-
-        registros = []
+        csv_data = archivo_bytesio.read().decode('utf-8').splitlines()
+        registros = []    
         current_category = ""
+        
+        for line in csv_data:
+            if line.endswith(";;;;"):
+                # Si la línea es una categoría, actualizamos la variable
+                current_category = line.split(';')[0].strip()
+            else:
+                # Si no es una categoría, procesamos el producto
+                partes = line.strip().split(';')
+                
+                if len(partes) < 5:
+                    continue
 
-        for row in reader:
-            if not row or all((c.strip() == "" for c in row)):
-                continue
-
-            # Fila de categoría: 1ra celda con texto y el resto vacío
-            if row[0].strip() and all((c.strip() == "" for c in row[1:])):
-                current_category = row[0].strip()
-                continue
-
-            # Esperamos: [codigo, producto, usd, ars, iva]
-            if len(row) < 5:
-                continue
-
-            codigo = row[0].strip()
-            producto = row[1].strip().replace('"', '')
-            # precio_usd = _to_float(row[2])  # no lo usamos para calcular
-            precio_ars = _to_float(row[3])
-
-            iva_str = (row[4] or "").strip().replace('+', '').replace('%', '')
-            iva_porcentaje = _to_float(iva_str) or 0.0
-
-            # ✅ Solo calculamos si hay ARS (lo que espera calcular_precio)
-            if precio_ars is None:
-                logging.warning(f"[MEGA] Sin precio ARS en código {codigo} / prod '{producto}'. Se omite fila.")
-                continue
-
-            precio_final = calcular_precio(precio_ars, iva_porcentaje)
-
-            registros.append({
-                "proveedor": "mega",
-                "producto": producto,
-                "categoria": normalizar_categoria('mega', current_category or "", ''),
-                "precio": precio_final
-            })
-
+                producto = partes[1].strip().replace('"', '') 
+                precio_ars = float(partes[3].replace('U$s', '').strip())
+                
+                # Extraemos y procesamos el IVA
+                iva_porcentaje = float(partes[4].strip().replace('+', '').replace('%', ''))
+                
+                # Calculamos precioFinal
+                precio_final = calcular_precio(precio_ars, iva_porcentaje)
+                
+                # Aseguramos que la categoría no esté vacía
+                if current_category:
+                    categoria = current_category
+                else:
+                    categoria = ""
+                
+                registros.append({
+                    "proveedor": "mega",
+                    "producto": producto,
+                    'categoria': normalizar_categoria('mega', categoria, ''),
+                    "precio": precio_final  # Precio con IVA aplicado y margen adicional
+                })    
         return registros
-
     except Exception as ex:
         logging.exception(f"Error procesando datos del proveedor MEGA: {ex}")
         return []
-
 
 
 def callback(ch, method, properties, body):
