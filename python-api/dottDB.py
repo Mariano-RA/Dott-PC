@@ -239,16 +239,11 @@ def tablaNb(archivo_bytesio):
 #         logging.exception(f"Error procesando datos del proveedor MEGA: {ex}")
 #         return []
 
-import csv
-import io
-import logging
-
 def tablaMega(archivo_bytesio):
     def _to_float(s):
         if s is None:
             return None
         s = str(s).strip()
-        # quitar símbolos y espacios
         s = (s.replace('U$s', '')
                .replace('u$s', '')
                .replace('USD', '')
@@ -259,7 +254,6 @@ def tablaMega(archivo_bytesio):
         if s.count(',') == 1 and s.count('.') == 0:
             s = s.replace(',', '.')
         else:
-            # quitar miles y dejar un solo decimal
             if s.count('.') > 1:
                 s = s.replace('.', '')
             s = s.replace(',', '')
@@ -292,7 +286,7 @@ def tablaMega(archivo_bytesio):
             if not row or all((c.strip() == "" for c in row)):
                 continue
 
-            # Detectar fila de categoría: primera celda con texto y el resto vacío
+            # Fila de categoría: 1ra celda con texto y el resto vacío
             if row[0].strip() and all((c.strip() == "" for c in row[1:])):
                 current_category = row[0].strip()
                 continue
@@ -303,21 +297,18 @@ def tablaMega(archivo_bytesio):
 
             codigo = row[0].strip()
             producto = row[1].strip().replace('"', '')
-            precio_usd = _to_float(row[2])
+            # precio_usd = _to_float(row[2])  # no lo usamos para calcular
             precio_ars = _to_float(row[3])
 
             iva_str = (row[4] or "").strip().replace('+', '').replace('%', '')
             iva_porcentaje = _to_float(iva_str) or 0.0
 
-            # Base: si hay ARS úsalo; si no, cae a USD (por si en algún rubro viene vacío el ARS)
-            base = precio_ars if precio_ars is not None else precio_usd
-            if base is None:
+            # ✅ Solo calculamos si hay ARS (lo que espera calcular_precio)
+            if precio_ars is None:
+                logging.warning(f"[MEGA] Sin precio ARS en código {codigo} / prod '{producto}'. Se omite fila.")
                 continue
 
-            # ⚠️ Mantengo tu API: asumo que calcular_precio(base_en_ars_o_usd, iva_en_%)
-            # Si calcular_precio espera SIEMPRE ARS, acá conviene pasar `precio_ars`
-            # y, si vino vacío, convertir USD→ARS antes (se necesitaría el tipo de cambio).
-            precio_final = calcular_precio(base, iva_porcentaje)
+            precio_final = calcular_precio(precio_ars, iva_porcentaje)
 
             registros.append({
                 "proveedor": "mega",
