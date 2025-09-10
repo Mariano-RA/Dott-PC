@@ -214,7 +214,7 @@ def tablaMega(archivo_bytesio):
                     continue
 
                 producto = partes[1].strip().replace('"', '') 
-                precio_ars = float(partes[3].replace('U$s', '').strip())
+                precio_ars = float(partes[2].replace('U$s', '').strip())
                 
                 # Extraemos y procesamos el IVA
                 iva_porcentaje = float(partes[4].strip().replace('+', '').replace('%', ''))
