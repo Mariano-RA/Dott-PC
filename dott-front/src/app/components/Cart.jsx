@@ -17,8 +17,11 @@ export default function Cart({ action, handleCloseCart }) {
   const [clientName, setClientName] = useState("");
   const [clientWsp, setClientWsp] = useState("");
 
-  const [alert, setAlert] = useState("");
-  const [show, setShow] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
   useEffect(() => {
     const handleShow = () => {
@@ -107,10 +110,6 @@ export default function Cart({ action, handleCloseCart }) {
     handleTotalProduct();
   }, [state, setTotalCart]);
 
-  function handleCloseAlert(action) {
-    setShow(action);
-  }
-
   // function getTotalForSend(itemId){
   //   var mount = 0;
   //   state.productCart.map((product) => {
@@ -155,10 +154,12 @@ export default function Cart({ action, handleCloseCart }) {
 
     // 2. Validamos que no estén vacíos
     if (!nombre || !whatsapp) {
-      setAlert(
-        "Por favor, completa tu nombre y WhatsApp para enviar el presupuesto."
-      );
-      setShow(true);
+      setAlertConfig({
+        show: true,
+        message:
+          "Por favor, completa tu nombre y WhatsApp para enviar el presupuesto. ",
+        type: "error",
+      });
       return; // Cortamos la ejecución
     }
 
@@ -189,10 +190,11 @@ export default function Cart({ action, handleCloseCart }) {
 
       // 5. Manejamos la respuesta
       if (response.ok) {
-        setAlert(
-          `¡Gracias ${nombre}! Tu presupuesto fue enviado. Te contactaremos por WhatsApp a la brevedad.`
-        );
-        setShow(true);
+        setAlertConfig({
+          show: true,
+          message: `¡Gracias ${nombre}! Tu presupuesto fue enviado. Te contactaremos por WhatsApp a la brevedad.`,
+          type: "success",
+        });
         // Limpiamos los campos
         setClientName("");
         setClientWsp("");
@@ -200,17 +202,20 @@ export default function Cart({ action, handleCloseCart }) {
         // removeCart(null, 'all'); // (Depende de cómo funcione tu context)
         // setOpen(false);
       } else {
-        setAlert(
-          "Hubo un problema al enviar el presupuesto. Por favor, intenta de nuevo más tarde."
-        );
-        setShow(true);
+        setAlertConfig({
+          show: true,
+          message:"Hubo un problema al enviar el presupuesto. Por favor, intenta de nuevo más tarde.",
+          type: "error",
+        });
       }
     } catch (error) {
       console.error("Error de conexión:", error);
-      setAlert(
-        "Error de conexión. No se pudo enviar el presupuesto, revisa tu internet."
-      );
-      setShow(true);
+      setAlertConfig({
+        show: true,
+        message:
+          "Error de conexión. No se pudo enviar el presupuesto, revisa tu internet.",
+        type: "error",
+      });
     }
   }
 
@@ -382,11 +387,14 @@ export default function Cart({ action, handleCloseCart }) {
                       </div>
                     </div>
                   </div>
-                  <Alert
-                    action={show}
-                    alertText={alert}
-                    handleCloseAlert={handleCloseAlert}
-                  />
+                  <div className="absolute bottom-4 left-4 right-4 z-20">
+                    <Alert
+                      alert={alertConfig}
+                      onClose={() =>
+                        setAlertConfig({ ...alertConfig, show: false })
+                      }
+                    />
+                  </div>
                 </Dialog.Panel>
               </Transition.Child>
             </div>
