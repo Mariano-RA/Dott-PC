@@ -166,7 +166,7 @@ export default function Cart({ action, handleCloseCart }) {
 
     // 3. Preparamos los datos
     const budgetData = {
-      subject: `Nuevo Presupuesto de: ${nombre} (Total: $${totalCart})`,
+      subject: `Presupuesto para ${nombre}`,
       cliente_nombre: nombre,
       cliente_whatsapp: whatsapp,
       productos: state.productCart.map(
