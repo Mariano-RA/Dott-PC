@@ -39,10 +39,10 @@ export default function Cart({ action, handleCloseCart }) {
   // }
 
   const calcularCuota = (precio, interes, cuota) => {
-    if(interes > 100){
-      return Math.round(precio * (2 + interes /100) / cuota);
+    if (interes > 100) {
+      return Math.round((precio * (2 + interes / 100)) / cuota);
     }
-    return Math.round(precio * (1 + interes / 100 ) / cuota);
+    return Math.round((precio * (1 + interes / 100)) / cuota);
   };
 
   // function handleSubtotal(data) {
@@ -65,13 +65,15 @@ export default function Cart({ action, handleCloseCart }) {
       const resVal = await fetch("/api/nest/quote");
       const { cuotas } = await resVal.json();
       setValorCuota(cuotas);
-
     };
     getSubtotal();
   }, [state]);
 
   function handleTotalProduct() {
-    let total = state.productCart.reduce((acc,item) => acc + item.precioEfectivo * item.quantity, 0);
+    let total = state.productCart.reduce(
+      (acc, item) => acc + item.precioEfectivo * item.quantity,
+      0
+    );
     // let total = arrSubtotal.reduce((acc, item) => acc + item.subtotal, 0);
     setTotalCart(total);
   }
@@ -108,27 +110,89 @@ export default function Cart({ action, handleCloseCart }) {
   //   return mount;
   // }
 
-  function handlePresupuesto() {
-    let message = `Hola!\n Productos de interes:\n\n${state.productCart
-      .map(
+  // function handlePresupuesto() {
+  //   let message = `Hola!\n Productos de interes:\n\n${state.productCart
+  //     .map(
+  //       (item) =>
+  //         `${item.producto} - ${item.quantity} - ${item.proveedor} - $${item.quantity * item.precioEfectivo}`
+  //     )
+  //     .join("\n")}`;
+
+  //   // message += "\n\nPrecios de Cuotas";
+  //   // valorCuota.forEach((cuota, index) => {
+  //   //   const cuotaPrice = calcularCuota(totalCart, cuota.valorTarjeta, cuota.id);
+  //   //   message += `\n${cuota.id} cuotas de: $${cuotaPrice}`;
+  //   // });
+
+  //   // Agregar el total de la compra al mensaje
+  //   message += `\ntotal en efectivo: $${totalCart}`;
+  //   const whatsappLink = `https://wa.me/5493512861992?text=${encodeURIComponent(
+  //     message
+  //   )}`;
+  //   // window.location.href = whatsappLink;
+  //   window.open(whatsappLink, "_blank");
+  // }
+
+  /**
+   * Esta función envía los datos del carrito a Formspree (que te lo enviará por email)
+   * sin que el usuario vea nada ni se abra ninguna ventana.
+   */
+  async function handlePresupuesto() {
+    // 1. Prepara los datos que quieres recibir en tu email
+    const budgetData = {
+      subject: `Nuevo Pedido de Presupuesto (Total: $${totalCart})`,
+      productos: state.productCart.map(
         (item) =>
-          `${item.producto} - ${item.quantity} - ${item.proveedor} - $${item.quantity * item.precioEfectivo}`
-      )
-      .join("\n")}`;
+          `${item.producto} - ${item.quantity} - ${item.proveedor} - $${
+            item.quantity * item.precioEfectivo
+          }`
+      ),
+      total_efectivo: `$${totalCart}`,
+      // Puedes agregar aquí cualquier otro dato que tengas en el 'state'
+      // ej: cliente_nombre: state.cliente.nombre
+    };
 
-    // message += "\n\nPrecios de Cuotas";
-    // valorCuota.forEach((cuota, index) => {
-    //   const cuotaPrice = calcularCuota(totalCart, cuota.valorTarjeta, cuota.id);
-    //   message += `\n${cuota.id} cuotas de: $${cuotaPrice}`;
-    // });
+    // Opcional: Desactivar el botón para evitar doble clic
+    // const tuBoton = document.getElementById('id-de-tu-boton');
+    // if (tuBoton) tuBoton.disabled = true;
 
-    // Agregar el total de la compra al mensaje
-    message += `\ntotal en efectivo: $${totalCart}`;
-    const whatsappLink = `https://wa.me/5493512861992?text=${encodeURIComponent(
-      message
-    )}`;
-    // window.location.href = whatsappLink;
-    window.open(whatsappLink, "_blank");
+    try {
+      // 2. Envía los datos a TU URL de Formspree
+      const response = await fetch("https://formspree.io/f/xqagravw", {
+        method: "POST",
+        body: JSON.stringify(budgetData),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json", // Importante para que Formspree responda en JSON
+        },
+      });
+
+      // 3. Maneja la respuesta
+      if (response.ok) {
+        // ¡Éxito!
+        alert(
+          "¡Presupuesto enviado correctamente! Te contactaremos a la brevedad."
+        );
+
+        // Opcional: Vaciar el carrito después de enviar
+        // state.productCart = [];
+        // actualizarCarrito(); // (o como se llame tu función de refrescar la UI)
+      } else {
+        // Error del servidor de Formspree
+        alert(
+          "Hubo un problema al enviar el presupuesto. Por favor, intenta de nuevo más tarde."
+        );
+      }
+    } catch (error) {
+      // Error de red (ej. el usuario se quedó sin internet)
+      console.error("Error de conexión:", error);
+      alert(
+        "Error de conexión. No se pudo enviar el presupuesto, revisa tu internet."
+      );
+    }
+
+    // Opcional: Volver a activar el botón
+    // if (tuBoton) tuBoton.disabled = false;
   }
 
   return (
