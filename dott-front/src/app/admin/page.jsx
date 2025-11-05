@@ -122,9 +122,6 @@ export default withPageAuthRequired(function Admin() {
     }
   }, [data]);
 
-  function handleCloseAlert(action) {
-    setShow(action);
-  }
 
   function handleSelectOption(e) {
     setProveedor(e.target.value);
