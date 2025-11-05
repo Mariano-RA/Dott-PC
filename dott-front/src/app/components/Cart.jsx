@@ -176,10 +176,10 @@ export default function Cart({ action, handleCloseCart }) {
         .map(
           (item) =>
             // Usamos un formato más claro para cada ítem
-            `--- Producto: ${item.producto} ---\n` +
+            `Producto: ${item.producto}\n` +
             `Cantidad: ${item.quantity}\n` +
             `Proveedor: ${item.proveedor}\n` +
-            `Precio en efectivo: $${item.quantity * item.precioEfectivo}\n`
+            `Precio en efectivo: $${item.quantity * item.precioEfectivo}`
         )
         .join("\n====================\n"), // <-- Une todo con un separador
       // --- FIN DEL CAMBIO ---
