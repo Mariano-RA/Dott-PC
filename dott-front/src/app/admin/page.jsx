@@ -122,7 +122,6 @@ export default withPageAuthRequired(function Admin() {
     }
   }, [data]);
 
-
   function handleSelectOption(e) {
     setProveedor(e.target.value);
   }
@@ -148,7 +147,6 @@ export default withPageAuthRequired(function Admin() {
       const responseData = await resVal.json();
 
       if (!resVal.ok) {
-        console.error("Error al eliminar proveedor:", responseData.error);
         setAlerta({
           show: true,
           message: "Hubo un error al borrar el listado.",
@@ -162,7 +160,6 @@ export default withPageAuthRequired(function Admin() {
         type: "success",
       });
     } catch (error) {
-      console.error("Error de red al borrar proveedor:", error);
       setAlerta({
         show: true,
         message: "Error de conexión con el servidor.",
@@ -230,7 +227,11 @@ export default withPageAuthRequired(function Admin() {
     const file = fileInput.files[0];
 
     if (!file) {
-      console.log("No se seleccionó ningún archivo.");
+      setAlerta({
+        show: true,
+        message: "No se seleccionó ningún archivo.",
+        type: "error",
+      });
       return;
     }
 
@@ -487,9 +488,10 @@ export default withPageAuthRequired(function Admin() {
           </div>
         </div>
         <Alert
-          action={show}
-          alertText={alert}
+          alertText={alerta.message}
+          action={alerta.show}
           handleCloseAlert={handleCloseAlert}
+          type={alerta.type} // Aquí pasas el tipo dinámicamente
         />
       </div>
     );
