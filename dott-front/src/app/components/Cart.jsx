@@ -13,6 +13,9 @@ export default function Cart({ action, handleCloseCart }) {
   const [valorCuota, setValorCuota] = useState([]);
   const [valorDolar, setValorDolar] = useState(0);
 
+  const [clientName, setClientName] = useState("");
+  const [clientWsp, setClientWsp] = useState("");
+
   useEffect(() => {
     const handleShow = () => {
       if (action) {
@@ -138,9 +141,25 @@ export default function Cart({ action, handleCloseCart }) {
    * sin que el usuario vea nada ni se abra ninguna ventana.
    */
   async function handlePresupuesto() {
-    // 1. Prepara los datos que quieres recibir en tu email
+    // 1. Leemos los datos de los inputs (del estado de React)
+    const nombre = clientName.trim();
+    const whatsapp = clientWsp.trim();
+
+    // 2. Validamos que no estén vacíos
+    if (!nombre || !whatsapp) {
+      alert(
+        "Por favor, completa tu nombre y WhatsApp para enviar el presupuesto."
+      );
+      return; // Cortamos la ejecución
+    }
+
+    setIsSubmitting(true); // Deshabilitamos el botón
+
+    // 3. Preparamos los datos
     const budgetData = {
-      subject: `Nuevo Pedido de Presupuesto (Total: $${totalCart})`,
+      subject: `Nuevo Presupuesto de: ${nombre} (Total: $${totalCart})`,
+      cliente_nombre: nombre,
+      cliente_whatsapp: whatsapp,
       productos: state.productCart.map(
         (item) =>
           `${item.producto} - ${item.quantity} - ${item.proveedor} - $${
@@ -148,51 +167,43 @@ export default function Cart({ action, handleCloseCart }) {
           }`
       ),
       total_efectivo: `$${totalCart}`,
-      // Puedes agregar aquí cualquier otro dato que tengas en el 'state'
-      // ej: cliente_nombre: state.cliente.nombre
     };
 
-    // Opcional: Desactivar el botón para evitar doble clic
-    // const tuBoton = document.getElementById('id-de-tu-boton');
-    // if (tuBoton) tuBoton.disabled = true;
-
+    // 4. Enviamos a Formspree
     try {
-      // 2. Envía los datos a TU URL de Formspree
       const response = await fetch("https://formspree.io/f/xqagravw", {
         method: "POST",
         body: JSON.stringify(budgetData),
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json", // Importante para que Formspree responda en JSON
+          Accept: "application/json",
         },
       });
 
-      // 3. Maneja la respuesta
+      // 5. Manejamos la respuesta
       if (response.ok) {
-        // ¡Éxito!
         alert(
-          "¡Presupuesto enviado correctamente! Te contactaremos a la brevedad."
+          `¡Gracias ${nombre}! Tu presupuesto fue enviado. Te contactaremos por WhatsApp a la brevedad.`
         );
-
-        // Opcional: Vaciar el carrito después de enviar
-        // state.productCart = [];
-        // actualizarCarrito(); // (o como se llame tu función de refrescar la UI)
+        // Limpiamos los campos
+        setClientName("");
+        setClientWsp("");
+        // Opcional: vaciar el carrito o cerrar el modal
+        // removeCart(null, 'all'); // (Depende de cómo funcione tu context)
+        // setOpen(false);
       } else {
-        // Error del servidor de Formspree
         alert(
           "Hubo un problema al enviar el presupuesto. Por favor, intenta de nuevo más tarde."
         );
       }
     } catch (error) {
-      // Error de red (ej. el usuario se quedó sin internet)
       console.error("Error de conexión:", error);
       alert(
         "Error de conexión. No se pudo enviar el presupuesto, revisa tu internet."
       );
+    } finally {
+      setIsSubmitting(false); // Reactivamos el botón
     }
-
-    // Opcional: Volver a activar el botón
-    // if (tuBoton) tuBoton.disabled = false;
   }
 
   return (
@@ -301,6 +312,52 @@ export default function Cart({ action, handleCloseCart }) {
                       <p className="mt-0.5 text-sm text-gray-500">
                         Gastos de envío calculados al pagar.
                       </p>
+
+                      <div className="mt-6 space-y-4">
+                        <div>
+                          <label
+                            htmlFor="cliente_nombre"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            Tu Nombre
+                          </label>
+                          <div className="mt-1">
+                            <input
+                              type="text"
+                              id="cliente_nombre"
+                              name="cliente_nombre"
+                              value={clientName}
+                              onChange={(e) => setClientName(e.target.value)}
+                              autoComplete="name"
+                              required
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                              placeholder="Juan Pérez"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="cliente_wsp"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            Tu WhatsApp
+                          </label>
+                          <div className="mt-1">
+                            <input
+                              type="tel"
+                              id="cliente_wsp"
+                              name="cliente_wsp"
+                              value={clientWsp}
+                              onChange={(e) => setClientWsp(e.target.value)}
+                              autoComplete="tel"
+                              required
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                              placeholder="11 2233 4455"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="mt-6">
                         <a
                           href="#"
