@@ -23,6 +23,7 @@ export default function Cart({ action, handleCloseCart }) {
     type: "success",
   });
 
+
   useEffect(() => {
     const handleShow = () => {
       if (action) {
@@ -204,7 +205,8 @@ export default function Cart({ action, handleCloseCart }) {
       } else {
         setAlertConfig({
           show: true,
-          message:"Hubo un problema al enviar el presupuesto. Por favor, intenta de nuevo más tarde.",
+          message:
+            "Hubo un problema al enviar el presupuesto. Por favor, intenta de nuevo más tarde.",
           type: "error",
         });
       }
@@ -387,12 +389,14 @@ export default function Cart({ action, handleCloseCart }) {
                       </div>
                     </div>
                   </div>
+                  <div className="absolute bottom-4 left-4 right-4 z-20">
                     <Alert
                       alert={alertConfig}
                       onClose={() =>
                         setAlertConfig({ ...alertConfig, show: false })
                       }
                     />
+                  </div>
                 </Dialog.Panel>
               </Transition.Child>
             </div>
