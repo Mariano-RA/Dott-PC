@@ -211,8 +211,6 @@ export default function Cart({ action, handleCloseCart }) {
         "Error de conexión. No se pudo enviar el presupuesto, revisa tu internet."
       );
       setShow(true);
-    } finally {
-      setIsSubmitting(false); // Reactivamos el botón
     }
   }
 
