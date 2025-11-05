@@ -323,15 +323,11 @@ export default function Cart({ action, handleCloseCart }) {
                           </label>
                           <div className="mt-1">
                             <input
+                              className="rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-red-950 w-full"
                               type="text"
-                              id="cliente_nombre"
-                              name="cliente_nombre"
                               value={clientName}
                               onChange={(e) => setClientName(e.target.value)}
-                              autoComplete="name"
-                              required
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                              placeholder="Juan Pérez"
+                              placeholder="Nombre"
                             />
                           </div>
                         </div>
@@ -344,15 +340,11 @@ export default function Cart({ action, handleCloseCart }) {
                           </label>
                           <div className="mt-1">
                             <input
-                              type="tel"
-                              id="cliente_wsp"
-                              name="cliente_wsp"
+                              className="rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-red-950 w-full"
+                              type="text"
                               value={clientWsp}
                               onChange={(e) => setClientWsp(e.target.value)}
-                              autoComplete="tel"
-                              required
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                              placeholder="11 2233 4455"
+                              placeholder="Telefono"
                             />
                           </div>
                         </div>
