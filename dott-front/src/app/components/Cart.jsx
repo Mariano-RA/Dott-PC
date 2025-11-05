@@ -148,10 +148,6 @@ export default function Cart({ action, handleCloseCart }) {
   //   window.open(whatsappLink, "_blank");
   // }
 
-  /**
-   * Esta función envía los datos del carrito a Formspree (que te lo enviará por email)
-   * sin que el usuario vea nada ni se abra ninguna ventana.
-   */
   async function handlePresupuesto() {
     // 1. Leemos los datos de los inputs (del estado de React)
     const nombre = clientName.trim();
@@ -175,8 +171,10 @@ export default function Cart({ action, handleCloseCart }) {
       cliente_whatsapp: whatsapp,
       productos: state.productCart.map(
         (item) =>
-          `${item.producto} - ${item.quantity} - ${item.proveedor} - $${
-            item.quantity * item.precioEfectivo
+          `${item.producto}
+          \nCantidad: ${item.quantity}
+          \nProveedor: ${item.proveedor}
+          \nPrecio en efectivo: ${item.quantity * item.precioEfectivo
           }`
       ),
       total_efectivo: `$${totalCart}`,
