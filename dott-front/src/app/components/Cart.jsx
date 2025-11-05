@@ -19,8 +19,8 @@ export default function Cart({ action, handleCloseCart }) {
 
   const [alerta, setAlerta] = useState({
     show: false,
-    message: '',
-    type: 'error', // Valor inicial
+    message: "",
+    type: "error", // Valor inicial
   });
 
   // Función para CERRAR la alerta (se la pasamos al componente Alert)
@@ -165,18 +165,25 @@ export default function Cart({ action, handleCloseCart }) {
     }
 
     // 3. Preparamos los datos
+    // 3. Preparamos los datos
     const budgetData = {
       subject: `Presupuesto para ${nombre}`,
       cliente_nombre: nombre,
       cliente_whatsapp: whatsapp,
-      productos: state.productCart.map(
-        (item) =>
-          `${item.producto}
-          \nCantidad: ${item.quantity}
-          \nProveedor: ${item.proveedor}
-          \nPrecio en efectivo: ${item.quantity * item.precioEfectivo
-          }`
-      ),
+
+      // --- CAMBIO SUGERIDO AQUÍ ---
+      productos: state.productCart
+        .map(
+          (item) =>
+            // Usamos un formato más claro para cada ítem
+            `--- Producto: ${item.producto} ---\n` +
+            `Cantidad: ${item.quantity}\n` +
+            `Proveedor: ${item.proveedor}\n` +
+            `Precio en efectivo: $${item.quantity * item.precioEfectivo}\n`
+        )
+        .join("\n====================\n"), // <-- Une todo con un separador
+      // --- FIN DEL CAMBIO ---
+
       total_efectivo: `$${totalCart}`,
     };
 
@@ -201,9 +208,6 @@ export default function Cart({ action, handleCloseCart }) {
         // Limpiamos los campos
         setClientName("");
         setClientWsp("");
-        // Opcional: vaciar el carrito o cerrar el modal
-        // removeCart(null, 'all'); // (Depende de cómo funcione tu context)
-        // setOpen(false);
       } else {
         setAlerta({
           show: true,
