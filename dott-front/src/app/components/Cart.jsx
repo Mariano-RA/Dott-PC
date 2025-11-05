@@ -153,8 +153,6 @@ export default function Cart({ action, handleCloseCart }) {
       return; // Cortamos la ejecución
     }
 
-    setIsSubmitting(true); // Deshabilitamos el botón
-
     // 3. Preparamos los datos
     const budgetData = {
       subject: `Nuevo Presupuesto de: ${nombre} (Total: $${totalCart})`,
