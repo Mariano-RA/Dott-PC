@@ -387,14 +387,12 @@ export default function Cart({ action, handleCloseCart }) {
                       </div>
                     </div>
                   </div>
-                  <div className="absolute bottom-4 left-4 right-4 z-20">
                     <Alert
                       alert={alertConfig}
                       onClose={() =>
                         setAlertConfig({ ...alertConfig, show: false })
                       }
                     />
-                  </div>
                 </Dialog.Panel>
               </Transition.Child>
             </div>
