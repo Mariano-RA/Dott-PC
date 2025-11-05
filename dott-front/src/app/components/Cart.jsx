@@ -384,17 +384,17 @@ export default function Cart({ action, handleCloseCart }) {
                       </div>
                     </div>
                   </div>
+                  <Alert
+                    action={show}
+                    alertText={alert}
+                    handleCloseAlert={handleCloseAlert}
+                  />
                 </Dialog.Panel>
               </Transition.Child>
             </div>
           </div>
         </div>
       </Dialog>
-      <Alert
-        action={show}
-        alertText={alert}
-        handleCloseAlert={handleCloseAlert}
-      />
     </Transition.Root>
   );
 }
