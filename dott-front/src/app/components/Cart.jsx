@@ -4,6 +4,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "./utils/global.context";
 import CartCard from "./CartCard";
+import Alert from "../components/Alert";
 
 export default function Cart({ action, handleCloseCart }) {
   const [open, setOpen] = useState(false);
@@ -15,6 +16,9 @@ export default function Cart({ action, handleCloseCart }) {
 
   const [clientName, setClientName] = useState("");
   const [clientWsp, setClientWsp] = useState("");
+
+  const [alert, setAlert] = useState("");
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
     const handleShow = () => {
@@ -103,6 +107,10 @@ export default function Cart({ action, handleCloseCart }) {
     handleTotalProduct();
   }, [state, setTotalCart]);
 
+  function handleCloseAlert(action) {
+    setShow(action);
+  }
+
   // function getTotalForSend(itemId){
   //   var mount = 0;
   //   state.productCart.map((product) => {
@@ -147,9 +155,10 @@ export default function Cart({ action, handleCloseCart }) {
 
     // 2. Validamos que no estén vacíos
     if (!nombre || !whatsapp) {
-      alert(
+      setAlert(
         "Por favor, completa tu nombre y WhatsApp para enviar el presupuesto."
       );
+      setShow(true);
       return; // Cortamos la ejecución
     }
 
@@ -180,9 +189,10 @@ export default function Cart({ action, handleCloseCart }) {
 
       // 5. Manejamos la respuesta
       if (response.ok) {
-        alert(
+        setAlert(
           `¡Gracias ${nombre}! Tu presupuesto fue enviado. Te contactaremos por WhatsApp a la brevedad.`
         );
+        setShow(true);
         // Limpiamos los campos
         setClientName("");
         setClientWsp("");
@@ -190,15 +200,17 @@ export default function Cart({ action, handleCloseCart }) {
         // removeCart(null, 'all'); // (Depende de cómo funcione tu context)
         // setOpen(false);
       } else {
-        alert(
+        setAlert(
           "Hubo un problema al enviar el presupuesto. Por favor, intenta de nuevo más tarde."
         );
+        setShow(true);
       }
     } catch (error) {
       console.error("Error de conexión:", error);
-      alert(
+      setAlert(
         "Error de conexión. No se pudo enviar el presupuesto, revisa tu internet."
       );
+      setShow(true);
     } finally {
       setIsSubmitting(false); // Reactivamos el botón
     }
@@ -378,6 +390,11 @@ export default function Cart({ action, handleCloseCart }) {
           </div>
         </div>
       </Dialog>
+      <Alert
+        action={show}
+        alertText={alert}
+        handleCloseAlert={handleCloseAlert}
+      />
     </Transition.Root>
   );
 }
