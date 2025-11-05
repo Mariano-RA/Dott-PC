@@ -32,26 +32,34 @@ export default withPageAuthRequired(function Admin() {
   const { data, error } = useSWR("/api/admin", fetcher);
   const [accToken, setAccToken] = useState("");
   const [arrayDolar, setArrayDolar] = useState([
-    {proveedor:"air", precioDolar: 0},
-    {proveedor:"eikon", precioDolar: 0},
-    {proveedor:"elit", precioDolar: 0},
-    {proveedor:"mega", precioDolar: 0},
-    {proveedor:"hdc", precioDolar: 0},
-    {proveedor:"invid", precioDolar: 0},
-    {proveedor:"nb", precioDolar: 0},
+    { proveedor: "air", precioDolar: 0 },
+    { proveedor: "eikon", precioDolar: 0 },
+    { proveedor: "elit", precioDolar: 0 },
+    { proveedor: "mega", precioDolar: 0 },
+    { proveedor: "hdc", precioDolar: 0 },
+    { proveedor: "invid", precioDolar: 0 },
+    { proveedor: "nb", precioDolar: 0 },
   ]);
   const [arrayCuotas, setArrayCuotas] = useState([
-    {id:3, valorTarjeta: 0},
-    {id:6, valorTarjeta: 0},
-    {id:12, valorTarjeta: 0},
-    {id:18, valorTarjeta: 0},
+    { id: 3, valorTarjeta: 0 },
+    { id: 6, valorTarjeta: 0 },
+    { id: 12, valorTarjeta: 0 },
+    { id: 18, valorTarjeta: 0 },
   ]);
   const [proveedor, setProveedor] = useState("");
   const [deleteProveedor, setDeleteProveedor] = useState("");
   const [usrRoles, setUsrRoles] = useState([]);
   const { user } = useUser();
-  const [alert, setAlert] = useState("");
-  const [show, setShow] = useState(false);
+
+  const [alerta, setAlerta] = useState({
+    show: false,
+    message: "",
+    type: "error", // Valor inicial
+  });
+
+  const handleCloseAlert = () => {
+    setAlerta((prev) => ({ ...prev, show: false }));
+  };
 
   useEffect(() => {
     const roles = user["http://localhost:3000/roles"];
@@ -66,8 +74,14 @@ export default withPageAuthRequired(function Admin() {
         const elementoCorrespondiente = cuotas.find(
           (elemento) => elemento.id === valorAnterior.id
         );
-        if (elementoCorrespondiente && elementoCorrespondiente.valorTarjeta > 0) {
-          return { ...valorAnterior, valorTarjeta: elementoCorrespondiente.valorTarjeta };
+        if (
+          elementoCorrespondiente &&
+          elementoCorrespondiente.valorTarjeta > 0
+        ) {
+          return {
+            ...valorAnterior,
+            valorTarjeta: elementoCorrespondiente.valorTarjeta,
+          };
         }
         return valorAnterior;
       });
@@ -84,12 +98,18 @@ export default withPageAuthRequired(function Admin() {
         const elementoCorrespondiente = dolar.find(
           (elemento) => elemento.proveedor === valorAnterior.proveedor
         );
-        if (elementoCorrespondiente && elementoCorrespondiente.precioDolar > 0) {
-          return { ...valorAnterior, precioDolar: elementoCorrespondiente.precioDolar };
+        if (
+          elementoCorrespondiente &&
+          elementoCorrespondiente.precioDolar > 0
+        ) {
+          return {
+            ...valorAnterior,
+            precioDolar: elementoCorrespondiente.precioDolar,
+          };
         }
         return valorAnterior;
       });
-      setArrayDolar(nuevoArrayDolar)
+      setArrayDolar(nuevoArrayDolar);
     };
     getValorDolar();
   }, []);
@@ -116,7 +136,7 @@ export default withPageAuthRequired(function Admin() {
 
   async function handleBorrarListado() {
     if (deleteProveedor.trim() === "") return;
-  
+
     try {
       const resVal = await fetch(`/api/nest/products/list`, {
         method: "DELETE",
@@ -127,25 +147,34 @@ export default withPageAuthRequired(function Admin() {
           proveedor: deleteProveedor,
         }),
       });
-  
+
       const responseData = await resVal.json();
-  
+
       if (!resVal.ok) {
         console.error("Error al eliminar proveedor:", responseData.error);
-        setAlert("Hubo un error al borrar el listado.");
-        setShow(true);
+        setAlerta({
+          show: true,
+          message: "Hubo un error al borrar el listado.",
+          type: "error",
+        });
         return;
       }
-  
-      setAlert(responseData.response); // mensaje de éxito
-      setShow(true);
+      setAlerta({
+        show: true,
+        message: responseData.response || "Listado borrado exitosamente.",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error de red al borrar proveedor:", error);
-      setAlert("Error de conexión con el servidor.");
+      setAlerta({
+        show: true,
+        message: "Error de conexión con el servidor.",
+        type: "error",
+      });
       setShow(true);
     }
   }
-  
+
   const handleCuotaChange = (id, valorTarjeta) => {
     const nuevasCuotas = arrayCuotas.map((cuota) => {
       if (cuota.id === id) {
@@ -173,24 +202,30 @@ export default withPageAuthRequired(function Admin() {
         arrayCuotas,
       }),
     });
-    const responseData = await resVal.json();  
-    if(responseData){
-      setAlert(responseData.response);
-      setShow(true);
-    }     
+    const responseData = await resVal.json();
+    if (responseData) {
+      setAlerta({
+        show: true,
+        message: responseData.response,
+        type: "success",
+      });
+    }
   }
   async function handleActualizarDolar() {
     const resVal = await fetch(`/api/nest/dolar`, {
       method: "post",
       body: JSON.stringify({
         arrayDolar,
-      })
+      }),
     });
     const responseData = await resVal.json();
-    if(responseData){
-      setAlert(responseData.response);
-      setShow(true);
-    }    
+    if (responseData) {
+      setAlerta({
+        show: true,
+        message: responseData.response,
+        type: "success",
+      });
+    }
   }
 
   async function handleUpdateProvider() {
@@ -219,20 +254,27 @@ export default withPageAuthRequired(function Admin() {
 
       if (resval.ok) {
         const responseData = await resval.json();
-        if(responseData){
-          setAlert(responseData.response);
-          setShow(true);
-        }    
-        
+        if (responseData) {
+          setAlerta({
+            show: true,
+            message: responseData.response,
+            type: "success",
+          });
+        }
       } else {
-        setAlert("Error al enviar la solicitud a la API.");
-        setShow(true);
+        setAlerta({
+          show: true,
+          message: "Error al enviar la solicitud a la API.",
+          type: "error",
+        });
       }
     } catch (error) {
-      if(error != ""){
-        console.log(error);
-        setAlert("Error:", error);
-        setShow(true);
+      if (error != "") {
+        setAlerta({
+          show: true,
+          message: error,
+          type: "error",
+        });
       }
     }
   }
@@ -272,22 +314,22 @@ export default withPageAuthRequired(function Admin() {
               <tr>
                 <td colSpan={6} className="border border-slate-600 w-1/2">
                   <div className="text-red-950 flex justify-center items-center">
-                      <select
-                        className="w-full rounded-md px-4 py-1"
-                        id="inputGroupSelect04"
-                        aria-label="Example select with button addon"
-                        onChange={handleSelectDeleteOption}
-                      >
-                        <option defaultValue={null}>Proveedor</option>
-                        <option value="air">Air</option>
-                        <option value="eikon">Eikon</option>
-                        <option value="elit">Elit</option>
-                        <option value="mega">Mega</option>
-                        <option value="hdc">Hdc</option>
-                        <option value="invid">Invid</option>
-                        <option value="nb">Nb</option>
-                      </select>
-                    </div>
+                    <select
+                      className="w-full rounded-md px-4 py-1"
+                      id="inputGroupSelect04"
+                      aria-label="Example select with button addon"
+                      onChange={handleSelectDeleteOption}
+                    >
+                      <option defaultValue={null}>Proveedor</option>
+                      <option value="air">Air</option>
+                      <option value="eikon">Eikon</option>
+                      <option value="elit">Elit</option>
+                      <option value="mega">Mega</option>
+                      <option value="hdc">Hdc</option>
+                      <option value="invid">Invid</option>
+                      <option value="nb">Nb</option>
+                    </select>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -447,7 +489,11 @@ export default withPageAuthRequired(function Admin() {
             </button>
           </div>
         </div>
-        <Alert action={show} alertText={alert} handleCloseAlert={handleCloseAlert} />
+        <Alert
+          action={show}
+          alertText={alert}
+          handleCloseAlert={handleCloseAlert}
+        />
       </div>
     );
   }
