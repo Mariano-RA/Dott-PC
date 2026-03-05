@@ -10,6 +10,13 @@ import { Reflector } from "@nestjs/core";
 export class PermissionGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
   canActivate(context: ExecutionContext): boolean {
+    const localBypassEnabled =
+      process.env.NODE_ENV !== "production" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
+
+    if (localBypassEnabled) {
+      return true;
+    }
+
     const [req] = context.getArgs();
     const userPermissions = req?.auth.payload.permissions || [];
 

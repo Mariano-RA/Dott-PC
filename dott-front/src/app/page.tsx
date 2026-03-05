@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { cn } from "@/lib/utils"; // Asegúrate de que tienes esta función en tu proyecto
+import { Badge, Button, Card, CardContent } from "@/app/components/ui";
 
 const imagenes = [
   { id: 1, url: "/img/promo/imagen1.jpg" },
@@ -15,37 +16,39 @@ const imagenes = [
 
 export default function Inicio() {
   return (
-    <div className="flex flex-col items-center justify-between h-full">
-      <div className="flex flex-col items-center my-20 px-20">
-        <p className="font-bold text-transparent text-6xl sm:text-8xl bg-clip-text bg-gradient-to-r from-red-950 to-orange-500">
-          Dott PC
-        </p>
-        <p className="text-md text-center mt-14 text-red-950">
-          Sumérgete en un mundo de posibilidades infinitas con nuestra exclusiva
-          selección de equipos y accesorios gamer. Desde componentes de
-          vanguardia hasta periféricos de alto rendimiento, nuestra tienda es el
-          epicentro donde tus sueños de juego toman vida. ¡Juega más allá de los
-          límites y descubre lo que significa ser un verdadero jugador!
-        </p>
-      </div>
+    <main className="container-page py-10 md:py-14">
+      <section className="space-y-8 md:space-y-10">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
+          
+          <h1 className="font-bold text-transparent text-6xl sm:text-8xl bg-clip-text bg-gradient-to-r from-red-950 to-orange-500">Dott PC</h1>
+          <p className="text-muted-foreground">
+            Sumérgete en un mundo de posibilidades infinitas con nuestra exclusiva selección de equipos y accesorios
+            gamer. Desde componentes de vanguardia hasta periféricos de alto rendimiento, nuestra tienda es el
+            epicentro donde tus sueños de juego toman vida. ¡Juega más allá de los límites y descubre lo que significa
+            ser un verdadero jugador!
+          </p>
+        </div>
 
-      <div className="md:w-4/5 w-2/3 pb-5">
-        <Carousel className="w-full">
-          <CarouselContent>
-            {imagenes.map((imagen) => (
-              <CarouselItem key={imagen.id} className="flex justify-center">
-                <img
-                  src={imagen.url}
-                  className="w-full h-auto rounded-lg shadow-lg object-cover"
-                  alt={`Slide ${imagen.id}`}
-                />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
-        </Carousel>
-      </div>
-    </div>
+        <Card variant="elevated" className="mx-auto w-full max-w-5xl">
+          <CardContent className="px-8 py-8">
+            <Carousel className="w-full">
+              <CarouselContent>
+                {imagenes.map((imagen) => (
+                  <CarouselItem key={imagen.id} className="flex justify-center">
+                    <img
+                      src={imagen.url}
+                      className="h-auto w-full rounded-lg object-cover shadow-md"
+                      alt={`Slide ${imagen.id}`}
+                    />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
+          </CardContent>
+        </Card>
+      </section>
+    </main>
   );
 }

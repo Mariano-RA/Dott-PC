@@ -11,6 +11,7 @@ import pika
 from unidecode import unidecode
 import sys
 import logging
+import time
 from normalizador_categorias import normalizar_categoria, guardar_categorias_nuevas
 
 
@@ -37,6 +38,7 @@ csv.field_size_limit(sys.maxsize)
 rabbit_url = os.environ['RABBITMQ_URL']
 rabbit_queue = os.environ["RABBITMQ_QUEUE"]
 rabbit_python_queue = os.environ["RABBITMQ_PYTHON_QUEUE"]
+rabbit_retry_delay = int(os.environ.get("RABBITMQ_RETRY_DELAY", "5"))
 
 # Direccion archivos
 diccionarios = "nuevosScripts/diccionarios/diccionarios.json"
@@ -49,6 +51,21 @@ def calcular_precio(precio, iva=0):
     iva = float(iva.replace(',', '.')) if isinstance(iva, str) else float(iva)
 
     return round(float(precio) * (1 + float(iva)/100))
+
+
+def _is_excel_binary(file_data: bytes) -> bool:
+    # XLSX files are ZIP containers and usually start with PK magic bytes.
+    return file_data.startswith(b"PK")
+
+
+def _rows_from_csv_or_excel(file_data: bytes, csv_delimiter=",", csv_encoding="utf-8"):
+    if _is_excel_binary(file_data):
+        df = pd.read_excel(io.BytesIO(file_data), header=None)
+        df = df.fillna("")
+        return [[str(cell).strip() for cell in row] for row in df.values.tolist()]
+
+    decoded = file_data.decode(csv_encoding, errors="replace").splitlines()
+    return [row for row in csv.reader(decoded, delimiter=csv_delimiter)]
 
 
 def procesar_proveedor(nombre_proveedor, archivo_base64):
@@ -79,11 +96,14 @@ def procesar_proveedor(nombre_proveedor, archivo_base64):
 
 def tablaAir(archivo_bytesios):
     try:
-        csv_reader = archivo_bytesios.read().decode('iso-8859-1').splitlines()
+        file_data = archivo_bytesios.read()
+        csv_reader = _rows_from_csv_or_excel(file_data, csv_delimiter=",", csv_encoding="iso-8859-1")
         data = []
-        csv_reader = csv.reader(csv_reader, delimiter=",")
-        next(csv_reader)
-        for row in csv_reader:
+        # Skip header row when present.
+        rows = csv_reader[1:] if len(csv_reader) > 1 else []
+        for row in rows:
+            if len(row) < 11:
+                continue
             if all(x != "0" for x in row[5:9]):
                 registro = {
                     'proveedor': 'air',
@@ -179,11 +199,13 @@ def tablaInvid(archivo_bytesio):
 
 def tablaNb(archivo_bytesio):
     try:
-        csv_data = archivo_bytesio.read().decode('utf-8').splitlines()
+        file_data = archivo_bytesio.read()
+        csv_data = _rows_from_csv_or_excel(file_data, csv_delimiter=";", csv_encoding="utf-8")
         data = []
-        csv_reader = csv.reader(csv_data, delimiter=";")
-        next(csv_reader)          
-        for row in csv_reader:
+        rows = csv_data[1:] if len(csv_data) > 1 else []
+        for row in rows:
+            if len(row) < 11:
+                continue
             registro = {
                 "proveedor": "nb",
                 "producto": row[3],
@@ -265,27 +287,48 @@ def enviar_resultado_a_rabbitmq(nombre_proveedor, data):
         }
 
         mensaje_json = json.dumps(mensaje)
-        channel.queue_declare(queue=rabbit_queue, durable=True)
-        channel.basic_publish(
-            exchange='',
-            routing_key=rabbit_queue,
-            body=mensaje_json,
-        )
+
+        # Publish using a short-lived connection so this function works
+        # even when the consumer channel is recreated after reconnects.
+        with pika.BlockingConnection(
+            pika.ConnectionParameters(host=rabbit_url)
+        ) as publish_connection:
+            publish_channel = publish_connection.channel()
+            publish_channel.queue_declare(queue=rabbit_queue, durable=True)
+            publish_channel.basic_publish(
+                exchange='',
+                routing_key=rabbit_queue,
+                body=mensaje_json,
+            )
 
         logging.info(f"Se enviaron datos para actualizar proveedor: {nombre_proveedor}")
     except Exception as ex:
         logging.exception(f"Error enviado datos del proveedor {nombre_proveedor}: {ex}")
 
-with pika.BlockingConnection(pika.ConnectionParameters(host=rabbit_url)) as connection:
-    channel = connection.channel()
-    channel.queue_declare(queue=rabbit_python_queue, durable=True)
-    channel.basic_consume(
-        queue=rabbit_python_queue, on_message_callback=callback, auto_ack=True
-    )
-    try:
-        logging.info("Iniciando ejecución del consumidor...")
-        channel.start_consuming()
-    except KeyboardInterrupt:
-        logging.exception("Ejecución detenida por el usuario.")
-    except Exception as e:
-        logging.exception(f"Error en el consumidor principal: {e}", exc_info=True)
+def run_consumer_with_retry():
+    while True:
+        try:
+            with pika.BlockingConnection(
+                pika.ConnectionParameters(host=rabbit_url)
+            ) as connection:
+                channel = connection.channel()
+                channel.queue_declare(queue=rabbit_python_queue, durable=True)
+                channel.basic_consume(
+                    queue=rabbit_python_queue,
+                    on_message_callback=callback,
+                    auto_ack=True
+                )
+                logging.info("Iniciando ejecución del consumidor...")
+                channel.start_consuming()
+        except KeyboardInterrupt:
+            logging.exception("Ejecución detenida por el usuario.")
+            break
+        except Exception as e:
+            logging.exception(
+                f"No se pudo conectar/consumir RabbitMQ: {e}. Reintentando en {rabbit_retry_delay}s",
+                exc_info=True
+            )
+            time.sleep(rabbit_retry_delay)
+
+
+run_consumer_with_retry()

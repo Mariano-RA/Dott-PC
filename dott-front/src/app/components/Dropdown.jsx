@@ -1,51 +1,36 @@
 import { Fragment, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import { Button, Card } from "@/app/components/ui";
+import { SORT_TYPES } from "@/app/products/shared/listingData";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
-const sortTypes = [
-  {
-    key: "mayor",
-    value: "Mayor Precio",
-  },
-  {
-    key: "menor",
-    value: "Menor Precio",
-  },
-  {
-    key: "nombreAsc",
-    value: "Nombre, A - Z",
-  },
-  {
-    key: "nombreDesc",
-    value: "Nombre, Z - A",
-  },
-];
-
-export default function Dropdown({ handleSort }) {
-  const [selectedOption, setSelectedOption] = useState("");
+export default function Dropdown({ handleSort, selectedKey, onChange }) {
+  const [internalSelectedKey, setInternalSelectedKey] = useState("");
+  const activeSelectedKey = selectedKey !== undefined ? selectedKey : internalSelectedKey;
+  const selectedLabel = SORT_TYPES.find((sortType) => sortType.key === activeSelectedKey)?.value || "Ordenar por";
 
   function handleSelectedSort(sortType) {
-    setSelectedOption(sortType.value);
-    handleSort(sortType.key);
+    setInternalSelectedKey(sortType.key);
+    if (onChange) {
+      onChange(sortType.key);
+    }
+    if (handleSort) {
+      handleSort(sortType.key);
+    }
   }
 
   return (
-    <Menu
-      as="div"
-      className="relative inline-block text-left me-2 mb-2 md:mb-0"
-      style={{ width: "140px" }}
-    >
+    <Menu as="div" className="relative mb-2 inline-block w-full text-left sm:me-2 sm:w-[180px] md:mb-0">
       <div>
-        <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-red-950 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-          {selectedOption ? selectedOption : "Ordenar por"}
-          <ChevronDownIcon
-            className="-mr-1 h-5 w-5 text-gray-400"
-            aria-hidden="true"
-          />
+        <Menu.Button as={Fragment}>
+          <Button variant="secondary" size="md" className="w-full justify-between whitespace-nowrap px-3">
+            <span className="truncate text-left">{selectedLabel}</span>
+            <ChevronDownIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+          </Button>
         </Menu.Button>
       </div>
 
@@ -58,25 +43,25 @@ export default function Dropdown({ handleSort }) {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-          <div className="py-1">
-            {sortTypes.map((sortType, index) => (
-              <Menu.Item key={index}>
+        <Menu.Items className="absolute right-0 z-10 mt-2 w-full origin-top-right focus:outline-none">
+          <Card className="overflow-hidden py-1">
+            {SORT_TYPES.map((sortType) => (
+              <Menu.Item key={sortType.key}>
                 {({ active }) => (
-                  <a
-                    // href="#"
+                  <button
+                    type="button"
                     className={classNames(
-                      active ? "bg-gray-100 text-red-700" : "text-red-950",
-                      "block px-4 py-2 text-sm"
+                      active ? "bg-neutral-100 text-foreground" : "text-foreground",
+                      "block w-full px-4 py-2 text-left text-sm"
                     )}
                     onClick={() => handleSelectedSort(sortType)}
                   >
                     {sortType.value}
-                  </a>
+                  </button>
                 )}
               </Menu.Item>
             ))}
-          </div>
+          </Card>
         </Menu.Items>
       </Transition>
     </Menu>

@@ -11,15 +11,25 @@ import {
   InvalidTokenError,
   UnauthorizedError,
 } from "express-oauth2-jwt-bearer";
-import { promisify } from "util";
 
 @Injectable()
 export class AuthorizationGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
+    const localBypassEnabled =
+      process.env.NODE_ENV !== "production" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
 
-    // const validateAccessToken = promisify(auth());
+    if (localBypassEnabled) {
+      console.warn("[LOCAL_DEV_AUTH_BYPASS] AuthorizationGuard bypass activo");
+      // Simula un payload minimo para que PermissionGuard no falle por req.auth undefined.
+      (request as any).auth = {
+        payload: {
+          permissions: ["create:tablas"],
+        },
+      };
+      return true;
+    }
 
     const next = (err?: any) => {
       if (err) {

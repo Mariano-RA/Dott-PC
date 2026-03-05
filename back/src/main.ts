@@ -5,9 +5,24 @@ import { ConfigService } from "@nestjs/config";
 import { urlencoded } from "express";
 import { Logger } from "nestjs-pino";
 import { MicroserviceOptions, Transport } from "@nestjs/microservices";
+import { ValidationPipe } from "@nestjs/common";
 
 function checkEnvironment(configService: ConfigService) {
-  const requiredEnvVars = ["ISSUER_BASE_URL", "AUDIENCE", "CLIENT_ORIGIN_URL"];
+  const requiredEnvVars = [
+    "ISSUER_BASE_URL",
+    "AUDIENCE",
+    "CLIENT_ORIGIN_URL",
+    "RABBIT_MQ_URI",
+    "RABBITMQ_QUEUE",
+  ];
+
+  const requiresHttps =
+    (configService.get<string>("ENABLE_HTTPS") || "false").toLowerCase() ===
+    "true";
+
+  if (requiresHttps) {
+    requiredEnvVars.push("HTTPS_KEY_PATH", "HTTPS_CERT_PATH");
+  }
 
   requiredEnvVars.forEach((envVar) => {
     if (!configService.get<string>(envVar)) {
@@ -18,14 +33,20 @@ function checkEnvironment(configService: ConfigService) {
 
 async function bootstrap() {
   const fs = require("fs");
-  const keyFile = fs.readFileSync("./secrets/privkey.pem");
-  const certFile = fs.readFileSync("./secrets/fullchain.pem");
+  const enableHttps = (process.env.ENABLE_HTTPS || "false").toLowerCase() === "true";
+  const keyPath = process.env.HTTPS_KEY_PATH || "./secrets/privkey.pem";
+  const certPath = process.env.HTTPS_CERT_PATH || "./secrets/fullchain.pem";
+
   const app = await NestFactory.create(AppModule, {
     logger: console,
-    httpsOptions: {
-      key: keyFile,
-      cert: certFile,
-    },
+    ...(enableHttps
+      ? {
+          httpsOptions: {
+            key: fs.readFileSync(keyPath),
+            cert: fs.readFileSync(certPath),
+          },
+        }
+      : {}),
   });
 
   const rabbitmq_url = process.env.RABBIT_MQ_URI;
@@ -46,6 +67,13 @@ async function bootstrap() {
   const configService = app.get<ConfigService>(ConfigService);
   checkEnvironment(configService);
   app.useLogger(app.get(Logger));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    })
+  );
   app.enableCors();
   app.use(bodyParser.json({ limit: "50mb" }));
   app.use(urlencoded({ extended: true, limit: "50mb" }));

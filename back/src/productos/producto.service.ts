@@ -69,22 +69,24 @@ function obtenerPrecioEfectivo(monto, dolar, categoria) {
 }
 
 function calcularValorCuotas(precio, listadoCuotas) {
-  let listado = [];
-  listadoCuotas.forEach((cuota) => {
-    const { id, valorTarjeta } = cuota;
+  const listado = [];
+
+  listadoCuotas.forEach((plan) => {
+    const tasa = Number(plan?.tasa || 0);
+    const planKey = String(plan?.planKey || "");
+    const parsedInstallments = Number.parseInt(planKey, 10);
+    const installments = Number.isFinite(parsedInstallments) && parsedInstallments > 0 ? parsedInstallments : 0;
+
+    const total = Math.round(precio * (1 + tasa / 100));
     const valorCuota = new valorCuotaDto();
-    valorCuota.CantidadCuotas = id;
-    if (valorTarjeta > 100) {
-      var interesCuota = 2 + (valorTarjeta - 100) / 100;
-      valorCuota.Total = Math.round(precio * interesCuota);
-      valorCuota.Cuota = Math.round((precio * interesCuota) / id);
-    } else {
-      var interesCuota = 1 + valorTarjeta / 100;
-      valorCuota.Total = Math.round(precio * interesCuota);
-      valorCuota.Cuota = Math.round((precio * interesCuota) / id);
-    }
+    valorCuota.planKey = planKey;
+    valorCuota.planLabel = String(plan?.label || planKey);
+    valorCuota.CantidadCuotas = installments;
+    valorCuota.Total = total;
+    valorCuota.Cuota = installments > 0 ? Math.round(total / installments) : total;
     listado.push(valorCuota);
   });
+
   return listado;
 }
 
@@ -139,6 +141,8 @@ export class ProductosService {
     const msg = {
       nombreProveedor: newMessageDto.nombreProveedor,
       base64: newMessageDto.base64,
+      fileName: newMessageDto.fileName,
+      contentType: newMessageDto.contentType,
     };
     await this.client.emit("api_python", msg);
     console.log("Se envio el mensaje de carga a la API de python..");
@@ -213,7 +217,7 @@ export class ProductosService {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
         this.productoRepository.find(),
         this.dolaresService.findAll(),
-        this.cuotasService.findAll(),
+        this.cuotasService.findPlans(true),
       ]);
 
       let listadoProductos = [];
@@ -288,7 +292,7 @@ export class ProductosService {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
         this.productoRepository.find(),
         this.dolaresService.findAll(),
-        this.cuotasService.findAll(),
+        this.cuotasService.findPlans(true),
       ]);
 
       const listadoPalabras = keywords.split(" ");
@@ -353,7 +357,7 @@ export class ProductosService {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
         this.productoRepository.find(),
         this.dolaresService.findAll(),
-        this.cuotasService.findAll(),
+        this.cuotasService.findPlans(true),
       ]);
 
       let listadoProductos = [];
@@ -421,7 +425,7 @@ export class ProductosService {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
         this.productoRepository.find(),
         this.dolaresService.findAll(),
-        this.cuotasService.findAll(),
+        this.cuotasService.findPlans(true),
       ]);
       let listadoProductos = [];
       let arrayProductos = productos;

@@ -1,6 +1,6 @@
 "use client";
-import { Fragment, useState, useEffect, useContext } from "react";
-import { Dialog, Transition } from "@headlessui/react";
+import { Fragment, useState, useEffect, useContext, useRef } from "react";
+import { Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "./utils/global.context";
 import CartCard from "./CartCard";
@@ -8,6 +8,7 @@ import Alert from "../components/Alert";
 
 export default function Cart({ action, handleCloseCart }) {
   const [open, setOpen] = useState(false);
+  const closeButtonRef = useRef(null);
   const { state, removeCart } = useContext(ContextGlobal);
   const [totalCart, setTotalCart] = useState(0);
   const [arrSubtotal, setArrSubtotal] = useState([]);
@@ -28,24 +29,38 @@ export default function Cart({ action, handleCloseCart }) {
     setAlerta((prev) => ({ ...prev, show: false }));
   };
 
+  const closeCart = () => {
+    setOpen(false);
+    handleCloseCart(false);
+  };
+
   useEffect(() => {
-    const handleShow = () => {
-      if (action) {
-        setOpen(true);
-      } else {
-        setOpen(false);
-      }
-    };
-    handleShow();
+    if (action) {
+      setOpen(true);
+    }
   }, [action]);
 
   useEffect(() => {
-    const handleClose = () => {
-      if (open == false) {
-        handleCloseCart(open);
+    if (!open) {
+      return;
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        closeCart();
       }
     };
-    handleClose();
+
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open, handleCloseCart]);
+
+  useEffect(() => {
+    if (open) {
+      closeButtonRef.current?.focus();
+    }
   }, [open]);
 
   // function handleRemoveFromCart(productId) {
@@ -53,11 +68,23 @@ export default function Cart({ action, handleCloseCart }) {
   //   setArrSubtotal(updatedSubtotals);
   // }
 
-  const calcularCuota = (precio, interes, cuota) => {
-    if (interes > 100) {
-      return Math.round((precio * (2 + interes / 100)) / cuota);
+  const calcularPlan = (precio, tasa, planKey) => {
+    const total = Math.round(precio * (1 + Number(tasa || 0) / 100));
+    const cuotas = Number.parseInt(String(planKey), 10);
+
+    if (Number.isFinite(cuotas) && cuotas > 0) {
+      return {
+        cuotas,
+        total,
+        porCuota: Math.round(total / cuotas),
+      };
     }
-    return Math.round((precio * (1 + interes / 100)) / cuota);
+
+    return {
+      cuotas: 0,
+      total,
+      porCuota: total,
+    };
   };
 
   // function handleSubtotal(data) {
@@ -78,8 +105,8 @@ export default function Cart({ action, handleCloseCart }) {
   useEffect(() => {
     const getSubtotal = async () => {
       const resVal = await fetch("/api/nest/quote");
-      const { cuotas } = await resVal.json();
-      setValorCuota(cuotas);
+      const { plans } = await resVal.json();
+      setValorCuota(plans || []);
     };
     getSubtotal();
   }, [state]);
@@ -105,8 +132,8 @@ export default function Cart({ action, handleCloseCart }) {
   useEffect(() => {
     const getCuotas = async () => {
       const resVal = await fetch("/api/nest/quote");
-      const { cuotas } = await resVal.json();
-      setValorCuota(cuotas);
+      const { plans } = await resVal.json();
+      setValorCuota(plans || []);
     };
     getCuotas();
   }, []);
@@ -230,7 +257,7 @@ export default function Cart({ action, handleCloseCart }) {
   return (
     <>
       <Transition.Root show={open} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={setOpen}>
+        <div className="relative z-20" role="dialog" aria-modal="true" aria-label="Carrito de compras">
           <Transition.Child
             as={Fragment}
             enter="ease-in-out duration-500"
@@ -240,12 +267,15 @@ export default function Cart({ action, handleCloseCart }) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+            <div
+              className="fixed inset-x-0 bottom-0 top-16 bg-neutral-900/60 transition-opacity"
+              onClick={closeCart}
+            />
           </Transition.Child>
 
-          <div className="fixed inset-0 overflow-hidden">
+          <div className="fixed inset-x-0 bottom-0 top-16 overflow-hidden">
             <div className="absolute inset-0 overflow-hidden">
-              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
                 <Transition.Child
                   as={Fragment}
                   enter="transform transition ease-in-out duration-500 sm:duration-700"
@@ -255,21 +285,22 @@ export default function Cart({ action, handleCloseCart }) {
                   leaveFrom="translate-x-0"
                   leaveTo="translate-x-full"
                 >
-                  <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
-                    <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
+                  <div className="pointer-events-auto w-screen max-w-none sm:max-w-lg">
+                    <div className="flex h-full flex-col overflow-hidden border-l border-red-100 bg-white shadow-2xl">
                       <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
                         <div className="flex items-start justify-between">
-                          <Dialog.Title className="text-lg font-medium text-gray-900">
-                            Carrito de compras
-                          </Dialog.Title>
+                          <h2 className="text-lg font-semibold text-neutral-900">
+                            Carrito ({state.productCart?.length || 0})
+                          </h2>
                           <div className="ml-3 flex h-7 items-center">
                             <button
+                              ref={closeButtonRef}
                               type="button"
-                              className="relative -m-2 p-2 text-gray-400 hover:text-gray-500"
-                              onClick={() => setOpen(false)}
+                              className="relative -m-2 rounded-md p-2 text-neutral-500 hover:bg-red-50 hover:text-red-900"
+                              onClick={closeCart}
                             >
                               <span className="absolute -inset-0.5" />
-                              <span className="sr-only">Close panel</span>
+                              <span className="sr-only">Cerrar carrito</span>
                               <XMarkIcon
                                 className="h-6 w-6"
                                 aria-hidden="true"
@@ -280,21 +311,20 @@ export default function Cart({ action, handleCloseCart }) {
 
                         <div className="mt-8">
                           <div className="flow-root">
-                            <ul
-                              role="list"
-                              className="-my-6 divide-y divide-gray-200"
-                            >
-                              {state.productCart &&
-                                state.productCart.map((product) => (
-                                  <li key={product.id} className="flex py-6">
-                                    {/* <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
-                                    <img
-                                      src={product.imageSrc}
-                                      alt={product.imageAlt}
-                                      className="h-full w-full object-cover object-center"
-                                    />
-                                  </div> */}
-
+                            {!state.productCart?.length ? (
+                              <div className="rounded-xl border border-red-100 bg-gradient-to-b from-red-50 to-white p-8 text-center">
+                                <p className="text-base font-semibold text-red-950">Tu carrito esta vacio</p>
+                                <p className="mt-2 text-sm text-neutral-600">
+                                  Agrega productos para ver el resumen y enviar tu pedido.
+                                </p>
+                              </div>
+                            ) : (
+                              <ul role="list" className="divide-y divide-neutral-200">
+                                {state.productCart.map((product) => (
+                                  <li
+                                    key={product.id}
+                                    className="py-4 transition-colors hover:bg-red-50/30"
+                                  >
                                     <CartCard
                                       product={product}
                                       // subTotalProduct={handleSubtotal}
@@ -302,42 +332,44 @@ export default function Cart({ action, handleCloseCart }) {
                                     />
                                   </li>
                                 ))}
-                            </ul>
+                              </ul>
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
-                        <div className="flex justify-between text-base font-medium text-gray-900">
+                      <div className="sticky bottom-0 border-t border-red-100 bg-white/95 px-4 py-6 backdrop-blur sm:px-6">
+                        <div className="flex justify-between text-base font-semibold text-neutral-900">
                           <p>Subtotal</p>
                           <p>
                             ${new Intl.NumberFormat("es-AR").format(totalCart)}
                           </p>
                         </div>
-                        <div className="flex flex-col justify-between text-base font-medium text-gray-900 my-3">
-                          <p>Valor en cuotas</p>
-                          {valorCuota.map((cuota, index) => (
-                            <div
-                              className="flex justify-end my-1"
-                              key={cuota.id}
-                            >
-                              <p className="mt-0.5 text-sm text-gray-500">
-                                {cuota.id} cuotas de:
-                              </p>
-                              <p className="mt-0.5 text-sm text-gray-500 flex-grow text-right">
-                                $
-                                {new Intl.NumberFormat("es-AR").format(
-                                  calcularCuota(
-                                    totalCart,
-                                    cuota.valorTarjeta,
-                                    cuota.id
-                                  )
-                                )}
-                              </p>
-                            </div>
-                          ))}
+                        <div className="my-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                          <p className="text-sm font-semibold text-neutral-900">Valor en cuotas</p>
+                          {valorCuota.map((plan) => {
+                            const calculo = calcularPlan(totalCart, plan.tasa, plan.planKey);
+                            const label = plan.label || plan.planKey;
+
+                            return (
+                              <div
+                                className="mt-2 flex items-center justify-end gap-2"
+                                key={plan.planKey || label}
+                              >
+                                <p className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-900">
+                                  {calculo.cuotas > 0 ? `${calculo.cuotas} cuotas de:` : `${label}:`}
+                                </p>
+                                <p className="flex-grow text-right text-sm text-neutral-700">
+                                  $
+                                  {new Intl.NumberFormat("es-AR").format(
+                                    calculo.cuotas > 0 ? calculo.porCuota : calculo.total
+                                  )}
+                                </p>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <p className="mt-0.5 text-sm text-gray-500">
+                        <p className="mt-0.5 text-sm text-neutral-600">
                           Gastos de envío calculados al pagar.
                         </p>
 
@@ -345,13 +377,13 @@ export default function Cart({ action, handleCloseCart }) {
                           <div>
                             <label
                               htmlFor="cliente_nombre"
-                              className="block text-sm font-medium text-gray-700"
+                              className="block text-sm font-medium text-neutral-800"
                             >
                               Tu Nombre
                             </label>
                             <div className="mt-1">
                               <input
-                                className="rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-red-950 w-full"
+                                className="w-full rounded-md border border-neutral-300 p-2 text-red-950 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
                                 type="text"
                                 value={clientName}
                                 onChange={(e) => setClientName(e.target.value)}
@@ -362,13 +394,13 @@ export default function Cart({ action, handleCloseCart }) {
                           <div>
                             <label
                               htmlFor="cliente_wsp"
-                              className="block text-sm font-medium text-gray-700"
+                              className="block text-sm font-medium text-neutral-800"
                             >
                               Tu WhatsApp
                             </label>
                             <div className="mt-1">
                               <input
-                                className="rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 text-red-950 w-full"
+                                className="w-full rounded-md border border-neutral-300 p-2 text-red-950 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
                                 type="text"
                                 value={clientWsp}
                                 onChange={(e) => setClientWsp(e.target.value)}
@@ -379,21 +411,21 @@ export default function Cart({ action, handleCloseCart }) {
                         </div>
 
                         <div className="mt-6">
-                          <a
-                            href="#"
-                            className="flex items-center justify-center rounded-md border border-transparent bg-green-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-green-700"
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-center rounded-md border border-transparent bg-red-950 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-red-900"
                             onClick={handlePresupuesto}
                           >
                             Enviar pedido
-                          </a>
+                          </button>
                         </div>
-                        <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
+                        <div className="mt-6 flex justify-center text-center text-sm text-neutral-600">
                           <p>
                             or
                             <button
                               type="button"
-                              className="font-medium text-red-600 hover:text-red-500 ms-1"
-                              onClick={() => setOpen(false)}
+                              className="ms-1 font-medium text-red-700 hover:text-red-600"
+                              onClick={closeCart}
                             >
                               Continuar comprando
                               <span aria-hidden="true"> &rarr;</span>
@@ -402,12 +434,12 @@ export default function Cart({ action, handleCloseCart }) {
                         </div>
                       </div>
                     </div>
-                  </Dialog.Panel>
+                  </div>
                 </Transition.Child>
               </div>
             </div>
           </div>
-        </Dialog>
+        </div>
       </Transition.Root>
       <Alert
         alertText={alerta.message}

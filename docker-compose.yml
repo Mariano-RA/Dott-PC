@@ -1,4 +1,3 @@
-version: "3.6"
 services:
   dottpc-rabbit:
     container_name: dottpc-rabbit
@@ -10,15 +9,13 @@ services:
       - rabbitnetwork
 
   mysql:
-    image: mysql:latest
+    image: mysql:8.0
     container_name: mysql-database
-    environment:
-      - MYSQL_ROOT_PASSWORD=M@riano1820
-      - MYSQL_DATABASE=dottdb
-      - MYSQL_USER=do0tt
-      - MYSQL_PASSWORD=M@riano1820
     ports:
-      - "3306:3306" # Mapea el puerto de MySQL según sea necesario
+      - "3306:3306"
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
+    volumes:
+      - mysql_data:/var/lib/mysql
     networks:
       - rabbitnetwork
 
@@ -29,15 +26,9 @@ services:
     image: marianora/dott-back:3.3
     container_name: dott-back
     ports:
-      # - "443:3000"
       - "3000:3000"
     environment:
-      - ISSUER_BASE_URL=https://dev-3hmy3galmqfty1xt.us.auth0.com
-      - AUDIENCE=https://be.dott-pc.com.ar
-      - CLIENT_ORIGIN_URL=https://dott-pc.com.ar/
       - RABBIT_MQ_URI=amqp://dottpc-rabbit:5672
-      - RABBITMQ_QUEUE=RABBIT_MR_DOTT_QUEUE
-      - RABBITMQ_PYTHON_QUEUE=PYTHON_QUEUE
     depends_on:
       - dottpc-rabbit
     networks:
@@ -50,11 +41,9 @@ services:
     image: marianora/dott-python:2.4
     container_name: dott-python
     ports:
-      - "5000:5000" # Ajusta el puerto según tu proyecto
+      - "5000:5000"
     environment:
       - RABBITMQ_URL=dottpc-rabbit
-      - RABBITMQ_QUEUE=RABBIT_MR_DOTT_QUEUE
-      - RABBITMQ_PYTHON_QUEUE=PYTHON_QUEUE
     depends_on:
       - dottpc-rabbit
     networks:
@@ -63,3 +52,6 @@ services:
 networks:
   rabbitnetwork:
     driver: bridge
+
+volumes:
+  mysql_data:

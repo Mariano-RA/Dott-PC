@@ -4,6 +4,25 @@ import { apiUrl } from "../../utils/utils";
 import axios from "axios";
 import https from "https";
 
+const IS_LOCAL_AUTH_BYPASS =
+  process.env.NODE_ENV === "development" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
+
+const LOCAL_DEV_BEARER_TOKEN = process.env.LOCAL_DEV_AUTH_BEARER_TOKEN || "";
+
+async function getAccessTokenForWrite(request) {
+  if (IS_LOCAL_AUTH_BYPASS) {
+    return LOCAL_DEV_BEARER_TOKEN;
+  }
+
+  const session = await getSession(request, null, {
+    authorizationParams: {
+      scope: "create:tablas offline_access",
+    },
+  });
+
+  return session?.accessToken || "";
+}
+
 const agent = new https.Agent({
   rejectUnauthorized: false,
 });
@@ -47,13 +66,9 @@ export async function GET(req) {
 
 export async function POST(request) {
   try {
-    const session = await getSession(request, null, {
-      authorizationParams: {
-        scope: "create:tablas offline_access",
-      },
-    });
+    const accessToken = await getAccessTokenForWrite(request);
 
-    if (!session || !session.accessToken) {
+    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
@@ -62,7 +77,7 @@ export async function POST(request) {
       httpsAgent: agent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + session.accessToken,
+        ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
       },
     };
 
@@ -71,23 +86,27 @@ export async function POST(request) {
 
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
-    console.error("Error en la solicitud POST:", error);
+    const upstreamStatus = error?.response?.status;
+    const upstreamData = error?.response?.data;
+    const message =
+      upstreamData?.message ||
+      upstreamData?.error ||
+      error?.message ||
+      "Error al crear el producto";
+
+    console.error("Error en la solicitud POST:", upstreamData || error);
     return NextResponse.json(
-      { error: "Error al crear el producto" },
-      { status: 500 }
+      { error: message },
+      { status: upstreamStatus || 500 }
     );
   }
 }
 
 export async function DELETE(request) {
   try {
-    const session = await getSession(request, null, {
-      authorizationParams: {
-        scope: "create:tablas offline_access",
-      },
-    });
+    const accessToken = await getAccessTokenForWrite(request);
 
-    if (!session || !session.accessToken) {
+    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
@@ -97,7 +116,7 @@ export async function DELETE(request) {
       httpsAgent: agent,
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + session.accessToken,
+        ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
       },
     };
 

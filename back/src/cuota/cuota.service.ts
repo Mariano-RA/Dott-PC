@@ -1,56 +1,106 @@
 /* eslint-disable prettier/prettier */
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DeepPartial, Repository } from "typeorm";
-import { Cuota } from "./entities/cuota.entity";
-import { CuotaDto } from "./dto/cuotaDto";
+import { Repository } from "typeorm";
+import { CuotaPlan } from "./entities/cuota-plan.entity";
+import { CuotaPlanDto } from "./dto/cuotaPlan.dto";
 
 @Injectable()
 export class CuotasService {
   constructor(
-    @InjectRepository(Cuota)
-    private readonly cuotaRepository: Repository<Cuota>
+    @InjectRepository(CuotaPlan)
+    private readonly cuotaPlanRepository: Repository<CuotaPlan>
   ) {}
 
-  async findAll() {
-    let tipoCuotas: Cuota[] = [];
-    try {
-      const resDolar = await this.cuotaRepository.find();
-      resDolar.forEach((tipoCuota) => {
-        let cuota = new Cuota();
-        cuota.id = tipoCuota.id;
-        cuota.valorTarjeta = tipoCuota.valorTarjeta;
-        tipoCuotas.push(cuota);
-      });
-      console.log("Valores de las cuotas encontrados:", tipoCuotas);
-    } catch (error) {
-      console.error(
-        "Error al obtener los valores de las cuotas:",
-        error.message
-      );
-      throw error;
-    }
-    return tipoCuotas;
+  private getDefaultPlans(): CuotaPlanDto[] {
+    return [
+      { planKey: "3", label: "3 cuotas", tasa: 7.78, activo: true, orden: 10 },
+      { planKey: "6", label: "6 cuotas", tasa: 14.96, activo: true, orden: 20 },
+      { planKey: "planZ", label: "Plan Z", tasa: 13.4, activo: true, orden: 30 },
+    ];
   }
 
-  async loadTable(cuotaDto: CuotaDto[]) {
-    try {
-      await this.cuotaRepository.query(`DELETE FROM Cuotas `);
-    } catch (error) {
-      console.error(
-        "Error al eliminar los valores de las cuotas:",
-        error.message
-      );
-      return error;
+  private async ensurePlanDefaults(): Promise<void> {
+    const currentCount = await this.cuotaPlanRepository.count();
+    if (currentCount > 0) {
+      return;
     }
 
-    try {
-      const arrCuotas = await this.cuotaRepository.create(cuotaDto);
-      await this.cuotaRepository.save(arrCuotas);
-      return "Se actualizaron las cuotas correctamente.";
-    } catch (error) {
-      console.error("Error al actualizar los valores de las cuotas:", error.message);
-      return error;
+    const defaults = this.cuotaPlanRepository.create(this.getDefaultPlans());
+    await this.cuotaPlanRepository.save(defaults);
+  }
+
+  async findPlans(activeOnly = false) {
+    await this.ensurePlanDefaults();
+
+    return this.cuotaPlanRepository.find({
+      where: activeOnly ? { activo: true } : {},
+      order: { orden: "ASC", id: "ASC" },
+    });
+  }
+
+  async upsertPlans(plans: CuotaPlanDto[]) {
+    await this.ensurePlanDefaults();
+
+    const current = await this.findPlans(false);
+    const currentMap = new Map(current.map((item) => [item.planKey, item]));
+
+    const updated = plans.map((plan, index) => {
+      const existing = currentMap.get(plan.planKey);
+      return this.cuotaPlanRepository.create({
+        id: existing?.id,
+        planKey: plan.planKey,
+        label: plan.label,
+        tasa: plan.tasa,
+        activo: plan.activo ?? true,
+        orden: plan.orden ?? (index + 1) * 10,
+      });
+    });
+
+    await this.cuotaPlanRepository.save(updated);
+
+    return this.findPlans(false);
+  }
+
+  async upsertPlan(planKey: string, plan: CuotaPlanDto) {
+    const existing = await this.cuotaPlanRepository.findOne({
+      where: { planKey },
+    });
+
+    const saved = await this.cuotaPlanRepository.save(
+      this.cuotaPlanRepository.create({
+        id: existing?.id,
+        planKey,
+        label: plan.label,
+        tasa: plan.tasa,
+        activo: plan.activo ?? true,
+        orden: plan.orden ?? existing?.orden ?? 10,
+      })
+    );
+
+    return saved;
+  }
+
+  async deletePlan(planKey: string) {
+    const normalizedKey = String(planKey || "").trim();
+    if (!normalizedKey) {
+      throw new Error("Plan inválido.");
     }
+
+    const plan = await this.cuotaPlanRepository.findOne({
+      where: { planKey: normalizedKey },
+    });
+
+    if (!plan) {
+      throw new Error(`No existe el plan ${normalizedKey}.`);
+    }
+
+    const activeCount = await this.cuotaPlanRepository.count({ where: { activo: true } });
+    if (plan.activo && activeCount <= 1) {
+      throw new Error("Debe existir al menos un plan activo.");
+    }
+
+    await this.cuotaPlanRepository.delete({ id: plan.id });
+    return this.findPlans(false);
   }
 }

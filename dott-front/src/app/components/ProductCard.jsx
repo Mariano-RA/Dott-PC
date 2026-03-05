@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { memo, useContext, useMemo, useState } from "react";
 import ProductOverview from "@/app/components/ProductOverview";
 import { ContextGlobal } from "./utils/global.context";
 import {
@@ -11,7 +11,28 @@ const ProductCard = ({ product }) => {
   const [show, setShow] = useState(false);
   const [productDetail, setProductDetail] = useState({});
   const { state, addCart, removeCart } = useContext(ContextGlobal);
-  const [IsSelected, setIsSelected] = useState(false);
+
+  const isSelected = useMemo(() => {
+    return state.productCart.some((prodCart) => prodCart.id === product.id);
+  }, [product.id, state.productCart]);
+
+  const cuotaDesde = useMemo(() => {
+    const primeraCuota = product?.precioCuotas?.find((cuota) => Number(cuota?.CantidadCuotas) > 0);
+
+    if (!primeraCuota) {
+      return "Sin cuotas";
+    }
+
+    const cantidadCuotas = Number(primeraCuota.CantidadCuotas);
+    const totalCuotas = Number(primeraCuota.Total) || 0;
+    const porCuota = cantidadCuotas > 0 ? totalCuotas / cantidadCuotas : totalCuotas;
+
+    return `${cantidadCuotas}x ${new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 0,
+    }).format(porCuota)}`;
+  }, [product?.precioCuotas]);
 
   const handleProductOverview = (product) => {
     setProductDetail(product);
@@ -22,80 +43,53 @@ const ProductCard = ({ product }) => {
   }
 
   function handleCart() {
-    if (
-      state.productCart.filter((prodCart) => prodCart.id === product.id)
-        .length > 0
-    ) {
+    if (isSelected) {
       removeCart(product.id);
-      setIsSelected(false);
     } else {
       addCart({ ...product, quantity: 1 });
-      setIsSelected(true);
     }
   }
 
-  useEffect(() => {
-    const handleSelected = () => {
-      if (
-        state.productCart.filter((prodCart) => prodCart.id === product.id)
-          .length > 0
-      ) {
-        setIsSelected(true);
-      } else {
-        setIsSelected(false);
-      }
-    };
-    handleSelected();
-  }, [product]);
-
   return (
-    <article className="flex justify-between flex-col p-3 sm:p-6 ring-1 rounded-md ring-red-950 w-4/5 md:w-52 sm:w-80 mb-5 h-28 sm:h-44 2xl:mx-4 mx-0 ">
-      {/* <img
-        src={movie.image}
-        alt=""
-        width="60"
-        height="88"
-        className="flex-none rounded-md bg-slate-100"
-      /> */}
-      <div className="h-full flex flex-row sm:flex-col sm:justify-between justify-end flex-wrap">
-        <div className="font-semibold text-red-950 text-xs sm:text-sm text-left sm:text-center w-full line-clamp-3 md:line-clamp-2">
-          {product?.producto.toUpperCase()}
-        </div>
-        <div className="flex justify-end sm:justify-center text-sm leading-6 text-red-950 items-center mt-0 sm:mt-2 mr-2 sm:mr-0 w-1/2 sm:w-full">
-          <p>
-            {new Intl.NumberFormat("es-AR", {
-              style: "currency",
-              currency: "ARS",
-              maximumFractionDigits: 0,
-            }).format(product?.precioEfectivo || 0)}
-          </p>
-        </div>
-        <div className="flex mt-0 sm:mt-3 justify-end sm:justify-evenly w-auto sm:w-full items-center">
-          <button
-            className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto "
-            style={{ height: "40px" }}
-            onClick={() => handleProductOverview(product)}
-          >
-            <InformationCircleIcon className="h-6 w-6" aria-hidden="true" />{" "}
-          </button>
-          <button
-            className=" text-xs  text-white bg-red-950 rounded-md p-1 hover:bg-red-800 w-auto ml-2 sm:ml-0"
-            style={{ height: "40px" }}
-            onClick={() => handleCart(product)}
-          >
-            {IsSelected == false ? (
-              <ShoppingBagIcon className="h-6 w-6" aria-hidden="true" />
-            ) : (
-              <TrashIcon className="h-6 w-6" aria-hidden="true" />
-            )}
-          </button>
-        </div>
+    <article className="flex h-full min-h-44 w-full flex-col justify-between rounded-lg border border-border p-4 shadow-sm">
+      <div className="space-y-2">
+        <p className="line-clamp-3 text-sm font-semibold text-foreground">{product?.producto?.toUpperCase()}</p>
+        <p className="text-lg font-semibold text-foreground">
+          {new Intl.NumberFormat("es-AR", {
+            style: "currency",
+            currency: "ARS",
+            maximumFractionDigits: 0,
+          }).format(product?.precioEfectivo || 0)}
+        </p>
+        <p className="text-xs text-muted-foreground">Cuotas desde: {cuotaDesde}</p>
       </div>
-      {productDetail && (
+
+      <div className="mt-4 flex items-center justify-end gap-2">
+        <button
+          className="rounded-md border border-red-200 bg-white p-2 text-red-900 transition hover:bg-red-50"
+          onClick={() => handleProductOverview(product)}
+          aria-label="Ver detalle del producto"
+        >
+          <InformationCircleIcon className="h-5 w-5" aria-hidden="true" />
+        </button>
+        <button
+          className="rounded-md bg-red-950 p-2 text-white transition hover:bg-red-900"
+          onClick={() => handleCart(product)}
+          aria-label={isSelected ? "Quitar del carrito" : "Agregar al carrito"}
+        >
+          {isSelected ? (
+            <TrashIcon className="h-5 w-5" aria-hidden="true" />
+          ) : (
+            <ShoppingBagIcon className="h-5 w-5" aria-hidden="true" />
+          )}
+        </button>
+      </div>
+
+      {productDetail ? (
         <ProductOverview action={show} close={close} product={productDetail} />
-      )}
+      ) : null}
     </article>
   );
 };
 
-export default ProductCard;
+export default memo(ProductCard);

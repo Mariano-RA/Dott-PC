@@ -1,6 +1,5 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { ContextProvider } from "./components/utils/global.context";
@@ -12,7 +11,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <title>Dott PC</title>
         <link
@@ -37,11 +36,11 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta name="theme-color" content="#ffffff" />
       </head>
-      <body className="flex flex-col w-full h-screen justify-between">
+      <body className="flex min-h-screen w-full flex-col">
         <UserProvider>
           <ContextProvider>
             <Navbar />
-            <div className="mt-16">{children}</div>
+            <main className="flex-1 pt-16">{children}</main>
             <Footer />
           </ContextProvider>
         </UserProvider>

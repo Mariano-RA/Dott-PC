@@ -2,33 +2,46 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Query,
   SetMetadata,
   UseGuards,
 } from "@nestjs/common";
 import { CuotasService } from "./cuota.service";
-import { CuotaDto } from "./dto/cuotaDto";
-
-import { Public } from "src/auth/decorators/public.decorator";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
-import { AuthGuard } from "@nestjs/passport";
 import { PermissionGuard } from "src/authTest/permission.guard";
+import { CuotaPlanDto } from "./dto/cuotaPlan.dto";
 
 @Controller("cuota")
 export class CuotasController {
   constructor(private readonly cuotasService: CuotasService) {}
 
-  @Get()
-  findAll() {
-    return this.cuotasService.findAll();
+  @Get("plans")
+  findPlans(@Query("active") active?: string) {
+    return this.cuotasService.findPlans(active === "true");
   }
 
   @UseGuards(AuthorizationGuard, PermissionGuard)
   @SetMetadata("permissions", ["create:tablas"])
-  @Post()
-  loadTable(@Body() cuotaDto: CuotaDto[]) {
-    return this.cuotasService.loadTable(cuotaDto);
+  @Post("plans")
+  upsertPlans(@Body() plans: CuotaPlanDto[]) {
+    return this.cuotasService.upsertPlans(plans);
+  }
+
+  @UseGuards(AuthorizationGuard, PermissionGuard)
+  @SetMetadata("permissions", ["create:tablas"])
+  @Post("plans/:planKey")
+  upsertPlan(@Param("planKey") planKey: string, @Body() plan: CuotaPlanDto) {
+    return this.cuotasService.upsertPlan(planKey, plan);
+  }
+
+  @UseGuards(AuthorizationGuard, PermissionGuard)
+  @SetMetadata("permissions", ["create:tablas"])
+  @Delete("plans/:planKey")
+  deletePlan(@Param("planKey") planKey: string) {
+    return this.cuotasService.deletePlan(planKey);
   }
 }

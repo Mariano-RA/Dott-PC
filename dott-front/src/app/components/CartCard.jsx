@@ -6,7 +6,6 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
   const { state, removeCart, updateCart } = useContext(ContextGlobal);
   const [cantidad, setCantidad] = useState(1);
   // const [subtotal, setSubtotal] = useState();
-  const [IsHovered, setIsHovered] = useState(false);
 
   function handleCart() {
     if (
@@ -22,7 +21,7 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
     setCantidad(value);
   }
 
-  function updateCartQuantity(){
+  function updateCartQuantity() {
     updateCart(product.id, cantidad);
   }
 
@@ -53,34 +52,33 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
   }, [cantidad]);
 
   return (
-    <div className="ml-4 flex flex-1 flex-col">
-      <div>
-        <div className="flex justify-between text-base font-medium text-gray-900">
-          <h3>
-            <a>{product?.producto}</a>
-          </h3>
-          <p className="ml-4">
-            ${new Intl.NumberFormat("es-AR").format(product?.precioEfectivo * product?.quantity)}
-          </p>
+    <div className="flex flex-1 flex-col gap-3">
+      <div className="space-y-1">
+        <h3 className="break-words text-sm font-semibold leading-5 text-gray-900">
+          {product?.producto}
+        </h3>
+      </div>
+
+      <div className="rounded-md border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white px-3 py-2">
+        <div className="flex items-center justify-between gap-3">
+          <Quantity handleQuantity={handleCantidad} quantity={product?.quantity} />
+          <div className="min-w-0 text-right">
+            <p className="text-[11px] uppercase tracking-wide text-gray-500">Total</p>
+            <p className="text-sm font-semibold text-gray-900">
+              ${new Intl.NumberFormat("es-AR").format(product?.precioEfectivo * product?.quantity)}
+            </p>
+          </div>
         </div>
       </div>
-      <div className="flex flex-1 items-end justify-between text-sm mt-2">
-        <div className="flex w-full justify-between">
-          {/* <input
-            className="w-100 custom-input rounded-3"
-            type="number"
-            value={cantidad}
-            onChange={handleCantidad}
-          /> */}
-          <Quantity handleQuantity={handleCantidad} quantity={product?.quantity}/>
-          <button
-            type="button"
-            className="font-medium text-red-600 hover:text-red-500"
-            onClick={() => handleCart()}
-          >
-            Remove
-          </button>
-        </div>
+
+      <div className="flex items-center justify-end gap-3 text-sm">
+        <button
+          type="button"
+          className="shrink-0 text-xs font-medium text-red-600 hover:text-red-500"
+          onClick={() => handleCart()}
+        >
+          Quitar
+        </button>
       </div>
     </div>
   );
