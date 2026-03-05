@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -12,8 +13,6 @@ import {
 } from "@nestjs/common";
 import { DolaresService } from "./dolar.service";
 import { DolarDto } from "./dto/dolarDto";
-import { RtGuard } from "src/auth/guards/rt.guard";
-import { Public } from "src/auth/decorators/public.decorator";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
 import { PermissionGuard } from "src/authTest/permission.guard";
 import { DolarHistoryQueryDto } from "./dto/dolarHistoryQuery.dto";
@@ -33,7 +32,7 @@ export class DolaresController {
   }
   
   @Get("byproveedor/")
-  async getByProvider(@Body() proveedor: string) {
+  async getByProvider(@Query("proveedor") proveedor: string) {
     return await this.dolaresService.getByProvider(proveedor);
   }
 
@@ -51,7 +50,11 @@ export class DolaresController {
     @Param("proveedor") proveedor: string,
     @Body() dolarDto: Omit<DolarDto, "proveedor">
   ) {
-    return await this.dolaresService.upsertOne({ ...dolarDto, proveedor });
+    try {
+      return await this.dolaresService.upsertOne({ ...dolarDto, proveedor });
+    } catch (error) {
+      throw new BadRequestException(error.message || "Error al guardar el proveedor");
+    }
   }
 
   @UseGuards(AuthorizationGuard, PermissionGuard)

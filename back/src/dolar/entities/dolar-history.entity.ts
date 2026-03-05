@@ -1,12 +1,17 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Proveedor } from "src/proveedor/entities/proveedor.entity";
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity({ name: "DolarHistorial" })
 export class DolarHistory {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column("text")
-  proveedor: string;
+  @Column("int")
+  proveedorId: number;
+
+  @ManyToOne(() => Proveedor, { eager: true })
+  @JoinColumn({ name: "proveedorId" })
+  proveedor: Proveedor;
 
   @Column("float")
   precioDolar: number;

@@ -100,6 +100,14 @@ export async function PUT(request) {
     const body = await request.json();
     const proveedor = body?.proveedor;
 
+    if (!proveedor) {
+      return NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 });
+    }
+
+    if (!body?.precioDolar || Number(body.precioDolar) <= 0) {
+      return NextResponse.json({ error: "Precio del dólar inválido" }, { status: 400 });
+    }
+
     const { data: response } = await axios.post(
       `${apiUrl}/dolar/${encodeURIComponent(proveedor)}`,
       {
@@ -120,7 +128,8 @@ export async function PUT(request) {
     return NextResponse.json({ response }, { status: 200 });
   } catch (error) {
     console.error("Error en PUT /dolar:", error?.response?.data || error.message);
-    return NextResponse.json({ error: "Error al guardar proveedor" }, { status: 500 });
+    const errorMessage = error?.response?.data?.message || error?.response?.data?.error || error.message || "Error al guardar proveedor";
+    return NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 });
   }
 }
 

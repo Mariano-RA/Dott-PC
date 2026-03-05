@@ -8,8 +8,15 @@ export class DolarDto {
   @Max(1000000)
   precioDolar: number;
 
+  // Acepta nombre de proveedor (legacy) o proveedorId
+  @IsOptional()
   @IsString()
-  proveedor: string;
+  proveedor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  proveedorId?: number;
 
   @IsOptional()
   @IsDateString()

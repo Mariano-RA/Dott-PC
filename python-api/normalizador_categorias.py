@@ -1,10 +1,12 @@
 from pathlib import Path
 import json
+import logging
 from collections import defaultdict
 
 # ==== CONFIGURACIÓN ====
 RUTA_DICCIONARIO = Path("nuevosScripts/diccionarios/diccionarios.json")
 RUTA_SALIDA = Path("nuevosScripts/diccionarios/nuevos_diccionarios.json")
+logger = logging.getLogger(__name__)
 
 # ==== CARGAR DICCIONARIO ====
 with open(RUTA_DICCIONARIO, "r", encoding="utf-8") as f:
@@ -22,7 +24,7 @@ def normalizar_categoria(proveedor: str, categoria: str, nombre_producto: str) -
             CATEGORIAS_NUEVAS[proveedor].add(f"{nombre_producto} - {categoria}")
             return "Varios"
     except Exception as e:
-        print(f"Error al normalizar: {e}")
+        logger.exception(f"Error al normalizar: {e}")
         return "Varios"
 
 def guardar_categorias_nuevas():

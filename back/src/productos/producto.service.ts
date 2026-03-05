@@ -15,6 +15,7 @@ import {
 } from "@nestjs/microservices";
 import { newTableDto } from "./dto/newTableDto";
 import { OK } from "sqlite3";
+import { ProveedorService } from "src/proveedor/proveedor.service";
 
 function obtenerMargenPorCategoria(categoria: string): number {
   switch (categoria.trim().toLowerCase()) {
@@ -115,6 +116,20 @@ function handleOrder(action, array) {
   return sortedArray;
 }
 
+function getPrecioDolarOrDefault(arrayDolar, proveedorId: number) {
+  const valorDolar = arrayDolar.find((x) => x.proveedorId == proveedorId);
+  const precioDolar = Number(valorDolar?.precioDolar);
+
+  if (!Number.isFinite(precioDolar) || precioDolar <= 0) {
+    console.warn(
+      `No hay tarifa de dolar valida para proveedorId=${proveedorId}. Se usa fallback=1.`
+    );
+    return 1;
+  }
+
+  return precioDolar;
+}
+
 const rabbitmq_url = process.env.RABBIT_MQ_URI;
 const rabbitmq_python_queue = process.env.RABBITMQ_PYTHON_QUEUE;
 
@@ -122,6 +137,7 @@ const rabbitmq_python_queue = process.env.RABBITMQ_PYTHON_QUEUE;
 export class ProductosService {
   @Inject(DolaresService) private readonly dolaresService: DolaresService;
   @Inject(CuotasService) private readonly cuotasService: CuotasService;
+  @Inject(ProveedorService) private readonly proveedorService: ProveedorService;
   private client: ClientProxy;
 
   constructor(
@@ -153,31 +169,35 @@ export class ProductosService {
     const productDto = data.resultado;
 
     try {
-      const id = productDto[0].proveedor;
-      const proveedorExistente = await this.productoRepository.findOneBy({
-        proveedor: id,
-      });
-
-      if (!proveedorExistente) {
-        const arrProductos = await this.productoRepository.create(productDto);
-        await this.productoRepository.save(arrProductos);
-        console.log(
-          `Se crearon nuevos datos correspondientes a ${id} correctamente.`
-        );
-        return `Se crearon nuevos datos correspondientes a ${id} correctamente.`;
-      } else {
-        await this.productoRepository
-          .createQueryBuilder("Productos")
-          .delete()
-          .from(Producto)
-          .where("proveedor = :id", { id: id })
-          .execute();
-
-        const arrProductos = await this.productoRepository.create(productDto);
-        await this.productoRepository.save(arrProductos);
-        console.log(`Se actualizo la tabla de ${id}`);
-        return OK;
+      if (!Array.isArray(productDto) || productDto.length === 0) {
+        return "No se recibieron productos para procesar";
       }
+
+      const proveedorNombre = String(productDto[0]?.proveedor || "").trim();
+      if (!proveedorNombre) {
+        throw new Error("El payload no incluye proveedor");
+      }
+
+      const proveedor = await this.proveedorService.getOrCreate(proveedorNombre);
+
+      await this.productoRepository
+        .createQueryBuilder("Productos")
+        .delete()
+        .from(Producto)
+        .where("proveedorId = :id", { id: proveedor.id })
+        .execute();
+
+      const normalizedProducts = productDto.map((item) => ({
+        proveedorId: proveedor.id,
+        producto: item.producto,
+        categoria: item.categoria,
+        precio: item.precio,
+      }));
+
+      const arrProductos = this.productoRepository.create(normalizedProducts);
+      await this.productoRepository.save(arrProductos);
+      console.log(`Se actualizo la tabla de ${proveedor.nombre}`);
+      return OK;
     } catch (error) {
       console.error(`Error al actualizar la tabla: ${error.message}`);
       throw error;
@@ -185,23 +205,30 @@ export class ProductosService {
   }
 
   async deleteProductosByProveedor(dto: { proveedor: string }) {
-    const idProveedor = dto.proveedor;
+    const nombreProveedor = dto.proveedor;
     try {
+      // Buscar el proveedor por nombre
+      const proveedorEntity = await this.proveedorService.findByNombre(nombreProveedor.trim());
+      
+      if (!proveedorEntity) {
+        return `No existe el proveedor ${nombreProveedor}`;
+      }
+
       const result = await this.productoRepository
         .createQueryBuilder("producto")
         .delete()
         .from(Producto)
-        .where("proveedor = :id", { id: idProveedor })
+        .where("proveedorId = :id", { id: proveedorEntity.id })
         .execute();
 
       if (result.affected && result.affected > 0) {
-        return `Se eliminaron ${result.affected} productos del proveedor ${idProveedor}`;
+        return `Se eliminaron ${result.affected} productos del proveedor ${nombreProveedor}`;
       } else {
-        return `No había productos del proveedor ${idProveedor}`;
+        return `No había productos del proveedor ${nombreProveedor}`;
       }
     } catch (error) {
       console.error(
-        `Error al eliminar productos del proveedor ${idProveedor}: ${error.message}`
+        `Error al eliminar productos del proveedor: ${error.message}`
       );
       throw error;
     }
@@ -215,7 +242,7 @@ export class ProductosService {
   ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-        this.productoRepository.find(),
+        this.productoRepository.find({ relations: ['proveedor'] }),
         this.dolaresService.findAll(),
         this.cuotasService.findPlans(true),
       ]);
@@ -226,22 +253,20 @@ export class ProductosService {
 
       if (proveedor) {
         arrayProductos = arrayProductos.filter((x) =>
-          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+          x.proveedor?.nombre?.toLowerCase().includes(proveedor.toLowerCase())
         );
       }
 
       arrayProductos.map((prod) => {
         const dto = new ProductoDto();
         dto.id = prod.id;
-        dto.proveedor = prod.proveedor;
+        dto.proveedor = prod.proveedor?.nombre || 'Desconocido';
         dto.producto = prod.producto;
         dto.categoria = prod.categoria;
-        const valorDolar = arrayDolar.find(
-          (x) => x.proveedor == prod.proveedor
-        );
+        const precioDolar = getPrecioDolarOrDefault(arrayDolar, prod.proveedorId);
         dto.precioEfectivo = obtenerPrecioEfectivo(
           prod.precio,
-          valorDolar.precioDolar,
+          precioDolar,
           prod.categoria
         );
         dto.precioCuotas = calcularValorCuotas(
@@ -290,7 +315,7 @@ export class ProductosService {
   ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-        this.productoRepository.find(),
+        this.productoRepository.find({ relations: ['proveedor'] }),
         this.dolaresService.findAll(),
         this.cuotasService.findPlans(true),
       ]);
@@ -302,7 +327,7 @@ export class ProductosService {
 
       if (proveedor) {
         arrayProductos = arrayProductos.filter((x) =>
-          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+          x.proveedor?.nombre?.toLowerCase().includes(proveedor.toLowerCase())
         );
       }
 
@@ -315,15 +340,13 @@ export class ProductosService {
         .map((prod) => {
           const dto = new ProductoDto();
           dto.id = prod.id;
-          dto.proveedor = prod.proveedor;
+          dto.proveedor = prod.proveedor?.nombre || 'Desconocido';
           dto.producto = prod.producto;
           dto.categoria = prod.categoria;
-          const valorDolar = arrayDolar.find(
-            (x) => x.proveedor == prod.proveedor
-          );
+          const precioDolar = getPrecioDolarOrDefault(arrayDolar, prod.proveedorId);
           dto.precioEfectivo = obtenerPrecioEfectivo(
             prod.precio,
-            valorDolar.precioDolar,
+            precioDolar,
             prod.categoria
           );
           dto.precioCuotas = calcularValorCuotas(
@@ -355,7 +378,7 @@ export class ProductosService {
   ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-        this.productoRepository.find(),
+        this.productoRepository.find({ relations: ['proveedor'] }),
         this.dolaresService.findAll(),
         this.cuotasService.findPlans(true),
       ]);
@@ -365,7 +388,7 @@ export class ProductosService {
 
       if (proveedor) {
         arrayProductos = arrayProductos.filter((x) =>
-          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+          x.proveedor?.nombre?.toLowerCase().includes(proveedor.toLowerCase())
         );
       }
 
@@ -376,15 +399,13 @@ export class ProductosService {
         .map((prod) => {
           const dto = new ProductoDto();
           dto.id = prod.id;
-          dto.proveedor = prod.proveedor;
+          dto.proveedor = prod.proveedor?.nombre || 'Desconocido';
           dto.producto = prod.producto;
           dto.categoria = prod.categoria;
-          const valorDolar = arrayDolar.find(
-            (x) => x.proveedor == prod.proveedor
-          );
+          const precioDolar = getPrecioDolarOrDefault(arrayDolar, prod.proveedorId);
           dto.precioEfectivo = obtenerPrecioEfectivo(
             prod.precio,
-            valorDolar.precioDolar,
+            precioDolar,
             prod.categoria
           );
           dto.precioCuotas = calcularValorCuotas(
@@ -423,7 +444,7 @@ export class ProductosService {
   ) {
     try {
       const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-        this.productoRepository.find(),
+        this.productoRepository.find({ relations: ["proveedor"] }),
         this.dolaresService.findAll(),
         this.cuotasService.findPlans(true),
       ]);
@@ -432,7 +453,7 @@ export class ProductosService {
 
       if (proveedor) {
         arrayProductos = arrayProductos.filter((x) =>
-          x.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
+          x.proveedor?.nombre?.toLowerCase().includes(proveedor.toLowerCase())
         );
       }
 
@@ -446,15 +467,13 @@ export class ProductosService {
         .map((prod) => {
           const dto = new ProductoDto();
           dto.id = prod.id;
-          dto.proveedor = prod.proveedor;
+          dto.proveedor = prod.proveedor?.nombre || "Desconocido";
           dto.producto = prod.producto;
           dto.categoria = prod.categoria;
-          const valorDolar = arrayDolar.find(
-            (x) => x.proveedor == prod.proveedor
-          );
+          const precioDolar = getPrecioDolarOrDefault(arrayDolar, prod.proveedorId);
           dto.precioEfectivo = obtenerPrecioEfectivo(
             prod.precio,
-            valorDolar.precioDolar,
+            precioDolar,
             prod.categoria
           );
           dto.precioCuotas = calcularValorCuotas(

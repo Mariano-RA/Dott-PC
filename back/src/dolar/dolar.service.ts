@@ -6,6 +6,7 @@ import { DolarDto } from "./dto/dolarDto";
 import { Dolar } from "./entities/dolar.entity";
 import { DolarHistory } from "./entities/dolar-history.entity";
 import { DolarHistoryQueryDto } from "./dto/dolarHistoryQuery.dto";
+import { ProveedorService } from "../proveedor/proveedor.service";
 
 @Injectable()
 export class DolaresService {
@@ -13,37 +14,48 @@ export class DolaresService {
     @InjectRepository(Dolar)
     private readonly dolarRepository: Repository<Dolar>,
     @InjectRepository(DolarHistory)
-    private readonly dolarHistoryRepository: Repository<DolarHistory>
+    private readonly dolarHistoryRepository: Repository<DolarHistory>,
+    private readonly proveedorService: ProveedorService,
   ) {}
 
   async findAll() {
-    let valorDolar: Dolar[] = [];
     try{
-      const resDolar = await this.dolarRepository.find();
-      resDolar.forEach((tipoDolar) => {
-        let dolar = new Dolar();
-        dolar.id = tipoDolar.id;
-        dolar.precioDolar = tipoDolar.precioDolar;
-        dolar.proveedor= tipoDolar.proveedor;
-        valorDolar.push(dolar);
+      const resDolar = await this.dolarRepository.find({
+        relations: ['proveedor'],
       });
-      console.log("Valores del dólar encontrados:", valorDolar);
+      console.log("Valores del dólar encontrados:", resDolar);
+      return resDolar;
     } catch (error) {
       console.error("Error al obtener los valores del dólar:", error.message);
       throw error;
     }
-    return valorDolar;
   }
 
-  async getByProvider(proveedor: string){
+  async getByProvider(proveedor: string | number){
     try{
-      const valorDolar =  await this.dolarRepository.findOneBy({
-        proveedor: proveedor,
-      });
+      let valorDolar;
+      
+      if (typeof proveedor === 'number') {
+        // Buscar por proveedorId
+        valorDolar = await this.dolarRepository.findOne({
+          where: { proveedorId: proveedor },
+          relations: ['proveedor'],
+        });
+      } else {
+        // Buscar por nombre de proveedor (legacy)
+        const proveedorEntity = await this.proveedorService.findByNombre(proveedor);
+        if (proveedorEntity) {
+          valorDolar = await this.dolarRepository.findOne({
+            where: { proveedorId: proveedorEntity.id },
+            relations: ['proveedor'],
+          });
+        }
+      }
+      
       console.log(`Valor del dólar obtenido para el proveedor ${proveedor}:`, valorDolar);
       return valorDolar;
     }catch (error) {
-      console.error(`Error al obtener el valor del dólar para el proveedor ${proveedor}:`, error.message); // Log de error
+      console.error(`Error al obtener el valor del dólar para el proveedor ${proveedor}:`, error.message);
       throw error;
     }
   }
@@ -61,65 +73,128 @@ export class DolaresService {
   }
 
   async upsertOne(input: DolarDto) {
-    const proveedor = input.proveedor?.trim().toLowerCase();
-    const precioDolar = Number(input.precioDolar);
+    try {
+      const precioDolar = Number(input.precioDolar);
 
-    const existing = await this.dolarRepository.findOneBy({ proveedor });
+      if (!Number.isFinite(precioDolar)) {
+        throw new Error("precioDolar debe ser un número válido");
+      }
 
-    if (!existing) {
-      await this.dolarRepository.save({ proveedor, precioDolar });
-      console.log(`Nuevo valor del dólar guardado para el proveedor ${proveedor}`);
-    } else {
-      await this.dolarRepository
-        .createQueryBuilder()
-        .update(Dolar)
-        .set({ precioDolar })
-        .where("proveedor = :id", { id: proveedor })
-        .execute();
-      console.log(`Valor del dólar actualizado para el proveedor ${proveedor}`);
-    }
+      let proveedorId: number;
 
-    await this.dolarHistoryRepository.save(
-      this.dolarHistoryRepository.create({
-        proveedor,
+      // Obtener o crear el proveedor
+      if (input.proveedorId) {
+        // Si viene el ID, validar que existe
+        const proveedor = await this.proveedorService.findOne(input.proveedorId);
+        if (!proveedor) {
+          throw new Error(`No existe proveedor con ID ${input.proveedorId}`);
+        }
+        proveedorId = input.proveedorId;
+      } else if (input.proveedor) {
+        // Si viene el nombre, obtener o crear
+        const proveedor = await this.proveedorService.getOrCreate(input.proveedor.trim());
+        proveedorId = proveedor.id;
+      } else {
+        throw new Error("Debe proporcionar proveedorId o proveedor");
+      }
+
+      // Buscar dolar existente para este proveedor
+      const existing = await this.dolarRepository.findOne({
+        where: { proveedorId },
+      });
+
+      if (!existing) {
+        await this.dolarRepository.save({ proveedorId, precioDolar });
+        console.log(`Nuevo valor del dólar guardado para proveedorId ${proveedorId}`);
+      } else {
+        await this.dolarRepository
+          .createQueryBuilder()
+          .update(Dolar)
+          .set({ precioDolar })
+          .where("proveedorId = :id", { id: proveedorId })
+          .execute();
+        console.log(`Valor del dólar actualizado para proveedorId ${proveedorId}`);
+      }
+
+      // Guardar en historial
+      const historyRecord = this.dolarHistoryRepository.create({
+        proveedorId,
         precioDolar,
         fechaVigencia: input.fechaVigencia ? new Date(input.fechaVigencia) : new Date(),
         usuario: input.usuario || null,
         motivo: input.motivo || null,
-      })
-    );
+      });
+      
+      await this.dolarHistoryRepository.save(historyRecord);
 
-    return this.getByProvider(proveedor);
+      return this.getByProvider(proveedorId);
+    } catch (error) {
+      console.error("Error en upsertOne:", error.message);
+      throw new Error(`Error al guardar proveedor: ${error.message}`);
+    }
   }
 
   async findHistory(query: DolarHistoryQueryDto) {
     const limit = query.limit || 100;
-    const where = query.proveedor
-      ? { proveedor: query.proveedor.trim().toLowerCase() }
-      : {};
+    let where = {};
+
+    if (query.proveedor) {
+      // Buscar por nombre de proveedor
+      const proveedorEntity = await this.proveedorService.findByNombre(query.proveedor.trim());
+      if (proveedorEntity) {
+        where = { proveedorId: proveedorEntity.id };
+      } else {
+        // Si no existe el proveedor, retornar vacío
+        return [];
+      }
+    }
 
     return this.dolarHistoryRepository.find({
       where,
+      relations: ['proveedor'],
       order: { fechaVigencia: "DESC", id: "DESC" },
       take: limit,
     });
   }
 
-  async deleteProvider(proveedor: string) {
-    const normalized = String(proveedor || "").trim().toLowerCase();
-    if (!normalized) {
-      throw new Error("Proveedor inválido.");
+  async deleteProvider(proveedor: string | number) {
+    let proveedorId: number;
+    let proveedorNombre: string;
+
+    if (typeof proveedor === 'number') {
+      proveedorId = proveedor;
+      const proveedorEntity = await this.proveedorService.findOne(proveedorId);
+      if (!proveedorEntity) {
+        throw new Error(`No existe proveedor con ID ${proveedorId}`);
+      }
+      proveedorNombre = proveedorEntity.nombre;
+    } else {
+      const normalized = String(proveedor || "").trim();
+      if (!normalized) {
+        throw new Error("Proveedor inválido.");
+      }
+      
+      const proveedorEntity = await this.proveedorService.findByNombre(normalized);
+      if (!proveedorEntity) {
+        throw new Error(`No existe proveedor ${normalized}.`);
+      }
+      proveedorId = proveedorEntity.id;
+      proveedorNombre = proveedorEntity.nombre;
     }
 
-    const existing = await this.dolarRepository.findOneBy({ proveedor: normalized });
+    const existing = await this.dolarRepository.findOne({
+      where: { proveedorId },
+    });
+    
     if (!existing) {
-      throw new Error(`No existe proveedor ${normalized}.`);
+      throw new Error(`No existe tarifa de dólar para el proveedor ${proveedorNombre}.`);
     }
 
-    await this.dolarRepository.delete({ proveedor: normalized });
+    await this.dolarRepository.delete({ proveedorId });
     return {
       deleted: true,
-      proveedor: normalized,
+      proveedor: proveedorNombre,
+      proveedorId,
     };
   }
 }

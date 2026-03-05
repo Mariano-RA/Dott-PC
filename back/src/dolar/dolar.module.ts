@@ -4,9 +4,13 @@ import { DolaresController } from './dolar.controller';
 import { DolaresService } from './dolar.service';
 import { Dolar } from './entities/dolar.entity';
 import { DolarHistory } from './entities/dolar-history.entity';
+import { ProveedorModule } from '../proveedor/proveedor.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Dolar, DolarHistory])],
+  imports: [
+    TypeOrmModule.forFeature([Dolar, DolarHistory]),
+    ProveedorModule,
+  ],
   controllers: [DolaresController],
   providers: [DolaresService],
   exports: [DolaresService]

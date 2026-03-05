@@ -6,9 +6,15 @@ import { ProductosController } from "./producto.controller";
 import { ProductosService } from "./producto.service";
 import { CuotasModule } from "src/cuota/cuota.module";
 import { ClientsModule, Transport } from "@nestjs/microservices";
+import { ProveedorModule } from "src/proveedor/proveedor.module";
 
 @Module({
-  imports: [CuotasModule, DolaresModule, TypeOrmModule.forFeature([Producto])],
+  imports: [
+    CuotasModule, 
+    DolaresModule, 
+    ProveedorModule,
+    TypeOrmModule.forFeature([Producto])
+  ],
   controllers: [ProductosController],
   providers: [ProductosService],
 })

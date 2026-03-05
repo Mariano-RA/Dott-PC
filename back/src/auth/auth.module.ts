@@ -4,13 +4,12 @@ import { JwtModule } from "@nestjs/jwt";
 import { AuthController } from "./auth.controller";
 import { AtStrategy } from "./strategies/at.strategy";
 import { RtStrategy } from "./strategies/rt.strategy";
-import { UsersService } from "src/users/users.service";
-import { ConfigService } from "@nestjs/config";
 import { UsersModule } from "src/users/users.module";
 
+// Legacy local auth module. Runtime auth is currently unified on Auth0 guards.
 @Module({
   imports: [UsersModule, JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, AtStrategy, RtStrategy, ConfigService],
+  providers: [AuthService, AtStrategy, RtStrategy],
 })
 export class AuthModule {}

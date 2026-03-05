@@ -2,16 +2,13 @@ import base64
 import csv
 import io
 import json
-import math
 import os
 import pandas as pd
-from openpyxl import Workbook, load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
 import pika
-from unidecode import unidecode
 import sys
 import logging
 import time
+from typing import Any, Dict, Tuple
 from normalizador_categorias import normalizar_categoria, guardar_categorias_nuevas
 
 
@@ -39,9 +36,6 @@ rabbit_url = os.environ['RABBITMQ_URL']
 rabbit_queue = os.environ["RABBITMQ_QUEUE"]
 rabbit_python_queue = os.environ["RABBITMQ_PYTHON_QUEUE"]
 rabbit_retry_delay = int(os.environ.get("RABBITMQ_RETRY_DELAY", "5"))
-
-# Direccion archivos
-diccionarios = "nuevosScripts/diccionarios/diccionarios.json"
 
 def log_exception(message):
     logging.exception(f"{message}")
@@ -88,11 +82,32 @@ def procesar_proveedor(nombre_proveedor, archivo_base64):
             data = tablaNb(archivo_bytesio)
         elif nombre_proveedor == 'mega':
             data = tablaMega(archivo_bytesio)   
+        else:
+            raise ValueError(f"Proveedor no soportado: {nombre_proveedor}")
 
         guardar_categorias_nuevas()
         enviar_resultado_a_rabbitmq(nombre_proveedor, data)
+        return True
     except Exception as ex:
         log_exception(f"Error en {nombre_proveedor}: {ex}")
+        return False
+
+
+def _extraer_payload(mensaje: Dict[str, Any]) -> Tuple[str, str]:
+    data = mensaje.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("Payload invalido: falta objeto 'data'")
+
+    proveedor = data.get("nombreProveedor")
+    contenido_base64 = data.get("base64")
+
+    if not proveedor or not isinstance(proveedor, str):
+        raise ValueError("Payload invalido: 'nombreProveedor' es requerido")
+
+    if not contenido_base64 or not isinstance(contenido_base64, str):
+        raise ValueError("Payload invalido: 'base64' es requerido")
+
+    return proveedor.strip().lower(), contenido_base64
 
 def tablaAir(archivo_bytesios):
     try:
@@ -181,7 +196,7 @@ def tablaInvid(archivo_bytesio):
         categoria_actual = ""
         data = []
         for index, row in df.iterrows():            
-            if pd.isna(row[0]) or row[0] == "" and len(str(row[1])) > 1:
+            if pd.isna(row[0]) or (row[0] == "" and len(str(row[1])) > 1):
                 categoria_actual = str(row[1]).strip()
                 continue 
             if pd.notna(row[0]) and isinstance(row[8], (int, float)):
@@ -265,16 +280,20 @@ def tablaMega(archivo_bytesio):
 def callback(ch, method, properties, body):
     try:
         mensaje = json.loads(body.decode('utf-8'))
-        proveedor = mensaje["data"]["nombreProveedor"]
-        base64 = mensaje["data"]["base64"]
+        proveedor, archivo_base64 = _extraer_payload(mensaje)
         logging.info(f"Recibido mensaje para proveedor {proveedor}")
-        procesar_proveedor(proveedor, base64)
-    except json.JSONDecodeError as e:
-        logging.exception(f"Error decodificando mensaje JSON: {e}", exc_info=True)
-    except KeyError as e:
-        logging.exception(f"Error accediendo a datos del mensaje: {e}", exc_info=True)
+        process_ok = procesar_proveedor(proveedor, archivo_base64)
+        if process_ok:
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        else:
+            # Error funcional (proveedor no soportado / parse fallido): no requeue para evitar loop infinito.
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+        logging.exception(f"Mensaje invalido o incompleto: {e}", exc_info=True)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     except Exception as e:
         logging.exception(f"Error inesperado en callback: {e}", exc_info=True)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 def enviar_resultado_a_rabbitmq(nombre_proveedor, data):
     try:
@@ -316,7 +335,7 @@ def run_consumer_with_retry():
                 channel.basic_consume(
                     queue=rabbit_python_queue,
                     on_message_callback=callback,
-                    auto_ack=True
+                    auto_ack=False
                 )
                 logging.info("Iniciando ejecución del consumidor...")
                 channel.start_consuming()
@@ -331,4 +350,5 @@ def run_consumer_with_retry():
             time.sleep(rabbit_retry_delay)
 
 
-run_consumer_with_retry()
+if __name__ == "__main__":
+    run_consumer_with_retry()

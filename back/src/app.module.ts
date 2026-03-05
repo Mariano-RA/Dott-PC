@@ -13,6 +13,8 @@ import { LoggerModule } from "nestjs-pino";
 import { DolarHistory } from "./dolar/entities/dolar-history.entity";
 import { CalculatorSettingsModule } from "./calculator-settings/calculator-settings.module";
 import { CalculatorSetting } from "./calculator-settings/entities/calculator-setting.entity";
+import { Proveedor } from "./proveedor/entities/proveedor.entity";
+import { ProveedorModule } from "./proveedor/proveedor.module";
 
 const dbPort = Number(process.env.DB_PORT || 3306);
 const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
@@ -37,6 +39,7 @@ const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
     CuotasModule,
     CalculatorSettingsModule,
     ProductosModule,
+    ProveedorModule,
     TypeOrmModule.forRoot({
       type: "mysql",
       host: process.env.DB_HOST || "mysql",
@@ -44,7 +47,7 @@ const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
       username: process.env.DB_USER || "do0tt",
       password: process.env.DB_PASSWORD || "do0tt_dev_password",
       database: process.env.DB_NAME || "dottdb",
-      entities: [Dolar, DolarHistory, User, CuotaPlan, Producto, CalculatorSetting],
+      entities: [Dolar, DolarHistory, Proveedor, User, CuotaPlan, Producto, CalculatorSetting],
       // Keep schema sync opt-in for local development only.
       synchronize: dbSync,
     }),

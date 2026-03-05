@@ -12,7 +12,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ProductosService } from "./producto.service";
-import { Public } from "src/auth/decorators/public.decorator";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
 import { PermissionGuard } from "src/authTest/permission.guard";
 import {

@@ -1,11 +1,9 @@
-import { Producto } from "src/productos/entities/producto.entity";
+import { Proveedor } from "src/proveedor/entities/proveedor.entity";
 import {
   Entity,
   Column,
-  PrimaryColumn,
-  Double,
   PrimaryGeneratedColumn,
-  OneToOne,
+  ManyToOne,
   JoinColumn,
 } from "typeorm";
 
@@ -17,6 +15,10 @@ export class Dolar {
   @Column("float")
   precioDolar: number;
 
-  @Column("text")
-  proveedor: string;
+  @Column("int")
+  proveedorId: number;
+
+  @ManyToOne(() => Proveedor, { eager: true })
+  @JoinColumn({ name: "proveedorId" })
+  proveedor: Proveedor;
 }
