@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
-import { redirect } from "next/navigation";
 import { useUser } from "@auth0/nextjs-auth0/client";
+import { useRouter } from "next/navigation";
 import Alert from "../components/Alert";
 import { Badge, Button, Card, CardContent, Input } from "@/app/components/ui";
 import { useAdminRates } from "./hooks/useAdminRates";
 import { useAdminDolar } from "./hooks/useAdminDolar";
+import { getUserRoles } from "@/lib/auth0Roles";
 
 const IS_LOCAL_AUTH_BYPASS = process.env.NEXT_PUBLIC_LOCAL_DEV_AUTH_BYPASS === "true";
 
@@ -38,7 +38,9 @@ function statusPill(status: string) {
 
 function AdminPage() {
   const [usrRoles, setUsrRoles] = useState<string[]>([]);
-  const { user } = useUser();
+  const { user, error, isLoading: userLoading } = useUser();
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   const [providerToUpload, setProviderToUpload] = useState("");
   const [providerToDelete, setProviderToDelete] = useState("");
@@ -102,13 +104,35 @@ function AdminPage() {
 
   useEffect(() => {
     if (IS_LOCAL_AUTH_BYPASS) {
-      setUsrRoles(["admin"]);
+      setIsAuthorized(true);
       return;
     }
 
-    const roles = (user?.["http://localhost:3000/roles"] as string[]) || [];
-    setUsrRoles(roles);
-  }, [user]);
+    // Solo verificar autenticación cuando Auth0 ha terminado de cargar
+    if (!userLoading) {
+      if (user) {
+        const roles = getUserRoles(user);
+        setUsrRoles(roles);
+        
+        // Verificar si es admin
+        if (roles.includes("admin")) {
+          setIsAuthorized(true);
+        } else {
+          setIsAuthorized(false);
+        }
+      } else {
+        // No hay usuario autenticado
+        setIsAuthorized(false);
+      }
+    }
+  }, [user, userLoading]);
+
+  // Redirigir si no está autorizado (pero solo después de que Auth0 haya cargado)
+  useEffect(() => {
+    if (!IS_LOCAL_AUTH_BYPASS && isAuthorized === false) {
+      router.push("/");
+    }
+  }, [isAuthorized, router]);
 
   useEffect(() => {
     fetchRates();
@@ -380,8 +404,24 @@ function AdminPage() {
     }
   };
 
-  if (!IS_LOCAL_AUTH_BYPASS && !usrRoles.includes("admin")) {
-    redirect("/");
+  // Mientras Auth0 carga o mientras verificamos permisos, mostrar loader
+  if (!IS_LOCAL_AUTH_BYPASS && isAuthorized === null) {
+    return (
+      <div className="container-page py-8 md:py-10">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+          <Card>
+            <CardContent className="py-6">
+              <p>Cargando...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Si no está autorizado, no mostrar contenido (la redirección ocurrirá en el effect)
+  if (!IS_LOCAL_AUTH_BYPASS && isAuthorized === false) {
+    return null;
   }
 
   return (
@@ -702,4 +742,4 @@ function AdminPage() {
   );
 }
 
-export default IS_LOCAL_AUTH_BYPASS ? AdminPage : withPageAuthRequired(AdminPage);
+export default AdminPage;

@@ -1,12 +1,17 @@
 "use client";
 import { useUser } from "@auth0/nextjs-auth0/client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import User from "./User";
 import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 
 const Login = () => {
-  const { user } = useUser();
+  const { user, isLoading } = useUser();
   const isLocalAuthBypass = process.env.NEXT_PUBLIC_LOCAL_DEV_AUTH_BYPASS === "true";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (isLocalAuthBypass) {
     return (
@@ -20,6 +25,15 @@ const Login = () => {
           <span className="sr-only">Admin local</span>
           <ArrowRightOnRectangleIcon className="h-6 w-6" aria-hidden="true" />
         </a>
+      </div>
+    );
+  }
+
+  // Mientras Auth0 carga, mostrar un placeholder para evitar parpadeos
+  if (!mounted || isLoading) {
+    return (
+      <div className="flex items-center ms-2">
+        <div className="h-8 w-8 rounded-full bg-gray-700 animate-pulse" />
       </div>
     );
   }

@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import useSWR from "swr";
+import { getUserRoles } from "@/lib/auth0Roles";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -10,12 +11,25 @@ function classNames(...classes) {
 
 export const User = () => {
   const [usrRoles, setUsrRoles] = useState([]);
+  const [imageError, setImageError] = useState(false);
   const { user } = useUser();
 
   useEffect(() => {
-    const roles = user["http://localhost:3000/roles"] || [];
-    setUsrRoles(roles);
+    if (user) {
+      const roles = getUserRoles(user);
+      setUsrRoles(roles);
+      // Reset image error cuando cambia el usuario
+      setImageError(false);
+    }
   }, [user]);
+
+  if (!user || !user.picture) {
+    return null;
+  }
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
 
   return (
     <Menu as="div" className="relative ml-3">
@@ -23,7 +37,18 @@ export const User = () => {
         <Menu.Button className="relative flex rounded-full hover:ring-1 hover:ring-red-500 hover:ring-offset-1 hover:ring-offset-transparent">
           <span className="absolute -inset-1.5" />
           <span className="sr-only">Open user menu</span>
-          <img className="h-8 w-8 rounded-full" src={user.picture} alt="" />
+          {imageError ? (
+            <div className="h-8 w-8 rounded-full bg-red-700 flex items-center justify-center text-xs text-white font-bold">
+              {user.nickname?.[0]?.toUpperCase() || "U"}
+            </div>
+          ) : (
+            <img
+              className="h-8 w-8 rounded-full"
+              src={user.picture}
+              alt={user.nickname || "User"}
+              onError={handleImageError}
+            />
+          )}
         </Menu.Button>
       </div>
       <Transition

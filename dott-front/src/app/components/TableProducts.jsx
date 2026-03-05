@@ -7,6 +7,7 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useUser } from "@auth0/nextjs-auth0/client";
+import { getUserRoles } from "@/lib/auth0Roles";
 
 function formatPrice(value) {
   return new Intl.NumberFormat("es-AR", {
@@ -74,7 +75,7 @@ const TableProducts = ({ products }) => {
   const [productDetail, setProductDetail] = useState({});
   const { state, addCart, removeCart } = useContext(ContextGlobal);
   const { user } = useUser();
-  const usrRoles = user?.["http://localhost:3000/roles"] || [];
+  const usrRoles = getUserRoles(user);
   const isAdmin = usrRoles.includes("admin");
   const selectedProductIds = useMemo(() => new Set(state.productCart.map((product) => product.id)), [state.productCart]);
 

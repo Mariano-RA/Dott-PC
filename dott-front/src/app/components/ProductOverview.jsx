@@ -4,6 +4,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "./utils/global.context";
 import { useUser } from "@auth0/nextjs-auth0/client";
+import { getUserRoles } from "@/lib/auth0Roles";
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("es-AR", {
@@ -18,7 +19,7 @@ export default function ProductOverview({ action, close, product }) {
   const { state, addCart, removeCart } = useContext(ContextGlobal);
   const { user } = useUser();
 
-  const usrRoles = useMemo(() => user?.["http://localhost:3000/roles"] || [], [user]);
+  const usrRoles = useMemo(() => getUserRoles(user), [user]);
   const isSelected = useMemo(
     () => state.productCart.some((prodCart) => prodCart.id === product?.id),
     [state.productCart, product?.id]
