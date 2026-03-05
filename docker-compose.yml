@@ -23,7 +23,7 @@ services:
     # build:
     #   dockerfile: ./Dockerfile
     #   context: ./back
-    image: marianora/dott-back:3.3
+    image: marianora/dott-back:latest
     container_name: dott-back
     ports:
       - "3000:3000"
@@ -38,7 +38,7 @@ services:
     # build:
     #   dockerfile: ./Dockerfile
     #   context: ./python-api
-    image: marianora/dott-python:2.4
+    image: marianora/dott-python:latest
     container_name: dott-python
     ports:
       - "5000:5000"
