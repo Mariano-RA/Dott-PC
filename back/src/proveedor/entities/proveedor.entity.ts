@@ -5,8 +5,8 @@ export class Proveedor {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column("text", { unique: true })
-  nombre: string;
+    @Column({ type: "varchar", length: 255, unique: true })
+    nombre: string;
 
   @Column("boolean", { default: true })
   activo: boolean;
