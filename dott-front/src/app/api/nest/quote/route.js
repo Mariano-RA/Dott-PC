@@ -2,7 +2,7 @@ import axios from "axios";
 import https from "https";
 import { apiUrl } from "../utils/utils";
 import { NextResponse } from "next/server";
-import { getSession } from "@auth0/nextjs-auth0";
+import { getAccessToken, getSession } from "@auth0/nextjs-auth0";
 
 const IS_LOCAL_AUTH_BYPASS =
   process.env.NODE_ENV === "development" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
@@ -14,13 +14,23 @@ async function getAccessTokenForWrite(request) {
     return LOCAL_DEV_BEARER_TOKEN;
   }
 
-  const session = await getSession(request, null, {
-    authorizationParams: {
-      scope: "create:tablas offline_access",
-    },
-  });
+  try {
+    const session = await getSession(request);
+    if (session?.accessToken) {
+      return session.accessToken;
+    }
 
-  return session?.accessToken || "";
+    const { accessToken } = await getAccessToken(request, new NextResponse(), {
+      authorizationParams: {
+        audience: process.env.AUDIENCE || "https://dott-pc-server.com",
+        scope: "create:tablas offline_access",
+      },
+    });
+
+    return accessToken || "";
+  } catch {
+    return "";
+  }
 }
 
 const agent = new https.Agent({
