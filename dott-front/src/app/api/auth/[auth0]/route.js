@@ -4,7 +4,7 @@ export const GET = handleAuth({
   login: handleLogin({
     authorizationParams: {
       prompt: "login",
-      audience: "https://dott-pc-server.com",
+      audience: process.env.AUTH0_AUDIENCE,
       scope: "openid email profile offline_access create:tablas",
     },
     returnTo: "/",
