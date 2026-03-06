@@ -22,7 +22,7 @@ async function getAccessTokenForWrite(request) {
 
     const { accessToken } = await getAccessToken(request, new NextResponse(), {
       authorizationParams: {
-        audience: process.env.AUDIENCE || "https://dott-pc-server.com",
+        audience: process.env.NEXT_PUBLIC_AUDIENCE || "https://be.dott-pc.com.ar",
         scope: "create:tablas offline_access",
       },
     });

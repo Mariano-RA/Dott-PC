@@ -39,10 +39,19 @@ export class AuthorizationGuard implements CanActivate {
 
     try {
       // await validateAccessToken(request, response);
-      await auth()(request, response, next);
-
+      console.log("[AuthorizationGuard] Validating with issuer:", process.env.ISSUER_BASE_URL);
+      console.log("[AuthorizationGuard] Validating with audience:", process.env.AUDIENCE);
+      
+      const authMiddleware = await auth({
+        issuerBaseURL: process.env.ISSUER_BASE_URL,
+        audience: process.env.AUDIENCE,
+      });
+      await authMiddleware(request, response, next);
+      
+      console.log("[AuthorizationGuard] Token validated successfully");
       return true;
     } catch (error) {
+      console.error("[AuthorizationGuard] Token validation failed:", error);
       if (error instanceof InvalidTokenError) {
         throw new UnauthorizedException("Bad credentials");
       }
