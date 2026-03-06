@@ -45,8 +45,6 @@ function AdminPage() {
   const [providerToUpload, setProviderToUpload] = useState("");
   const [providerToDelete, setProviderToDelete] = useState("");
   const [newProviderName, setNewProviderName] = useState("");
-  const [newProviderPrice, setNewProviderPrice] = useState("");
-  const [newProviderReason, setNewProviderReason] = useState("Alta inicial");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [newPlanKey, setNewPlanKey] = useState("");
   const [newPlanLabel, setNewPlanLabel] = useState("");
@@ -233,23 +231,14 @@ function AdminPage() {
 
   const handleCreateProvider = async () => {
     const proveedor = newProviderName.trim().toLowerCase();
-    const precioDolar = Number(newProviderPrice.replace(",", "."));
 
     if (!proveedor) {
       setAlerta({ show: true, type: "error", message: "Ingresá nombre de proveedor." });
       return;
     }
 
-    if (!Number.isFinite(precioDolar) || precioDolar <= 0) {
-      setAlerta({ show: true, type: "error", message: "Ingresá un valor de dólar válido." });
-      return;
-    }
-
     const result = await createProvider({
       proveedor,
-      precioDolar,
-      motivo: newProviderReason || "Alta inicial",
-      usuario: "admin-local",
     });
 
     if (!result.ok) {
@@ -259,8 +248,7 @@ function AdminPage() {
 
     setProviderToUpload(proveedor);
     setNewProviderName("");
-    setNewProviderPrice("");
-    setAlerta({ show: true, type: "success", message: `Proveedor ${proveedor} creado.` });
+    setAlerta({ show: true, type: "success", message: `Proveedor ${proveedor} creado en maestro.` });
   };
 
   const handleDeleteProviderFromDolar = async () => {
@@ -275,7 +263,7 @@ function AdminPage() {
       return;
     }
 
-    setAlerta({ show: true, type: "success", message: `Proveedor ${providerToDelete} eliminado de dólar.` });
+    setAlerta({ show: true, type: "success", message: `Proveedor ${providerToDelete} eliminado del maestro.` });
   };
 
   const savePlanRow = async (planKey: string) => {
@@ -443,25 +431,12 @@ function AdminPage() {
         <Card>
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <h3>Alta de proveedor</h3>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-1">
               <Input
                 label="Proveedor"
                 value={newProviderName}
                 onChange={(event) => setNewProviderName(event.target.value)}
                 placeholder="ej: acme"
-              />
-              <Input
-                label="Dólar inicial"
-                type="number"
-                value={newProviderPrice}
-                onChange={(event) => setNewProviderPrice(event.target.value)}
-                placeholder="0"
-              />
-              <Input
-                label="Motivo"
-                value={newProviderReason}
-                onChange={(event) => setNewProviderReason(event.target.value)}
-                placeholder="Alta inicial"
               />
             </div>
             <div className="flex justify-end">

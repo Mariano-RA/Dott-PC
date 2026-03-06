@@ -112,6 +112,10 @@ export async function DELETE(request) {
 
     const { proveedor } = await request.json();
 
+    if (!proveedor) {
+      return NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 });
+    }
+
     const config = {
       httpsAgent: agent,
       headers: {
@@ -127,10 +131,12 @@ export async function DELETE(request) {
 
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
-    console.error("Error en la solicitud DELETE:", error.response?.data || error.message);
+    console.error("Error en la solicitud DELETE:", error?.response?.data || error.message);
+    const upstreamStatus = error?.response?.status || 500;
+    const message = error?.response?.data?.message || error?.response?.data?.error || "Error al eliminar el producto";
     return NextResponse.json(
-      { error: "Error al eliminar el producto" },
-      { status: 500 }
+      { error: message },
+      { status: upstreamStatus }
     );
   }
 }

@@ -8,6 +8,12 @@ export type DolarRow = {
   motivo?: string;
 };
 
+type ProveedorRow = {
+  id: number;
+  nombre: string;
+  activo?: boolean;
+};
+
 export type DolarHistoryRow = {
   id: number;
   proveedor: string;
@@ -36,19 +42,42 @@ export function useAdminDolar() {
   const fetchDolar = useCallback(async () => {
     setLoading(true);
     try {
-      const [resRows, resHistory] = await Promise.all([
+      const [resRows, resHistory, resProveedores] = await Promise.all([
         fetch("/api/nest/dolar"),
         fetch("/api/nest/dolar", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ limit: 120 }),
         }),
+        fetch("/api/nest/proveedores"),
       ]);
 
       const jsonRows = await resRows.json();
       const jsonHistory = await resHistory.json();
+      const jsonProveedores = await resProveedores.json();
 
-      setRows((jsonRows?.dolar || []) as DolarRow[]);
+      const dolarRows = (jsonRows?.dolar || []) as DolarRow[];
+      const proveedores = (jsonProveedores?.proveedores || []) as ProveedorRow[];
+
+      const missingRows = proveedores
+        .filter((item) => item?.activo !== false)
+        .filter(
+          (item) =>
+            !dolarRows.some(
+              (row) => String(row?.proveedor || "").toLowerCase() === String(item?.nombre || "").toLowerCase()
+            )
+        )
+        .map((item) => ({
+          proveedor: String(item.nombre || "").toLowerCase(),
+          precioDolar: 0,
+          motivo: "",
+        }));
+
+      const mergedRows = [...dolarRows, ...missingRows].sort((a, b) =>
+        String(a.proveedor || "").localeCompare(String(b.proveedor || ""))
+      );
+
+      setRows(mergedRows);
       setHistory((jsonHistory?.history || []) as DolarHistoryRow[]);
       setStatusByProveedor({});
 
@@ -138,27 +167,26 @@ export function useAdminDolar() {
   }, [rows, statusByProveedor, fetchDolar]);
 
   const createProvider = useCallback(
-    async (input: { proveedor: string; precioDolar: number; motivo?: string; usuario?: string }) => {
+    async (input: { proveedor: string }) => {
       try {
         const proveedor = input.proveedor.trim().toLowerCase();
         if (!proveedor) {
           return { ok: false, message: "Proveedor inválido." };
         }
 
-        const res = await fetch("/api/nest/dolar", {
-          method: "PUT",
+        // 1) Alta en maestro de proveedores
+        const proveedorRes = await fetch("/api/nest/proveedores", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            proveedor,
-            precioDolar: input.precioDolar,
-            motivo: input.motivo || "Alta de proveedor",
-            fechaVigencia: new Date().toISOString(),
-            usuario: input.usuario || "admin-local",
-          }),
+          body: JSON.stringify({ nombre: proveedor, activo: true }),
         });
-        const json = await res.json();
-        if (!res.ok) {
-          return { ok: false, message: json?.error || "No se pudo crear proveedor." };
+
+        const proveedorJson = await proveedorRes.json();
+        if (!proveedorRes.ok) {
+          return {
+            ok: false,
+            message: proveedorJson?.error || "No se pudo crear proveedor en maestro.",
+          };
         }
 
         await fetchDolar();
@@ -172,15 +200,41 @@ export function useAdminDolar() {
 
   const deleteProvider = useCallback(async (proveedor: string) => {
     try {
-      const res = await fetch("/api/nest/dolar", {
+      // Buscar el proveedor por nombre para obtener su id
+      const listRes = await fetch("/api/nest/proveedores");
+      const listJson = await listRes.json();
+      if (!listRes.ok) {
+        return { ok: false, message: listJson?.error || "No se pudo consultar proveedores." };
+      }
+
+      const proveedores = Array.isArray(listJson?.proveedores) ? listJson.proveedores : [];
+      const proveedorMatch = proveedores.find(
+        (item: { id: number; nombre: string }) => String(item?.nombre || "").toLowerCase() === proveedor.toLowerCase()
+      );
+
+      if (!proveedorMatch?.id) {
+        return { ok: false, message: "Proveedor no encontrado en maestro." };
+      }
+
+      const proveedorDeleteRes = await fetch("/api/nest/proveedores", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: proveedorMatch.id }),
+      });
+      const proveedorDeleteJson = await proveedorDeleteRes.json();
+      if (!proveedorDeleteRes.ok) {
+        return {
+          ok: false,
+          message: proveedorDeleteJson?.error || "No se pudo borrar proveedor del maestro.",
+        };
+      }
+
+      // Intentar limpiar tambien el valor de dolar si existiera
+      await fetch("/api/nest/dolar", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proveedor }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        return { ok: false, message: json?.error || "No se pudo borrar proveedor." };
-      }
 
       await fetchDolar();
       return { ok: true };

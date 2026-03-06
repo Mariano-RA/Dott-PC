@@ -70,6 +70,10 @@ export async function POST(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
 
+    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+    }
+
     const datosDolar = await request.json();
 
     const { data: response } = await axios.post(
@@ -87,9 +91,11 @@ export async function POST(request) {
     return NextResponse.json({ response }, { status: 200 });
   } catch (error) {
     console.error("Error en POST /dolar:", error?.response?.data || error.message);
+    const upstreamStatus = error?.response?.status || 500;
+    const message = error?.response?.data?.message || error?.response?.data?.error || "Error en la solicitud POST";
     return NextResponse.json(
-      { error: "Error en la solicitud POST" },
-      { status: 500 }
+      { error: message },
+      { status: upstreamStatus }
     );
   }
 }
@@ -97,6 +103,11 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
+
+    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+    }
+
     const body = await request.json();
     const proveedor = body?.proveedor;
 
@@ -136,8 +147,17 @@ export async function PUT(request) {
 export async function DELETE(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
+
+    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+    }
+
     const body = await request.json();
     const proveedor = String(body?.proveedor || "").trim();
+
+    if (!proveedor) {
+      return NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 });
+    }
 
     const { data: response } = await axios.delete(
       `${apiUrl}/dolar/${encodeURIComponent(proveedor)}`,
@@ -153,6 +173,8 @@ export async function DELETE(request) {
     return NextResponse.json({ response }, { status: 200 });
   } catch (error) {
     console.error("Error en DELETE /dolar:", error?.response?.data || error.message);
-    return NextResponse.json({ error: "Error al borrar proveedor" }, { status: 500 });
+    const upstreamStatus = error?.response?.status || 500;
+    const message = error?.response?.data?.message || error?.response?.data?.error || "Error al borrar proveedor";
+    return NextResponse.json({ error: message }, { status: upstreamStatus });
   }
 }

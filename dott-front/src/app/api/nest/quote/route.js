@@ -81,6 +81,11 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
+
+    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     const { data } = await axios.post(`${apiUrl}/cuota/plans`, body?.plans || [], {
@@ -94,15 +99,26 @@ export async function PUT(request) {
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
     console.error("Error en PUT cuotas/plans:", error?.response?.data || error.message);
-    return NextResponse.json({ error: "Error al guardar planes" }, { status: 500 });
+    const upstreamStatus = error?.response?.status || 500;
+    const message = error?.response?.data?.message || error?.response?.data?.error || "Error al guardar planes";
+    return NextResponse.json({ error: message }, { status: upstreamStatus });
   }
 }
 
 export async function DELETE(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
+
+    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+    }
+
     const body = await request.json();
     const planKey = String(body?.planKey || "").trim();
+
+    if (!planKey) {
+      return NextResponse.json({ error: "planKey es requerido" }, { status: 400 });
+    }
 
     const { data } = await axios.delete(`${apiUrl}/cuota/plans/${encodeURIComponent(planKey)}`, {
       httpsAgent: agent,
@@ -115,6 +131,8 @@ export async function DELETE(request) {
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
     console.error("Error en DELETE cuotas/plans:", error?.response?.data || error.message);
-    return NextResponse.json({ error: "Error al borrar plan" }, { status: 500 });
+    const upstreamStatus = error?.response?.status || 500;
+    const message = error?.response?.data?.message || error?.response?.data?.error || "Error al borrar plan";
+    return NextResponse.json({ error: message }, { status: upstreamStatus });
   }
 }
