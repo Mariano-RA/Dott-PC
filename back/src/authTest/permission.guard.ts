@@ -18,7 +18,7 @@ export class PermissionGuard implements CanActivate {
     }
 
     const [req] = context.getArgs();
-    const userPermissions = req?.auth.payload.permissions || [];
+    const userPermissions = req?.auth?.payload?.permissions ?? [];
 
     const requiredPermissions =
       this.reflector.get("permissions", context.getHandler()) || [];

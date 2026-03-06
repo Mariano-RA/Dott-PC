@@ -14,6 +14,15 @@ import {
 
 @Injectable()
 export class AuthorizationGuard implements CanActivate {
+  private authMiddleware: any;
+
+  constructor() {
+    this.authMiddleware = auth({
+      issuerBaseURL: process.env.ISSUER_BASE_URL,
+      audience: process.env.AUDIENCE,
+    });
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
@@ -21,8 +30,7 @@ export class AuthorizationGuard implements CanActivate {
       process.env.NODE_ENV !== "production" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
 
     if (localBypassEnabled) {
-      console.warn("[LOCAL_DEV_AUTH_BYPASS] AuthorizationGuard bypass activo");
-      // Simula un payload minimo para que PermissionGuard no falle por req.auth undefined.
+      // Bypass solo para desarrollo explícito
       (request as any).auth = {
         payload: {
           permissions: ["create:tablas"],
@@ -38,28 +46,15 @@ export class AuthorizationGuard implements CanActivate {
     };
 
     try {
-      // await validateAccessToken(request, response);
-      console.log("[AuthorizationGuard] Validating with issuer:", process.env.ISSUER_BASE_URL);
-      console.log("[AuthorizationGuard] Validating with audience:", process.env.AUDIENCE);
-      
-      const authMiddleware = await auth({
-        issuerBaseURL: process.env.ISSUER_BASE_URL,
-        audience: process.env.AUDIENCE,
-      });
-      await authMiddleware(request, response, next);
-      
-      console.log("[AuthorizationGuard] Token validated successfully");
+      await this.authMiddleware(request, response, next);
       return true;
     } catch (error) {
-      console.error("[AuthorizationGuard] Token validation failed:", error);
       if (error instanceof InvalidTokenError) {
         throw new UnauthorizedException("Bad credentials");
       }
-
       if (error instanceof UnauthorizedError) {
         throw new UnauthorizedException("Requires authentication");
       }
-
       throw new InternalServerErrorException();
     }
   }
