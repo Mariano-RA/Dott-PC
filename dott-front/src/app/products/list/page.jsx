@@ -1,72 +1,35 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import React from "react";
 import ProductCard from "@/app/components/ProductCard";
 import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import TableProducts from "@/app/components/TableProducts";
 import { Card, CardContent } from "@/app/components/ui";
 import { LISTING_TAKE } from "@/app/products/shared/listingData";
-import { fetchProductsListing } from "@/app/products/shared/listingApi";
+import { useProductsListing } from "@/app/products/shared/useProductsListing";
 import ProductsToolbar from "@/app/products/shared/ProductsToolbar";
 import { ProductsGridSkeleton, ProductsTableSkeleton } from "@/app/products/shared/ProductsSkeletons";
 import ProductsErrorState from "@/app/products/shared/ProductsErrorState";
 import ProductsEmptyState from "@/app/products/shared/ProductsEmptyState";
 
 const Page = () => {
-  const [products, setProducts] = useState([]);
-  const [sortType, setSortType] = useState("nombreAsc");
-  const [productLength, setProductLength] = useState(0);
-  const [page, setPage] = useState(1);
-  const [showLoading, setShowLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [retryKey, setRetryKey] = useState(0);
-  const [showTypeGrid, setShowTypeGrid] = useState(false);
-  const [filterProveedor, setFilterProveedor] = useState("");
-
-  const activeFilters = useMemo(() => {
-    const filters = [];
-
-    if (filterProveedor) {
-      filters.push({
-        key: "proveedor",
-        label: `Proveedor: ${filterProveedor.toUpperCase()}`,
-        onRemove: () => {
-          setFilterProveedor("");
-          setPage(1);
-        },
-      });
-    }
-
-    return filters;
-  }, [filterProveedor]);
-
-  function handleSelectedSort(nextSortType) {
-    setPage(1);
-    setSortType(nextSortType);
-  }
-
-  function handleSelectProveedor(proveedorKey) {
-    setPage(1);
-    setFilterProveedor(proveedorKey);
-  }
-
-  function handleVisualizer(visualizerType) {
-    setShowTypeGrid(visualizerType === "grid");
-  }
-
-  function handlePagination(newPage) {
-    setPage(newPage);
-  }
-
-  const handleClearAll = useCallback(() => {
-    setPage(1);
-    setSortType("nombreAsc");
-    setFilterProveedor("");
-  }, []);
-
-  const handleRetry = useCallback(() => {
-    setRetryKey((current) => current + 1);
-  }, []);
+  const {
+    products,
+    totalResults,
+    page,
+    sortType,
+    filterProveedor,
+    showTypeGrid,
+    loading,
+    error,
+    activeFilters,
+    handleSortChange,
+    handleProveedorChange,
+    handleViewChange,
+    handlePagination,
+    handleRetry,
+  } = useProductsListing({ endpoint: "/api/nest/products/list" });
 
   const renderProducts = () => {
     if (showTypeGrid) {
@@ -78,50 +41,8 @@ const Page = () => {
         </div>
       );
     }
-
     return <TableProducts products={products} />;
   };
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function handleLoadProducts() {
-      setShowLoading(true);
-      setLoadError("");
-
-      try {
-        const response = await fetchProductsListing({
-          endpoint: "/api/nest/products/list",
-          page,
-          take: LISTING_TAKE,
-          sortType,
-          proveedor: filterProveedor,
-          signal: controller.signal,
-        });
-
-        setProducts(response.products);
-        setProductLength(response.totalResults);
-      } catch (error) {
-        if (error?.name === "AbortError") {
-          return;
-        }
-
-        setProducts([]);
-        setProductLength(0);
-        setLoadError("No pudimos cargar el listado. Intenta nuevamente.");
-      } finally {
-        if (!controller.signal.aborted) {
-          setShowLoading(false);
-        }
-      }
-    }
-
-    handleLoadProducts();
-
-    return () => {
-      controller.abort();
-    };
-  }, [page, sortType, filterProveedor, retryKey]);
 
   return (
     <div className="container-page max-w-none py-8 md:py-10 2xl:px-10">
@@ -133,36 +54,38 @@ const Page = () => {
               badgeLabel="Listado"
               title="Todos los productos"
               showTypeGrid={showTypeGrid}
-              onChangeView={handleVisualizer}
+              onChangeView={handleViewChange}
               sortType={sortType}
-              onSortChange={handleSelectedSort}
+              onSortChange={handleSortChange}
               proveedor={filterProveedor}
-              onProveedorChange={handleSelectProveedor}
+              onProveedorChange={handleProveedorChange}
               activeFilters={activeFilters}
             />
 
-            {showLoading ? showTypeGrid ? <ProductsGridSkeleton /> : <ProductsTableSkeleton /> : null}
+            {loading ? (showTypeGrid ? <ProductsGridSkeleton /> : <ProductsTableSkeleton />) : null}
 
-            {!showLoading && loadError ? <ProductsErrorState message={loadError} onRetry={handleRetry} /> : null}
+            {!loading && error ? (
+              <ProductsErrorState message={error} onRetry={handleRetry} />
+            ) : null}
 
-            {!showLoading && !loadError && products.length === 0 ? (
+            {!loading && !error && products.length === 0 ? (
               <ProductsEmptyState
                 title="No hay productos para mostrar"
                 description="Prueba con otro proveedor u orden de resultados."
               />
             ) : null}
 
-            {!showLoading && !loadError && products.length > 0 ? (
+            {!loading && !error && products.length > 0 ? (
               <div className="flex w-full flex-grow flex-wrap content-start items-start justify-evenly gap-x-[3%] px-0 md:justify-start">
                 {renderProducts()}
               </div>
             ) : null}
 
-            {!showLoading && !loadError && productLength > 0 ? (
+            {!loading && !error && totalResults > 0 ? (
               <div>
                 <Pagination
                   actualPage={page}
-                  cantItems={productLength}
+                  cantItems={totalResults}
                   itemsPerPage={LISTING_TAKE}
                   newPage={handlePagination}
                 />

@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Badge, Button, Card, CardContent } from "@/app/components/ui";
+import { Badge, Button, Card, CardContent, Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/app/components/ui";
 
 const imagenes = [
   { id: 1, url: "/img/promo/imagen1.jpg" },

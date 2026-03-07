@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useReducer, useMemo, useEffect } from "react";
+import { isValidCartItems } from "@/lib/cart-types";
 
 export const initialState = {
   productCart: [],
@@ -47,11 +48,19 @@ export const ContextProvider = ({ children }) => {
 
   useEffect(() => {
     const storedState = localStorage.getItem("appState");
-    if (storedState) {
+    if (!storedState) return;
+    try {
+      const parsed = JSON.parse(storedState);
+      const productCart = isValidCartItems(parsed?.productCart)
+        ? parsed.productCart
+        : [];
+      const categorys = Array.isArray(parsed?.categorys) ? parsed.categorys : [];
       dispatch({
         type: "set_state",
-        state: JSON.parse(storedState),
+        state: { productCart, categorys },
       });
+    } catch {
+      // Estado corrupto o formato antiguo: no hidratar
     }
   }, []);
 

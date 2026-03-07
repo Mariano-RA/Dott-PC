@@ -11,12 +11,15 @@ const buttonVariants = cva(
         primary: "bg-brand text-brand-foreground shadow-sm hover:brightness-95 active:brightness-90",
         secondary:
           "border border-input bg-background text-foreground shadow-sm hover:bg-neutral-100 active:bg-neutral-200",
+        outline:
+          "border border-input bg-background shadow-sm hover:bg-neutral-100 hover:text-foreground",
         ghost: "bg-transparent text-foreground hover:bg-neutral-100 active:bg-neutral-200",
       },
       size: {
         sm: "h-8 px-3 text-sm",
         md: "h-10 px-4 text-sm",
         lg: "h-11 px-5 text-base",
+        icon: "h-9 w-9",
       },
     },
     defaultVariants: {

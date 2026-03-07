@@ -18,7 +18,6 @@ export const User = () => {
     if (user) {
       const roles = getUserRoles(user);
       setUsrRoles(roles);
-      // Reset image error cuando cambia el usuario
       setImageError(false);
     }
   }, [user]);
@@ -46,7 +45,7 @@ export const User = () => {
               className="h-8 w-8 rounded-full"
               src={user.picture}
               alt={user.nickname || "User"}
-              onError={handleImageError}
+              // onError={handleImageError}
             />
           )}
         </Menu.Button>

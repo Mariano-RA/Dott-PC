@@ -1,73 +1,50 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import React, { useEffect, useMemo } from "react";
 import ProductCard from "@/app/components/ProductCard";
 import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import TableProducts from "@/app/components/TableProducts";
-import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/app/components/ui";
 import { LISTING_TAKE } from "@/app/products/shared/listingData";
-import { fetchProductsListing } from "@/app/products/shared/listingApi";
+import { useProductsListing } from "@/app/products/shared/useProductsListing";
 import ProductsToolbar from "@/app/products/shared/ProductsToolbar";
 import { ProductsGridSkeleton, ProductsTableSkeleton } from "@/app/products/shared/ProductsSkeletons";
 import ProductsErrorState from "@/app/products/shared/ProductsErrorState";
 import ProductsEmptyState from "@/app/products/shared/ProductsEmptyState";
 
 const Page = ({ params }) => {
-  const [products, setProducts] = useState([]);
-  const [sortType, setSortType] = useState("nombreAsc");
-  const [productLength, setProductLength] = useState(0);
-  const [page, setPage] = useState(1);
-  const [showLoading, setShowLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [retryKey, setRetryKey] = useState(0);
-  const [showTypeGrid, setShowTypeGrid] = useState(false);
-  const [filterProveedor, setFilterProveedor] = useState("");
-  const router = useRouter();
   const decodedKeywords = decodeURIComponent(params.keywords || "");
+  const keywordsParam = useMemo(
+    () => decodedKeywords.trim().split(/\s+/).filter(Boolean).join(","),
+    [decodedKeywords]
+  );
+
+  const {
+    products,
+    totalResults,
+    page,
+    setPage,
+    sortType,
+    filterProveedor,
+    showTypeGrid,
+    loading,
+    error,
+    activeFilters,
+    handleSortChange,
+    handleProveedorChange,
+    handleViewChange,
+    handlePagination,
+    handleRetry,
+  } = useProductsListing({
+    endpoint: "/api/nest/products/keywords",
+    extraParams: { keywords: keywordsParam },
+    errorMessage: "No pudimos cargar la busqueda. Intenta nuevamente.",
+  });
 
   useEffect(() => {
     setPage(1);
-  }, [params.keywords]);
-
-  const keywordsParam = useMemo(() => {
-    return decodedKeywords.trim().split(/\s+/).filter(Boolean).join(",");
-  }, [decodedKeywords]);
-
-  const activeFilters = useMemo(() => {
-    const filters = [];
-
-    if (filterProveedor) {
-      filters.push({
-        key: "proveedor",
-        label: `Proveedor: ${filterProveedor.toUpperCase()}`,
-        onRemove: () => {
-          setFilterProveedor("");
-          setPage(1);
-        },
-      });
-    }
-
-    return filters;
-  }, [filterProveedor]);
-
-  function handleSelectedSort(nextSortType) {
-    setPage(1);
-    setSortType(nextSortType);
-  }
-
-  function handlePagination(newPage) {
-    setPage(newPage);
-  }
-
-  function handleSelectProveedor(proveedorKey) {
-    setPage(1);
-    setFilterProveedor(proveedorKey);
-  }
-
-  function handleVisualizer(visualizerType) {
-    setShowTypeGrid(visualizerType === "grid");
-  }
+  }, [keywordsParam, setPage]);
 
   const renderProducts = () => {
     if (showTypeGrid) {
@@ -79,59 +56,8 @@ const Page = ({ params }) => {
         </div>
       );
     }
-
     return <TableProducts products={products} />;
   };
-
-  const handleClearAll = useCallback(() => {
-    router.push("/products/list");
-  }, [router]);
-
-  const handleRetry = useCallback(() => {
-    setRetryKey((current) => current + 1);
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function handleLoadProducts() {
-      setShowLoading(true);
-      setLoadError("");
-
-      try {
-        const response = await fetchProductsListing({
-          endpoint: "/api/nest/products/keywords",
-          page,
-          take: LISTING_TAKE,
-          sortType,
-          proveedor: filterProveedor,
-          extraParams: { keywords: keywordsParam },
-          signal: controller.signal,
-        });
-
-        setProducts(response.products);
-        setProductLength(response.totalResults);
-      } catch (error) {
-        if (error?.name === "AbortError") {
-          return;
-        }
-
-        setProducts([]);
-        setProductLength(0);
-        setLoadError("No pudimos cargar la busqueda. Intenta nuevamente.");
-      } finally {
-        if (!controller.signal.aborted) {
-          setShowLoading(false);
-        }
-      }
-    }
-
-    handleLoadProducts();
-
-    return () => {
-      controller.abort();
-    };
-  }, [page, sortType, filterProveedor, keywordsParam, retryKey]);
 
   return (
     <div className="container-page max-w-none py-8 md:py-10 2xl:px-10">
@@ -143,36 +69,38 @@ const Page = ({ params }) => {
               badgeLabel="Busqueda"
               title="Resultados de busqueda"
               showTypeGrid={showTypeGrid}
-              onChangeView={handleVisualizer}
+              onChangeView={handleViewChange}
               sortType={sortType}
-              onSortChange={handleSelectedSort}
+              onSortChange={handleSortChange}
               proveedor={filterProveedor}
-              onProveedorChange={handleSelectProveedor}
+              onProveedorChange={handleProveedorChange}
               activeFilters={activeFilters}
             />
 
-            {showLoading ? showTypeGrid ? <ProductsGridSkeleton /> : <ProductsTableSkeleton /> : null}
+            {loading ? (showTypeGrid ? <ProductsGridSkeleton /> : <ProductsTableSkeleton />) : null}
 
-            {!showLoading && loadError ? <ProductsErrorState message={loadError} onRetry={handleRetry} /> : null}
+            {!loading && error ? (
+              <ProductsErrorState message={error} onRetry={handleRetry} />
+            ) : null}
 
-            {!showLoading && !loadError && products.length === 0 ? (
+            {!loading && !error && products.length === 0 ? (
               <ProductsEmptyState
                 title="No hay resultados para tu busqueda"
                 description="Prueba con otros terminos o vuelve al listado completo."
               />
             ) : null}
 
-            {!showLoading && !loadError && products.length > 0 ? (
+            {!loading && !error && products.length > 0 ? (
               <div className="flex w-full flex-grow flex-wrap content-start items-start justify-evenly gap-x-[3%] px-0 md:justify-start">
                 {renderProducts()}
               </div>
             ) : null}
 
-            {!showLoading && !loadError && productLength > 0 ? (
+            {!loading && !error && totalResults > 0 ? (
               <div>
                 <Pagination
                   actualPage={page}
-                  cantItems={productLength}
+                  cantItems={totalResults}
                   itemsPerPage={LISTING_TAKE}
                   newPage={handlePagination}
                 />

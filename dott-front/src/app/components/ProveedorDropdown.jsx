@@ -1,33 +1,32 @@
+"use client";
+
 import { Fragment, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { Button, Card } from "@/app/components/ui";
-import { PROVEEDORES } from "@/app/products/shared/listingData";
+import { useProveedores } from "@/app/products/shared/useProveedores";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
 export default function ProveedorDropdown({ handleSelectProveedor, selectedKey, onChange }) {
+  const { options, isLoading } = useProveedores();
   const [internalSelectedKey, setInternalSelectedKey] = useState("");
   const activeSelectedKey = selectedKey !== undefined ? selectedKey : internalSelectedKey;
-  const selectedProveedor = PROVEEDORES.find((proveedor) => proveedor.key === activeSelectedKey) || PROVEEDORES[0];
+  const selectedProveedor = options.find((p) => p.key === activeSelectedKey) || options[0] || { key: "", value: "Proveedores" };
 
   function onSelectProveedor(proveedor) {
     setInternalSelectedKey(proveedor.key);
-    if (onChange) {
-      onChange(proveedor.key);
-    }
-    if (handleSelectProveedor) {
-      handleSelectProveedor(proveedor.key);
-    }
+    if (onChange) onChange(proveedor.key);
+    if (handleSelectProveedor) handleSelectProveedor(proveedor.key);
   }
 
   return (
     <Menu as="div" className="relative inline-block w-full text-left sm:w-[180px]">
       <div>
-        <Menu.Button as={Fragment}>
-          <Button variant="secondary" size="md" className="w-full justify-between whitespace-nowrap px-3">
+        <Menu.Button as={Fragment} disabled={isLoading}>
+          <Button variant="secondary" size="md" className="w-full justify-between whitespace-nowrap px-3" disabled={isLoading}>
             <span className="truncate text-left">{selectedProveedor.value}</span>
             <ChevronDownIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
           </Button>
@@ -45,7 +44,7 @@ export default function ProveedorDropdown({ handleSelectProveedor, selectedKey, 
       >
         <Menu.Items className="absolute right-0 z-10 mt-2 w-full origin-top-right focus:outline-none">
           <Card className="overflow-hidden py-1">
-            {PROVEEDORES.map((proveedor) => (
+            {options.map((proveedor) => (
               <Menu.Item key={proveedor.key || "all"}>
                 {({ active }) => (
                   <button
