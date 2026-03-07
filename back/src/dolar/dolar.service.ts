@@ -2,7 +2,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { DolarDto } from "./dto/dolarDto";
+import { DolarDto } from "../shared/DolarDto";
 import { Dolar } from "./entities/dolar.entity";
 import { DolarHistory } from "./entities/dolar-history.entity";
 import { DolarHistoryQueryDto } from "./dto/dolarHistoryQuery.dto";

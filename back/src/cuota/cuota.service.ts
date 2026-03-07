@@ -3,7 +3,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CuotaPlan } from "./entities/cuota-plan.entity";
-import { CuotaPlanDto } from "./dto/cuotaPlan.dto";
+import { CuotaPlanDto } from "../shared/cuotaPlan.dto";
 
 @Injectable()
 export class CuotasService {

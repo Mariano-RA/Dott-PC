@@ -1,22 +1,22 @@
 import { ForbiddenException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
 import { PermissionGuard } from "./permission.guard";
 
+function createConfigServiceMock(overrides: { NODE_ENV?: string; LOCAL_DEV_AUTH_BYPASS?: string } = {}) {
+  return {
+    get: jest.fn((key: string) => overrides[key as keyof typeof overrides] ?? null),
+  } as unknown as ConfigService;
+}
+
 describe("PermissionGuard", () => {
-  const originalNodeEnv = process.env.NODE_ENV;
-  const originalBypass = process.env.LOCAL_DEV_AUTH_BYPASS;
-
-  afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-    process.env.LOCAL_DEV_AUTH_BYPASS = originalBypass;
-  });
-
   it("allows when user has required permission", () => {
     const reflector = {
       get: jest.fn().mockReturnValue(["create:tablas"]),
     } as unknown as Reflector;
+    const configService = createConfigServiceMock({ NODE_ENV: "production" });
 
-    const guard = new PermissionGuard(reflector);
+    const guard = new PermissionGuard(reflector, configService);
     const context = {
       getArgs: () => [{ auth: { payload: { permissions: ["create:tablas"] } } }],
       getHandler: () => ({}),
@@ -29,8 +29,9 @@ describe("PermissionGuard", () => {
     const reflector = {
       get: jest.fn().mockReturnValue(["create:tablas"]),
     } as unknown as Reflector;
+    const configService = createConfigServiceMock({ NODE_ENV: "production" });
 
-    const guard = new PermissionGuard(reflector);
+    const guard = new PermissionGuard(reflector, configService);
     const context = {
       getArgs: () => [{ auth: { payload: { permissions: [] } } }],
       getHandler: () => ({}),
@@ -40,14 +41,15 @@ describe("PermissionGuard", () => {
   });
 
   it("allows with local bypass enabled", () => {
-    process.env.NODE_ENV = "development";
-    process.env.LOCAL_DEV_AUTH_BYPASS = "true";
-
     const reflector = {
       get: jest.fn().mockReturnValue(["create:tablas"]),
     } as unknown as Reflector;
+    const configService = createConfigServiceMock({
+      NODE_ENV: "development",
+      LOCAL_DEV_AUTH_BYPASS: "true",
+    });
 
-    const guard = new PermissionGuard(reflector);
+    const guard = new PermissionGuard(reflector, configService);
     const context = {
       getArgs: () => [{ auth: { payload: { permissions: [] } } }],
       getHandler: () => ({}),

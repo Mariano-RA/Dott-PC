@@ -3,6 +3,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { CuotasController } from "./cuota.controller";
 import { CuotasService } from "./cuota.service";
 import { CuotaPlan } from "./entities/cuota-plan.entity";
+import { CuotaPlanDto } from '../shared/cuotaPlan.dto';
 
 @Module({
   imports: [TypeOrmModule.forFeature([CuotaPlan])],

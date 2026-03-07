@@ -13,7 +13,7 @@ import {
 import { CuotasService } from "./cuota.service";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
 import { PermissionGuard } from "src/authTest/permission.guard";
-import { CuotaPlanDto } from "./dto/cuotaPlan.dto";
+import { CuotaPlanDto } from "../shared/cuotaPlan.dto";
 
 @Controller("cuota")
 export class CuotasController {

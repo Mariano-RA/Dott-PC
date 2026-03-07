@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DolaresService } from "src/dolar/dolar.service";
 import { Repository } from "typeorm";
@@ -6,7 +7,7 @@ import { ProductoDto } from "./dto/productoDto";
 import { Producto } from "./entities/producto.entity";
 import { CuotasService } from "src/cuota/cuota.service";
 import { valorCuotaDto } from "./dto/valorCuotaDto";
-import { createProductoDto } from "./dto/createProductDto";
+import { createProductoDto } from "../shared/createProductoDto";
 import { ListDto } from "./dto/list.dto";
 import {
   ClientProxy,
@@ -16,6 +17,7 @@ import {
 import { newTableDto } from "./dto/newTableDto";
 import { OK } from "sqlite3";
 import { ProveedorService } from "src/proveedor/proveedor.service";
+import { EnvKeys } from "../shared/config";
 
 function obtenerMargenPorCategoria(categoria: string): number {
   switch (categoria.trim().toLowerCase()) {
@@ -130,9 +132,6 @@ function getPrecioDolarOrDefault(arrayDolar, proveedorId: number) {
   return precioDolar;
 }
 
-const rabbitmq_url = process.env.RABBIT_MQ_URI;
-const rabbitmq_python_queue = process.env.RABBITMQ_PYTHON_QUEUE;
-
 @Injectable()
 export class ProductosService {
   @Inject(DolaresService) private readonly dolaresService: DolaresService;
@@ -142,13 +141,16 @@ export class ProductosService {
 
   constructor(
     @InjectRepository(Producto)
-    private readonly productoRepository: Repository<Producto>
+    private readonly productoRepository: Repository<Producto>,
+    private readonly configService: ConfigService,
   ) {
+    const rabbitmqUrl = this.configService.get<string>(EnvKeys.RABBIT_MQ_URI);
+    const pythonQueue = this.configService.get<string>(EnvKeys.RABBITMQ_PYTHON_QUEUE);
     this.client = ClientProxyFactory.create({
       transport: Transport.RMQ,
       options: {
-        urls: [rabbitmq_url],
-        queue: rabbitmq_python_queue,
+        urls: [rabbitmqUrl],
+        queue: pythonQueue,
       },
     });
   }

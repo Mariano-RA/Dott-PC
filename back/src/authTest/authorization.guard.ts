@@ -5,21 +5,23 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Request, Response } from "express";
 import {
   auth,
   InvalidTokenError,
   UnauthorizedError,
 } from "express-oauth2-jwt-bearer";
+import { EnvKeys } from "../shared/config";
 
 @Injectable()
 export class AuthorizationGuard implements CanActivate {
   private authMiddleware: any;
 
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
     this.authMiddleware = auth({
-      issuerBaseURL: process.env.ISSUER_BASE_URL,
-      audience: process.env.AUDIENCE,
+      issuerBaseURL: this.configService.get<string>(EnvKeys.ISSUER_BASE_URL),
+      audience: this.configService.get<string>(EnvKeys.AUDIENCE),
     });
   }
 
@@ -27,7 +29,8 @@ export class AuthorizationGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
     const localBypassEnabled =
-      process.env.NODE_ENV !== "production" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
+      this.configService.get<string>(EnvKeys.NODE_ENV) !== "production" &&
+      this.configService.get<string>(EnvKeys.LOCAL_DEV_AUTH_BYPASS) === "true";
 
     if (localBypassEnabled) {
       // Bypass solo para desarrollo explícito

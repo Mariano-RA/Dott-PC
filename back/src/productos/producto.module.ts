@@ -7,6 +7,7 @@ import { ProductosService } from "./producto.service";
 import { CuotasModule } from "src/cuota/cuota.module";
 import { ClientsModule, Transport } from "@nestjs/microservices";
 import { ProveedorModule } from "src/proveedor/proveedor.module";
+import { createProductoDto } from '../shared/createProductoDto';
 
 @Module({
   imports: [

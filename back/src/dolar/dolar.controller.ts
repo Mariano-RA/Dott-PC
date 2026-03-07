@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { DolaresService } from "./dolar.service";
-import { DolarDto } from "./dto/dolarDto";
+import { DolarDto } from "../shared/DolarDto";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
 import { PermissionGuard } from "src/authTest/permission.guard";
 import { DolarHistoryQueryDto } from "./dto/dolarHistoryQuery.dto";

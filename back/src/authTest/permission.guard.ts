@@ -4,14 +4,20 @@ import {
   ForbiddenException,
   Injectable,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
+import { EnvKeys } from "../shared/config";
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private readonly configService: ConfigService,
+  ) {}
   canActivate(context: ExecutionContext): boolean {
     const localBypassEnabled =
-      process.env.NODE_ENV !== "production" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
+      this.configService.get<string>(EnvKeys.NODE_ENV) !== "production" &&
+      this.configService.get<string>(EnvKeys.LOCAL_DEV_AUTH_BYPASS) === "true";
 
     if (localBypassEnabled) {
       return true;
