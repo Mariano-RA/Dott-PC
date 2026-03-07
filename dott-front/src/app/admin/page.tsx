@@ -36,6 +36,21 @@ function statusPill(status: string) {
   return "Sin cambios";
 }
 
+/** Backend puede devolver proveedor como string o como objeto { nombre }. Normaliza a string. */
+function proveedorToName(p: unknown): string {
+  if (p == null) return "";
+  if (typeof p === "string") return p.trim();
+  if (typeof p === "object" && p !== null && "nombre" in p && typeof (p as { nombre: unknown }).nombre === "string")
+    return String((p as { nombre: string }).nombre).trim();
+  return String(p).trim();
+}
+
+function capitalizeLabel(s: string): string {
+  const str = String(s ?? "").trim();
+  if (!str) return "";
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 function AdminPage() {
   const [usrRoles, setUsrRoles] = useState<string[]>([]);
   const { user, error, isLoading: userLoading } = useUser();
@@ -86,7 +101,10 @@ function AdminPage() {
   } = useAdminDolar();
 
   const providerOptions = useMemo(
-    () => Array.from(new Set(dolarRows.map((row) => row.proveedor))).sort((a, b) => a.localeCompare(b)),
+    () =>
+      Array.from(new Set(dolarRows.map((row) => proveedorToName(row.proveedor))))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
     [dolarRows]
   );
 
@@ -459,7 +477,7 @@ function AdminPage() {
                 <option value="">Proveedor</option>
                 {providerOptions.map((item) => (
                   <option key={item} value={item}>
-                    {item.charAt(0).toUpperCase() + item.slice(1)}
+                    {capitalizeLabel(item)}
                   </option>
                 ))}
               </select>
@@ -486,7 +504,7 @@ function AdminPage() {
                 <option value="">Proveedor</option>
                 {providerOptions.map((item) => (
                   <option key={item} value={item}>
-                    {item.charAt(0).toUpperCase() + item.slice(1)}
+                    {capitalizeLabel(item)}
                   </option>
                 ))}
               </select>

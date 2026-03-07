@@ -32,6 +32,15 @@ function parseNumber(value: string | number): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/** La API puede devolver proveedor como string o como objeto { nombre }. */
+function normalizeProveedorName(p: unknown): string {
+  if (p == null) return "";
+  if (typeof p === "string") return p.trim().toLowerCase();
+  if (typeof p === "object" && p !== null && "nombre" in p && typeof (p as { nombre: unknown }).nombre === "string")
+    return String((p as { nombre: string }).nombre).trim().toLowerCase();
+  return String(p).trim().toLowerCase();
+}
+
 export function useAdminDolar() {
   const [rows, setRows] = useState<DolarRow[]>([]);
   const [history, setHistory] = useState<DolarHistoryRow[]>([]);
@@ -56,7 +65,13 @@ export function useAdminDolar() {
       const jsonHistory = await resHistory.json();
       const jsonProveedores = await resProveedores.json();
 
-      const dolarRows = (jsonRows?.dolar || []) as DolarRow[];
+      const rawDolar = (jsonRows?.dolar || []) as Array<{ proveedor?: string | { nombre?: string }; precioDolar?: number; motivo?: string }>;
+      const dolarRows: DolarRow[] = rawDolar.map((row) => ({
+        proveedor: normalizeProveedorName(row.proveedor),
+        precioDolar: typeof row.precioDolar === "number" ? row.precioDolar : parseNumber(row.precioDolar ?? 0),
+        motivo: typeof row.motivo === "string" ? row.motivo : "",
+      }));
+
       const proveedores = (jsonProveedores?.proveedores || []) as ProveedorRow[];
 
       const missingRows = proveedores
@@ -64,7 +79,7 @@ export function useAdminDolar() {
         .filter(
           (item) =>
             !dolarRows.some(
-              (row) => String(row?.proveedor || "").toLowerCase() === String(item?.nombre || "").toLowerCase()
+              (row) => row.proveedor === String(item?.nombre || "").toLowerCase()
             )
         )
         .map((item) => ({
@@ -74,11 +89,22 @@ export function useAdminDolar() {
         }));
 
       const mergedRows = [...dolarRows, ...missingRows].sort((a, b) =>
-        String(a.proveedor || "").localeCompare(String(b.proveedor || ""))
+        a.proveedor.localeCompare(b.proveedor)
       );
 
       setRows(mergedRows);
-      setHistory((jsonHistory?.history || []) as DolarHistoryRow[]);
+
+      const rawHistory = (jsonHistory?.history || []) as Array<{ id: number; proveedor?: string | { nombre?: string }; precioDolar: number; fechaVigencia: string; usuario?: string | null; motivo?: string | null }>;
+      setHistory(
+        rawHistory.map((item) => ({
+          id: item.id,
+          proveedor: normalizeProveedorName(item.proveedor),
+          precioDolar: item.precioDolar,
+          fechaVigencia: item.fechaVigencia,
+          usuario: item.usuario ?? null,
+          motivo: item.motivo ?? null,
+        }))
+      );
       setStatusByProveedor({});
 
       return { ok: true };
