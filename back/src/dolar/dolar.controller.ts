@@ -31,7 +31,7 @@ export class DolaresController {
     return await this.dolaresService.findHistory(query);
   }
   
-  @Get("byproveedor/")
+  @Get("byproveedor")
   async getByProvider(@Query("proveedor") proveedor: string) {
     return await this.dolaresService.getByProvider(proveedor);
   }

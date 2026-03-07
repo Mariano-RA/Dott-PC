@@ -49,12 +49,12 @@ export class ProductosController {
     return this.productosService.findAll(skip, take, orderBy, proveedor);
   }
 
-  @Get("categorias/")
+  @Get("categorias")
   findAllCategories() {
     return this.productosService.findAllCategories();
   }
 
-  @Get("/buscarPorPalabrasClaves/")
+  @Get("buscarPorPalabrasClaves")
   findByKeyWord(
     // @Query("keywords", new ParseArrayPipe({ items: String, separator: "," }))
     @Query("keywords") keywords: string,
@@ -66,7 +66,7 @@ export class ProductosController {
     return this.productosService.findByKeyWord(keywords, skip, take, orderBy, proveedor);
   }
 
-  @Get("categoria/")
+  @Get("categoria")
   findByCategory(
     @Query("category") category: string,
     @Query("skip") skip: number,
@@ -77,7 +77,7 @@ export class ProductosController {
     return this.productosService.findByCategory(category, skip, take, orderBy, proveedor);
   }
 
-  @Get("palabrasClavesYCategoria/")
+  @Get("palabrasClavesYCategoria")
   findByKeyWordAndCategory(
     @Query("category") category: string,
     @Query("keywords", new ParseArrayPipe({ items: String, separator: "," }))
