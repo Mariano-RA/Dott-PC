@@ -185,7 +185,6 @@ export default function CalculadoraPage() {
   const paymentOptions = useMemo(() => {
     const g = config.gateways[selectedGateway];
     const plans = g?.plans?.length ? g.plans : selectedGateway === "mercadopago" ? DEFAULT_PLANS_MP : DEFAULT_PLANS_STANDARD;
-    if (selectedGateway === "mercadopago") return [{ key: "instant", label: "En el momento" }, ...plans.map((p) => ({ key: p.planKey, label: p.label }))];
     return plans.map((p) => ({ key: p.planKey, label: p.label }));
   }, [config.gateways, selectedGateway]);
 
@@ -215,40 +214,24 @@ export default function CalculadoraPage() {
 
   const calculation = useMemo(() => {
     const vatRate = rates.vat / 100;
-    let commissionRate: number;
-
     const g = config.gateways[selectedGateway];
     const costsArr = g?.costs;
     const hasCostsArray = Array.isArray(costsArr) && costsArr.length > 0;
     const sumCosts = hasCostsArray ? costsArr!.reduce((s, c) => s + c.value, 0) / 100 : 0;
 
-    if (selectedGateway === "mercadopago") {
-      const plans = g?.plans ?? DEFAULT_PLANS_MP;
-      const instantRate = hasCostsArray ? sumCosts : (g?.instantRate ?? 6.6) / 100;
-      if (selectedPaymentOption === "instant") {
-        commissionRate = instantRate;
-      } else {
-        // Mercadopago cobra costo por cobro en el momento + tasa por cuotas sin interés
-        const plan = plans.find((p) => p.planKey === selectedPaymentOption);
-        const planRate = (plan?.rate ?? 0) / 100;
-        commissionRate = instantRate + planRate;
-      }
-    } else {
-      const plans = g?.plans ?? DEFAULT_PLANS_STANDARD;
-      const plan = plans.find((p) => p.planKey === selectedPaymentOption);
-      const installmentRate = (plan?.rate ?? 0) / 100;
-      if (hasCostsArray) {
-        commissionRate = sumCosts + installmentRate;
-      } else {
-        const cardRate = rates.cardFee / 100;
-        const advanceRate = rates.advanceFee / 100;
-        const cost24hRate = rates.cost24h / 100;
-        commissionRate = installmentRate + cardRate + advanceRate + cost24hRate;
-      }
-    }
+    const plans = g?.plans?.length ? g.plans : selectedGateway === "mercadopago" ? DEFAULT_PLANS_MP : DEFAULT_PLANS_STANDARD;
+    const plan = plans.find((p) => p.planKey === selectedPaymentOption);
+    const planRate = (plan?.rate ?? 0) / 100;
 
-    // Mercadopago: Precio a publicar = Monto deseado / (1 - (Comisión A + Comisión B))
-    // Aquí (Comisión A + Comisión B) = totalDeductionRate = comisión con IVA incluido
+    const costsRate = hasCostsArray
+      ? sumCosts
+      : selectedGateway === "mercadopago"
+        ? (g?.instantRate ?? 6.6) / 100
+        : (rates.cardFee / 100) + (rates.advanceFee / 100) + (rates.cost24h / 100);
+
+    const commissionRate = costsRate + planRate;
+
+    // Misma ecuación para todos: Precio a cobrar = Monto deseado ÷ (1 − comisión total con IVA)
     const totalDeductionRate = commissionRate * (1 + vatRate);
 
     if (totalDeductionRate >= 1) {
@@ -284,7 +267,7 @@ export default function CalculadoraPage() {
 
     if (grossToCharge <= 0) return base;
 
-    // Desglose por pasarela (misma ecuación: Precio = Monto ÷ (1 − (Comisión A + Comisión B)))
+    // Desglose unificado para todos los gateways: costos/comisiones + plan de cuotas
     type CostItem = { label: string; ratePct: number; amount: number };
     type Breakdown = {
       costsLabel: string;
@@ -298,42 +281,9 @@ export default function CalculadoraPage() {
       planAmount?: number;
     };
 
-    if (selectedGateway === "mercadopago") {
-      const g = config.gateways.mercadopago;
-      const plans = g?.plans ?? DEFAULT_PLANS_MP;
-      const instantRate = hasCostsArray ? sumCosts : (g?.instantRate ?? 6.6) / 100;
-      const instantAmount = grossToCharge * instantRate * (1 + vatRate);
-      if (selectedPaymentOption === "instant") {
-        return { ...base, breakdown: { costsLabel: "Costo por cobro", costsDetail: "En el momento " + formatPercent(instantRate * 100) + " + IVA", costsRatePct: instantRate * 100, costsAmount: instantAmount } as Breakdown };
-      }
-      const plan = plans.find((p) => p.planKey === selectedPaymentOption);
-      const planRate = (plan?.rate ?? 0) / 100;
-      const planAmount = grossToCharge * planRate * (1 + vatRate);
-      const planLabel = plan?.label ?? `${selectedPaymentOption} cuotas`;
-      return {
-        ...base,
-        breakdown: {
-          costsLabel: "Costo por cobro",
-          costsDetail: "En el momento " + formatPercent(instantRate * 100) + " + IVA",
-          costsRatePct: instantRate * 100,
-          costsAmount: instantAmount,
-          planBlockLabel: "Costo por ofrecer cuotas sin interés",
-          planLabel,
-          planRatePct: planRate * 100,
-          planAmount,
-        } as Breakdown,
-      };
-    }
-
-    // Taca-taca y Payway: costos/comisiones (cada ítem) + plan de cuotas
-    const plans = g?.plans ?? DEFAULT_PLANS_STANDARD;
-    const plan = plans.find((p) => p.planKey === selectedPaymentOption);
-    const planRate = (plan?.rate ?? 0) / 100;
+    const costsAmount = grossToCharge * costsRate * (1 + vatRate);
     const planAmount = grossToCharge * planRate * (1 + vatRate);
     const planLabel = plan?.label ?? `${selectedPaymentOption} cuotas`;
-
-    const costsRate = hasCostsArray ? sumCosts : (rates.cardFee / 100) + (rates.advanceFee / 100) + (rates.cost24h / 100);
-    const costsAmount = grossToCharge * costsRate * (1 + vatRate);
 
     const costsItems: CostItem[] = hasCostsArray && costsArr!.length > 0
       ? costsArr!.map((c) => ({
@@ -341,11 +291,13 @@ export default function CalculadoraPage() {
           ratePct: c.value,
           amount: grossToCharge * (c.value / 100) * (1 + vatRate),
         }))
-      : [
-          ...(rates.cardFee ? [{ label: "Uso de tarjeta", ratePct: rates.cardFee, amount: grossToCharge * (rates.cardFee / 100) * (1 + vatRate) }] : []),
-          ...(rates.advanceFee ? [{ label: "Anticipo", ratePct: rates.advanceFee, amount: grossToCharge * (rates.advanceFee / 100) * (1 + vatRate) }] : []),
-          ...(rates.cost24h ? [{ label: "Costo por cobro a 24hs", ratePct: rates.cost24h, amount: grossToCharge * (rates.cost24h / 100) * (1 + vatRate) }] : []),
-        ].filter((x) => x.ratePct > 0);
+      : selectedGateway === "mercadopago"
+        ? [{ label: "Costo por cobro", ratePct: costsRate * 100, amount: costsAmount }]
+        : [
+            ...(rates.cardFee ? [{ label: "Uso de tarjeta", ratePct: rates.cardFee, amount: grossToCharge * (rates.cardFee / 100) * (1 + vatRate) }] : []),
+            ...(rates.advanceFee ? [{ label: "Anticipo", ratePct: rates.advanceFee, amount: grossToCharge * (rates.advanceFee / 100) * (1 + vatRate) }] : []),
+            ...(rates.cost24h ? [{ label: "Costo por cobro a 24hs", ratePct: rates.cost24h, amount: grossToCharge * (rates.cost24h / 100) * (1 + vatRate) }] : []),
+          ].filter((x) => x.ratePct > 0);
 
     return {
       ...base,
@@ -417,7 +369,7 @@ export default function CalculadoraPage() {
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">
-                {selectedGateway === "mercadopago" ? "Cobro en el momento o cuotas sin interés" : "Plan / cuotas"}
+                Plan / cuotas
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {paymentOptions.map((option) => (
@@ -438,77 +390,99 @@ export default function CalculadoraPage() {
               </div>
             </div>
 
-            <div className="space-y-4 rounded-lg border border-border p-4">
-              <h3 className="text-base font-medium text-foreground">Resultado</h3>
-              {loadingRates ? (
-                <p className="text-sm text-muted-foreground">Cargando parámetros...</p>
-              ) : calculation.totalDeductionRate >= 1 ? (
-                <p className="rounded-md border border-danger bg-danger/10 px-3 py-2 text-sm text-danger">
-                  La combinación de tasas supera el 100% de descuento total. Revisá los parámetros en Admin.
-                </p>
-              ) : (
-                <>
-                  <div className="rounded-lg bg-muted/50 p-4">
-                    <p className="text-sm text-muted-foreground">Tenés que cobrar</p>
-                    <p className="text-2xl font-semibold tracking-tight text-brand md:text-3xl">
-                      {formatCurrency(calculation.grossToCharge)}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Para recibir {formatCurrency(calculation.netReceivedAmount)} neto
-                    </p>
-                  </div>
-                  {"breakdown" in calculation && calculation.breakdown ? (
-                    <div className="space-y-4 text-sm">
-                      <div>
-                        <p className="font-medium text-foreground">{calculation.breakdown.costsLabel}</p>
-                        {calculation.breakdown.costsItems && calculation.breakdown.costsItems.length > 0 ? (
-                          <>
-                            {calculation.breakdown.costsItems.map((item, idx) => (
-                              <div key={idx} className="mt-1">
-                                <p className="text-muted-foreground">
-                                  {item.label} {formatPercent(item.ratePct)} + IVA
-                                </p>
-                                <p className="font-medium text-foreground">+ {formatCurrency(item.amount)}</p>
-                              </div>
-                            ))}
-                            {calculation.breakdown.costsItems.length > 1 && (
-                              <p className="mt-1 font-medium text-foreground">
-                                Total + {formatCurrency(calculation.breakdown.costsAmount)}
+            <div className="overflow-hidden rounded-xl border border-red-200 bg-red-50/50 shadow-sm dark:border-red-900/50 dark:bg-red-950/20">
+              <div className="border-b border-red-200 bg-red-100/80 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30">
+                <h3 className="text-base font-semibold tracking-tight text-red-950 dark:text-red-100">
+                  Resultado
+                </h3>
+              </div>
+              <div className="space-y-5 p-4">
+                {loadingRates ? (
+                  <p className="text-sm text-muted-foreground">Cargando parámetros...</p>
+                ) : calculation.totalDeductionRate >= 1 ? (
+                  <p className="rounded-lg border border-danger bg-danger/10 px-4 py-3 text-sm text-danger">
+                    La combinación de tasas supera el 100% de descuento total. Revisá los parámetros en Admin.
+                  </p>
+                ) : (
+                  <>
+                    <div className="rounded-xl border-2 border-red-200 bg-white p-5 shadow-sm dark:border-red-800/50 dark:bg-red-950/20">
+                      <p className="text-sm font-medium text-red-900/80 dark:text-red-200/90">
+                        Tenés que cobrar
+                      </p>
+                      <p className="mt-1 text-3xl font-bold tracking-tight text-red-950 dark:text-red-100 md:text-4xl">
+                        {formatCurrency(calculation.grossToCharge)}
+                      </p>
+                    </div>
+
+                    {"breakdown" in calculation && calculation.breakdown ? (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border border-red-200/80 bg-white p-4 dark:border-red-800/40 dark:bg-red-950/10">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-red-800/90 dark:text-red-300/90">
+                            {calculation.breakdown.costsLabel}
+                          </p>
+                          {calculation.breakdown.costsItems && calculation.breakdown.costsItems.length > 0 ? (
+                            <ul className="mt-2 space-y-2">
+                              {calculation.breakdown.costsItems.map((item, idx) => (
+                                <li key={idx} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-red-100 last:border-0 last:pb-0 dark:border-red-900/30">
+                                  <span className="text-sm text-muted-foreground">
+                                    {item.label} {formatPercent(item.ratePct)} + IVA
+                                  </span>
+                                  <span className="font-semibold text-red-950 dark:text-red-100">
+                                    + {formatCurrency(item.amount)}
+                                  </span>
+                                </li>
+                              ))}
+                              {calculation.breakdown.costsItems.length > 1 && (
+                                <li className="flex justify-between gap-2 pt-1 font-medium text-foreground">
+                                  <span>Total</span>
+                                  <span className="text-red-950 dark:text-red-100">
+                                    + {formatCurrency(calculation.breakdown.costsAmount)}
+                                  </span>
+                                </li>
+                              )}
+                            </ul>
+                          ) : (
+                            <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+                              <p className="text-sm text-muted-foreground">{calculation.breakdown.costsDetail}</p>
+                              <p className="font-semibold text-red-950 dark:text-red-100">
+                                + {formatCurrency(calculation.breakdown.costsAmount)}
                               </p>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-muted-foreground">{calculation.breakdown.costsDetail}</p>
-                            <p className="font-medium text-foreground">+ {formatCurrency(calculation.breakdown.costsAmount)}</p>
-                          </>
+                            </div>
+                          )}
+                        </div>
+                        {calculation.breakdown.planBlockLabel != null && calculation.breakdown.planLabel != null && (
+                          <div className="rounded-lg border border-red-200/80 bg-white p-4 dark:border-red-800/40 dark:bg-red-950/10">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-red-800/90 dark:text-red-300/90">
+                              {calculation.breakdown.planBlockLabel}
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+                              <p className="text-sm text-muted-foreground">
+                                {calculation.breakdown.planLabel} {formatPercent(calculation.breakdown.planRatePct ?? 0)} + IVA
+                              </p>
+                              <p className="font-semibold text-red-950 dark:text-red-100">
+                                + {formatCurrency(calculation.breakdown.planAmount ?? 0)}
+                              </p>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      {calculation.breakdown.planBlockLabel != null && calculation.breakdown.planLabel != null && (
-                        <div>
-                          <p className="font-medium text-foreground">{calculation.breakdown.planBlockLabel}</p>
-                          <p className="text-muted-foreground">
-                            En {calculation.breakdown.planLabel} {formatPercent(calculation.breakdown.planRatePct ?? 0)} + IVA
-                          </p>
-                          <p className="font-medium text-foreground">+ {formatCurrency(calculation.breakdown.planAmount ?? 0)}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      <p>
-                        Descuento total: {formatCurrency(calculation.totalDeductionAmount)} ({formatPercent(calculation.totalDeductionRate * 100)} con IVA)
-                      </p>
-                      <p className="mt-0.5 text-xs">
-                        Comisión {formatPercent(calculation.commissionRate * 100)} + IVA sobre comisiones
-                      </p>
-                    </div>
-                  )}
-                  <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-                    Precio a publicar = Monto deseado ÷ (1 − Comisión total con IVA)
-                  </p>
-                </>
-              )}
+                    ) : (
+                      <div className="rounded-lg border border-red-200/80 bg-white p-4 text-sm dark:border-red-800/40 dark:bg-red-950/10">
+                        <p className="text-muted-foreground">
+                          Descuento total: {formatCurrency(calculation.totalDeductionAmount)} ({formatPercent(calculation.totalDeductionRate * 100)} con IVA)
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Comisión {formatPercent(calculation.commissionRate * 100)} + IVA sobre comisiones
+                        </p>
+                      </div>
+                    )}
+
+                    <p className="rounded-md border border-red-100 bg-red-50/50 px-3 py-2 text-xs text-muted-foreground dark:border-red-900/30 dark:bg-red-950/20">
+                      Precio a publicar = Monto deseado ÷ (1 − Comisión total con IVA)
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
