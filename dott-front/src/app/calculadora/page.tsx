@@ -61,6 +61,16 @@ function parseNumber(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/** Coerce API value (number or string) to number for percentages. */
+function toNum(x: unknown): number {
+  if (typeof x === "number" && Number.isFinite(x)) return x;
+  if (typeof x === "string") {
+    const n = Number(x.replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 function formatCurrency(value: number): string {
   return value.toLocaleString("es-AR", {
     style: "currency",
@@ -97,7 +107,7 @@ export default function CalculadoraPage() {
       .map((p) => ({
         planKey: String(p.planKey),
         label: typeof p.label === "string" ? p.label : String(p.planKey),
-        rate: typeof p.rate === "number" && Number.isFinite(p.rate) ? p.rate : 0,
+        rate: toNum(p.rate),
       }))
       .filter((p) => p.planKey.trim());
   };
@@ -110,18 +120,9 @@ export default function CalculadoraPage() {
         const configJson = configRes.ok ? await configRes.json() : null;
 
         const flat = {
-          cardFee:
-            typeof configJson?.settings?.cardFee === "number"
-              ? configJson.settings.cardFee
-              : DEFAULT_RATES.cardFee,
-          advanceFee:
-            typeof configJson?.settings?.advanceFee === "number"
-              ? configJson.settings.advanceFee
-              : DEFAULT_RATES.advanceFee,
-          vat:
-            typeof configJson?.settings?.vat === "number"
-              ? configJson.settings.vat
-              : DEFAULT_RATES.vat,
+          cardFee: configJson?.settings?.cardFee != null ? toNum(configJson.settings.cardFee) : DEFAULT_RATES.cardFee,
+          advanceFee: configJson?.settings?.advanceFee != null ? toNum(configJson.settings.advanceFee) : DEFAULT_RATES.advanceFee,
+          vat: configJson?.settings?.vat != null ? toNum(configJson.settings.vat) : DEFAULT_RATES.vat,
         };
 
         const raw =
@@ -136,7 +137,7 @@ export default function CalculadoraPage() {
             .map((c) => ({
               id: String(c.id),
               label: typeof c.label === "string" ? c.label : String(c.id),
-              value: typeof c.value === "number" && Number.isFinite(c.value) ? c.value : 0,
+              value: toNum(c.value),
             }));
         };
 
@@ -145,7 +146,7 @@ export default function CalculadoraPage() {
           const obj = g as Record<string, unknown>;
           const costs = parseCosts(obj.costs);
           const plans = parsePlans(obj.plans).length ? parsePlans(obj.plans) : defaultPlans;
-          const vat = typeof obj.vat === "number" ? obj.vat : flat.vat;
+          const vat = obj.vat != null ? toNum(obj.vat) : flat.vat;
           if (costs.length > 0) return { costs, vat, plans };
           if (obj.instantRate != null) return { instantRate: Number(obj.instantRate), vat, plans };
           if (obj.cost24h != null) return { cardFee: Number(obj.cardFee ?? flat.cardFee), cost24h: Number(obj.cost24h), vat, plans };
@@ -223,11 +224,14 @@ export default function CalculadoraPage() {
 
     if (selectedGateway === "mercadopago") {
       const plans = g?.plans ?? DEFAULT_PLANS_MP;
+      const instantRate = hasCostsArray ? sumCosts : (g?.instantRate ?? 6.6) / 100;
       if (selectedPaymentOption === "instant") {
-        commissionRate = hasCostsArray ? sumCosts : ((g?.instantRate ?? 6.6) / 100);
+        commissionRate = instantRate;
       } else {
+        // Mercadopago cobra costo por cobro en el momento + tasa por cuotas sin interés
         const plan = plans.find((p) => p.planKey === selectedPaymentOption);
-        commissionRate = (plan?.rate ?? 0) / 100;
+        const planRate = (plan?.rate ?? 0) / 100;
+        commissionRate = instantRate + planRate;
       }
     } else {
       const plans = g?.plans ?? DEFAULT_PLANS_STANDARD;
@@ -243,6 +247,8 @@ export default function CalculadoraPage() {
       }
     }
 
+    // Mercadopago: Precio a publicar = Monto deseado / (1 - (Comisión A + Comisión B))
+    // Aquí (Comisión A + Comisión B) = totalDeductionRate = comisión con IVA incluido
     const totalDeductionRate = commissionRate * (1 + vatRate);
 
     if (totalDeductionRate >= 1) {
@@ -265,7 +271,7 @@ export default function CalculadoraPage() {
     const netReceivedAmount = grossToCharge - totalDeductionAmount;
     const effectiveMarkupOverNet = desiredNetAmount > 0 ? ((grossToCharge / desiredNetAmount) - 1) * 100 : 0;
 
-    return {
+    const base = {
       commissionRate,
       totalDeductionRate,
       grossToCharge,
@@ -274,6 +280,86 @@ export default function CalculadoraPage() {
       totalDeductionAmount,
       netReceivedAmount,
       effectiveMarkupOverNet,
+    };
+
+    if (grossToCharge <= 0) return base;
+
+    // Desglose por pasarela (misma ecuación: Precio = Monto ÷ (1 − (Comisión A + Comisión B)))
+    type CostItem = { label: string; ratePct: number; amount: number };
+    type Breakdown = {
+      costsLabel: string;
+      costsDetail: string;
+      costsRatePct: number;
+      costsAmount: number;
+      costsItems?: CostItem[];
+      planBlockLabel?: string;
+      planLabel?: string;
+      planRatePct?: number;
+      planAmount?: number;
+    };
+
+    if (selectedGateway === "mercadopago") {
+      const g = config.gateways.mercadopago;
+      const plans = g?.plans ?? DEFAULT_PLANS_MP;
+      const instantRate = hasCostsArray ? sumCosts : (g?.instantRate ?? 6.6) / 100;
+      const instantAmount = grossToCharge * instantRate * (1 + vatRate);
+      if (selectedPaymentOption === "instant") {
+        return { ...base, breakdown: { costsLabel: "Costo por cobro", costsDetail: "En el momento " + formatPercent(instantRate * 100) + " + IVA", costsRatePct: instantRate * 100, costsAmount: instantAmount } as Breakdown };
+      }
+      const plan = plans.find((p) => p.planKey === selectedPaymentOption);
+      const planRate = (plan?.rate ?? 0) / 100;
+      const planAmount = grossToCharge * planRate * (1 + vatRate);
+      const planLabel = plan?.label ?? `${selectedPaymentOption} cuotas`;
+      return {
+        ...base,
+        breakdown: {
+          costsLabel: "Costo por cobro",
+          costsDetail: "En el momento " + formatPercent(instantRate * 100) + " + IVA",
+          costsRatePct: instantRate * 100,
+          costsAmount: instantAmount,
+          planBlockLabel: "Costo por ofrecer cuotas sin interés",
+          planLabel,
+          planRatePct: planRate * 100,
+          planAmount,
+        } as Breakdown,
+      };
+    }
+
+    // Taca-taca y Payway: costos/comisiones (cada ítem) + plan de cuotas
+    const plans = g?.plans ?? DEFAULT_PLANS_STANDARD;
+    const plan = plans.find((p) => p.planKey === selectedPaymentOption);
+    const planRate = (plan?.rate ?? 0) / 100;
+    const planAmount = grossToCharge * planRate * (1 + vatRate);
+    const planLabel = plan?.label ?? `${selectedPaymentOption} cuotas`;
+
+    const costsRate = hasCostsArray ? sumCosts : (rates.cardFee / 100) + (rates.advanceFee / 100) + (rates.cost24h / 100);
+    const costsAmount = grossToCharge * costsRate * (1 + vatRate);
+
+    const costsItems: CostItem[] = hasCostsArray && costsArr!.length > 0
+      ? costsArr!.map((c) => ({
+          label: c.label || c.id,
+          ratePct: c.value,
+          amount: grossToCharge * (c.value / 100) * (1 + vatRate),
+        }))
+      : [
+          ...(rates.cardFee ? [{ label: "Uso de tarjeta", ratePct: rates.cardFee, amount: grossToCharge * (rates.cardFee / 100) * (1 + vatRate) }] : []),
+          ...(rates.advanceFee ? [{ label: "Anticipo", ratePct: rates.advanceFee, amount: grossToCharge * (rates.advanceFee / 100) * (1 + vatRate) }] : []),
+          ...(rates.cost24h ? [{ label: "Costo por cobro a 24hs", ratePct: rates.cost24h, amount: grossToCharge * (rates.cost24h / 100) * (1 + vatRate) }] : []),
+        ].filter((x) => x.ratePct > 0);
+
+    return {
+      ...base,
+      breakdown: {
+        costsLabel: "Costos y comisiones",
+        costsDetail: formatPercent(costsRate * 100) + " + IVA",
+        costsRatePct: costsRate * 100,
+        costsAmount,
+        costsItems: costsItems.length > 0 ? costsItems : undefined,
+        planBlockLabel: "Costo por cuotas",
+        planLabel,
+        planRatePct: planRate * 100,
+        planAmount,
+      } as Breakdown,
     };
   }, [desiredNetAmount, selectedPaymentOption, selectedGateway, config.gateways, rates]);
 
@@ -294,7 +380,7 @@ export default function CalculadoraPage() {
               comisiones, impuestos y descuentos.
             </p>
             <p className="text-xs text-muted-foreground">
-              Los parámetros de cálculo son administrados internamente por Dott PC.
+              Los parámetros de cálculo son administrados internamente por Dott PC. En Mercadopago, para cuotas sin interés se suma el costo por cobro en el momento + la tasa del plan.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -352,48 +438,77 @@ export default function CalculadoraPage() {
               </div>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-border p-4">
-              <h3 className="text-base">Resultado</h3>
-              {loadingRates ? <p className="text-sm text-muted-foreground">Cargando parámetros...</p> : null}
-              {calculation.totalDeductionRate >= 1 ? (
+            <div className="space-y-4 rounded-lg border border-border p-4">
+              <h3 className="text-base font-medium text-foreground">Resultado</h3>
+              {loadingRates ? (
+                <p className="text-sm text-muted-foreground">Cargando parámetros...</p>
+              ) : calculation.totalDeductionRate >= 1 ? (
                 <p className="rounded-md border border-danger bg-danger/10 px-3 py-2 text-sm text-danger">
                   La combinación de tasas supera el 100% de descuento total. Revisá los parámetros en Admin.
                 </p>
-              ) : null}
-              <div className="space-y-1 text-sm">
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Neto deseado</span>
-                  <span className="font-medium">{formatCurrency(desiredNetAmount)}</span>
-                </p>
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Comision total (%)</span>
-                  <span className="font-medium">{formatPercent(calculation.commissionRate * 100)}</span>
-                </p>
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Descuento total con IVA (%)</span>
-                  <span className="font-medium">{formatPercent(calculation.totalDeductionRate * 100)}</span>
-                </p>
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Comisiones ($)</span>
-                  <span className="font-medium">{formatCurrency(calculation.commissionAmount)}</span>
-                </p>
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">IVA sobre comisiones ($)</span>
-                  <span className="font-medium">{formatCurrency(calculation.vatOnCommissionAmount)}</span>
-                </p>
-                <p className="flex items-center justify-between pt-1">
-                  <span className="text-muted-foreground">Tenes que cobrar</span>
-                  <span className="text-lg font-semibold text-brand">{formatCurrency(calculation.grossToCharge)}</span>
-                </p>
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Recibis (control)</span>
-                  <span className="font-medium">{formatCurrency(calculation.netReceivedAmount)}</span>
-                </p>
-                <p className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Recargo sobre neto (%)</span>
-                  <span className="font-semibold">{formatPercent(calculation.effectiveMarkupOverNet)}</span>
-                </p>
-              </div>
+              ) : (
+                <>
+                  <div className="rounded-lg bg-muted/50 p-4">
+                    <p className="text-sm text-muted-foreground">Tenés que cobrar</p>
+                    <p className="text-2xl font-semibold tracking-tight text-brand md:text-3xl">
+                      {formatCurrency(calculation.grossToCharge)}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Para recibir {formatCurrency(calculation.netReceivedAmount)} neto
+                    </p>
+                  </div>
+                  {"breakdown" in calculation && calculation.breakdown ? (
+                    <div className="space-y-4 text-sm">
+                      <div>
+                        <p className="font-medium text-foreground">{calculation.breakdown.costsLabel}</p>
+                        {calculation.breakdown.costsItems && calculation.breakdown.costsItems.length > 0 ? (
+                          <>
+                            {calculation.breakdown.costsItems.map((item, idx) => (
+                              <div key={idx} className="mt-1">
+                                <p className="text-muted-foreground">
+                                  {item.label} {formatPercent(item.ratePct)} + IVA
+                                </p>
+                                <p className="font-medium text-foreground">+ {formatCurrency(item.amount)}</p>
+                              </div>
+                            ))}
+                            {calculation.breakdown.costsItems.length > 1 && (
+                              <p className="mt-1 font-medium text-foreground">
+                                Total + {formatCurrency(calculation.breakdown.costsAmount)}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-muted-foreground">{calculation.breakdown.costsDetail}</p>
+                            <p className="font-medium text-foreground">+ {formatCurrency(calculation.breakdown.costsAmount)}</p>
+                          </>
+                        )}
+                      </div>
+                      {calculation.breakdown.planBlockLabel != null && calculation.breakdown.planLabel != null && (
+                        <div>
+                          <p className="font-medium text-foreground">{calculation.breakdown.planBlockLabel}</p>
+                          <p className="text-muted-foreground">
+                            En {calculation.breakdown.planLabel} {formatPercent(calculation.breakdown.planRatePct ?? 0)} + IVA
+                          </p>
+                          <p className="font-medium text-foreground">+ {formatCurrency(calculation.breakdown.planAmount ?? 0)}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      <p>
+                        Descuento total: {formatCurrency(calculation.totalDeductionAmount)} ({formatPercent(calculation.totalDeductionRate * 100)} con IVA)
+                      </p>
+                      <p className="mt-0.5 text-xs">
+                        Comisión {formatPercent(calculation.commissionRate * 100)} + IVA sobre comisiones
+                      </p>
+                    </div>
+                  )}
+                  <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                    Precio a publicar = Monto deseado ÷ (1 − Comisión total con IVA)
+                  </p>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
