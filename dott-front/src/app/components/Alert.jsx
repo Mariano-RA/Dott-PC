@@ -50,7 +50,7 @@ export default function Alert({
       {/* Usamos nuestra función handleClose para el evento onClose del Dialog */}
       <Dialog
         as="div"
-        className="relative z-10"
+        className="relative z-[100]"
         initialFocus={cancelButtonRef}
         onClose={handleClose}
       >
@@ -66,7 +66,7 @@ export default function Alert({
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div className="fixed inset-0 z-[100] w-screen overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
             <Transition.Child
               as={Fragment}

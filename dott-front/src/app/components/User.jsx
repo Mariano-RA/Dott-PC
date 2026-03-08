@@ -4,6 +4,7 @@ import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import useSWR from "swr";
 import { getUserRoles } from "@/lib/auth0Roles";
+import { api } from "@/constants/routes";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -80,7 +81,7 @@ export const User = () => {
           <Menu.Item>
             {({ active }) => (
               <a
-                href="/api/auth/logout"
+                href={api.auth.logout}
                 className={classNames(
                   active ? "bg-gray-100" : "",
                   "block px-4 py-2 text-sm text-red-700"

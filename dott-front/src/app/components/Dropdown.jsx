@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import { Button, Card } from "@/app/components/ui";
+import { Button, Card } from "@/components/ui";
 import { SORT_TYPES } from "@/app/products/shared/listingData";
 
 function classNames(...classes) {

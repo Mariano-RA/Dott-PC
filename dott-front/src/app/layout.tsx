@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import { ContextProvider } from "./components/utils/global.context";
+import { ContextProvider } from "@/contexts/global.context";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 
 export default function RootLayout({

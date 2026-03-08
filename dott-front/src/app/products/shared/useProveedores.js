@@ -2,7 +2,9 @@
 
 import useSWR from "swr";
 
-const PROVEEDORES_ENDPOINT = "/api/nest/proveedores";
+import { api } from "@/constants/routes";
+
+const PROVEEDORES_ENDPOINT = api.nest.proveedores;
 
 async function fetcher(url) {
   const res = await fetch(url);

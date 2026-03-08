@@ -1,6 +1,6 @@
 import React, { memo, useContext, useMemo, useState } from "react";
 import ProductOverview from "@/app/components/ProductOverview";
-import { ContextGlobal } from "./utils/global.context";
+import { ContextGlobal } from "@/contexts/global.context";
 import {
   TrashIcon,
   ShoppingBagIcon,

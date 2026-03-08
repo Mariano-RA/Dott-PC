@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import { Button, Card } from "@/app/components/ui";
+import { Button, Card } from "@/components/ui";
 import { useProveedores } from "@/app/products/shared/useProveedores";
 
 function classNames(...classes) {

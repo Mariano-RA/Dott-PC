@@ -2,7 +2,7 @@ import React from "react";
 import { ListBulletIcon, Squares2X2Icon, XMarkIcon } from "@heroicons/react/20/solid";
 import Dropdown from "@/app/components/Dropdown";
 import ProveedorDropdown from "@/app/components/ProveedorDropdown";
-import { Badge, Button } from "@/app/components/ui";
+import { Badge, Button } from "@/components/ui";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import React from "react";
-import { Button, Card, CardContent } from "@/app/components/ui";
+import { Button, Card, CardContent } from "@/components/ui";
 
 export default function ProductsEmptyState({
   title = "No encontramos productos",

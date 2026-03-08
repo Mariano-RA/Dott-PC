@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { api } from "@/constants/routes";
 
 export type DolarRow = {
   proveedor: string;
@@ -52,13 +53,13 @@ export function useAdminDolar() {
     setLoading(true);
     try {
       const [resRows, resHistory, resProveedores] = await Promise.all([
-        fetch("/api/nest/dolar"),
-        fetch("/api/nest/dolar", {
+        fetch(api.nest.dolar),
+        fetch(api.nest.dolar, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ limit: 120 }),
         }),
-        fetch("/api/nest/proveedores"),
+        fetch(api.nest.proveedores),
       ]);
 
       const jsonRows = await resRows.json();
@@ -134,7 +135,7 @@ export function useAdminDolar() {
 
     setStatusByProveedor((prev) => ({ ...prev, [proveedor]: "saving" }));
     try {
-      const res = await fetch("/api/nest/dolar", {
+      const res = await fetch(api.nest.dolar, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,7 +176,7 @@ export function useAdminDolar() {
         usuario: "admin-local",
       }));
 
-      const res = await fetch("/api/nest/dolar", {
+      const res = await fetch(api.nest.dolar, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ arrayDolar: payload }),
@@ -201,7 +202,7 @@ export function useAdminDolar() {
         }
 
         // 1) Alta en maestro de proveedores
-        const proveedorRes = await fetch("/api/nest/proveedores", {
+        const proveedorRes = await fetch(api.nest.proveedores, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ nombre: proveedor, activo: true }),
@@ -227,7 +228,7 @@ export function useAdminDolar() {
   const deleteProvider = useCallback(async (proveedor: string) => {
     try {
       // Buscar el proveedor por nombre para obtener su id
-      const listRes = await fetch("/api/nest/proveedores");
+      const listRes = await fetch(api.nest.proveedores);
       const listJson = await listRes.json();
       if (!listRes.ok) {
         return { ok: false, message: listJson?.error || "No se pudo consultar proveedores." };
@@ -242,7 +243,7 @@ export function useAdminDolar() {
         return { ok: false, message: "Proveedor no encontrado en maestro." };
       }
 
-      const proveedorDeleteRes = await fetch("/api/nest/proveedores", {
+      const proveedorDeleteRes = await fetch(api.nest.proveedores, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: proveedorMatch.id }),
@@ -256,7 +257,7 @@ export function useAdminDolar() {
       }
 
       // Intentar limpiar tambien el valor de dolar si existiera
-      await fetch("/api/nest/dolar", {
+      await fetch(api.nest.dolar, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proveedor }),

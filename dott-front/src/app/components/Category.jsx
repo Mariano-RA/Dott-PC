@@ -3,7 +3,7 @@ import { Fragment, useContext, useEffect, useState } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import Link from "next/link";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import { ContextGlobal } from "./utils/global.context";
+import { ContextGlobal } from "@/contexts/global.context";
 
 export default function Category() {
   const [categorys, setCategorys] = useState([]);

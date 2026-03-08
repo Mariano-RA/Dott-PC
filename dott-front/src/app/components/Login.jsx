@@ -3,6 +3,7 @@ import { useUser } from "@auth0/nextjs-auth0/client";
 import React, { useState, useEffect } from "react";
 import User from "./User";
 import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import { api } from "@/constants/routes";
 
 const Login = () => {
   const { user, isLoading } = useUser();
@@ -48,7 +49,7 @@ const Login = () => {
         <a
           type="button"
           className="relative rounded-full bg-red-800 p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-red-800 cursor-pointer"
-          href="/api/auth/login"
+          href={api.auth.login}
         >
           <span className="absolute -inset-1.5" />
           <span className="sr-only">Login</span>

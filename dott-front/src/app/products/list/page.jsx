@@ -5,13 +5,14 @@ import ProductCard from "@/app/components/ProductCard";
 import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import TableProducts from "@/app/components/TableProducts";
-import { Card, CardContent } from "@/app/components/ui";
+import { Card, CardContent } from "@/components/ui";
 import { LISTING_TAKE } from "@/app/products/shared/listingData";
 import { useProductsListing } from "@/app/products/shared/useProductsListing";
 import ProductsToolbar from "@/app/products/shared/ProductsToolbar";
 import { ProductsGridSkeleton, ProductsTableSkeleton } from "@/app/products/shared/ProductsSkeletons";
 import ProductsErrorState from "@/app/products/shared/ProductsErrorState";
 import ProductsEmptyState from "@/app/products/shared/ProductsEmptyState";
+import { api } from "@/constants/routes";
 
 const Page = () => {
   const {
@@ -29,7 +30,7 @@ const Page = () => {
     handleViewChange,
     handlePagination,
     handleRetry,
-  } = useProductsListing({ endpoint: "/api/nest/products/list" });
+  } = useProductsListing({ endpoint: api.nest.products.list });
 
   const renderProducts = () => {
     if (showTypeGrid) {

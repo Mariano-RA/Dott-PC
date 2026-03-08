@@ -5,9 +5,10 @@ import ProductCard from "@/app/components/ProductCard";
 import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
 import TableProducts from "@/app/components/TableProducts";
-import { Card, CardContent } from "@/app/components/ui";
+import { Card, CardContent } from "@/components/ui";
 import { LISTING_TAKE } from "@/app/products/shared/listingData";
 import { useProductsListing } from "@/app/products/shared/useProductsListing";
+import { api } from "@/constants/routes";
 import ProductsToolbar from "@/app/products/shared/ProductsToolbar";
 import { ProductsGridSkeleton, ProductsTableSkeleton } from "@/app/products/shared/ProductsSkeletons";
 import ProductsErrorState from "@/app/products/shared/ProductsErrorState";
@@ -33,7 +34,7 @@ const Page = ({ params }) => {
     handlePagination,
     handleRetry,
   } = useProductsListing({
-    endpoint: "/api/nest/products/category",
+    endpoint: api.nest.products.category,
     extraParams: { category: params.id },
     errorMessage: "No pudimos cargar esta categoria. Intenta nuevamente.",
   });

@@ -23,7 +23,7 @@
 : sidebar categorias (desktop).
 
 ## Estado global y dependencias transversales
-- `src/app/components/utils/global.context.jsx`
+- `src/contexts/global.context.jsx`
 : categorias, carrito, y estado compartido.
 - `@auth0/nextjs-auth0/client`
 : rol admin para mostrar columna proveedor en tabla.

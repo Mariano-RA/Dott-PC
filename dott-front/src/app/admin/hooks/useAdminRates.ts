@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { api } from "@/constants/routes";
 
 export type PlanRate = {
   id?: number;
@@ -30,7 +31,7 @@ export function useAdminRates() {
   const fetchRates = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/nest/quote", {
+      const res = await fetch(api.nest.quote, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: false }),
@@ -69,7 +70,7 @@ export function useAdminRates() {
       const payload = {
         plans: [target],
       };
-      const res = await fetch("/api/nest/quote", {
+      const res = await fetch(api.nest.quote, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -95,7 +96,7 @@ export function useAdminRates() {
     }
 
     try {
-      const res = await fetch("/api/nest/quote", {
+      const res = await fetch(api.nest.quote, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plans: dirtyRows }),
@@ -124,7 +125,7 @@ export function useAdminRates() {
         plans: [input],
       };
 
-      const res = await fetch("/api/nest/quote", {
+      const res = await fetch(api.nest.quote, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -143,7 +144,7 @@ export function useAdminRates() {
 
   const deleteRate = useCallback(async (planKey: string) => {
     try {
-      const res = await fetch("/api/nest/quote", {
+      const res = await fetch(api.nest.quote, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planKey }),

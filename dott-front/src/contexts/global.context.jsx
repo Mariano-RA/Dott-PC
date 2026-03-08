@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useReducer, useMemo, useEffect } from "react";
 import { isValidCartItems } from "@/lib/cart-types";
+import { api } from "@/constants/routes";
 
 export const initialState = {
   productCart: [],
@@ -37,7 +38,7 @@ function reducer(state, action) {
       };
 
     case "set_state":
-      return action.state; // Para inicializar el estado desde el Local Storage
+      return action.state;
     default:
       return state;
   }
@@ -70,7 +71,7 @@ export const ContextProvider = ({ children }) => {
 
   useEffect(() => {
     const getCategorys = async () => {
-      const resVal = await fetch("/api/nest/categorys");
+      const resVal = await fetch(api.nest.categorys);
       const { categorys } = await resVal.json();
       dispatch({ type: "set_categorys", payload: categorys });
     };

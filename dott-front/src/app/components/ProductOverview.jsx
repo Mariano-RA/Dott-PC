@@ -2,7 +2,7 @@
 import { Fragment, useContext, useEffect, useMemo, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { ContextGlobal } from "./utils/global.context";
+import { ContextGlobal } from "@/contexts/global.context";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { getUserRoles } from "@/lib/auth0Roles";
 

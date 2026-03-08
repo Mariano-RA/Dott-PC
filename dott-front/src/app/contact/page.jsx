@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Button, Card, CardContent, Input } from "@/app/components/ui";
+import { Button, Card, CardContent, Input } from "@/components/ui";
 
 const page = () => {
   return (

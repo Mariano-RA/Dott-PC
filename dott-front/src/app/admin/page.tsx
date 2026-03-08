@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { useRouter } from "next/navigation";
 import Alert from "../components/Alert";
-import { Badge, Button, Card, CardContent, Input } from "@/app/components/ui";
+import { Badge, Button, Card, CardContent, Input } from "@/components/ui";
 import { useAdminDolar } from "./hooks/useAdminDolar";
 import { getUserRoles } from "@/lib/auth0Roles";
+import { api } from "@/constants/routes";
 
 const IS_LOCAL_AUTH_BYPASS = process.env.NEXT_PUBLIC_LOCAL_DEV_AUTH_BYPASS === "true";
 
@@ -256,7 +257,7 @@ function AdminPage() {
   useEffect(() => {
     const fetchCalculatorConfig = async () => {
       try {
-        const res = await fetch("/api/nest/calculator-config");
+        const res = await fetch(api.nest.calculatorConfig);
         const json = await res.json();
         if (!res.ok) {
           return;
@@ -303,7 +304,7 @@ function AdminPage() {
 
     try {
       const base64String = await fileToBase64Async(uploadFile);
-      const res = await fetch("/api/nest/products/list", {
+      const res = await fetch(api.nest.products.list, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -334,7 +335,7 @@ function AdminPage() {
     }
 
     try {
-      const res = await fetch("/api/nest/products/list", {
+      const res = await fetch(api.nest.products.list, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proveedor: providerToDelete }),
@@ -445,7 +446,7 @@ function AdminPage() {
 
     setSavingCalculatorConfig(true);
     try {
-      const res = await fetch("/api/nest/calculator-config", {
+      const res = await fetch(api.nest.calculatorConfig, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

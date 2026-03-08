@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Card, CardContent } from "@/app/components/ui";
+import { Button, Card, CardContent } from "@/components/ui";
 
 export default function ProductsErrorState({
   message = "No pudimos cargar los productos. Intenta nuevamente.",

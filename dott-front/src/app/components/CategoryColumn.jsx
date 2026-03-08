@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import { usePathname } from "next/navigation";
-import { ContextGlobal } from "./utils/global.context";
+import { ContextGlobal } from "@/contexts/global.context";
 
 export default function CategoryColumn() {
   const [categorys, setCategorys] = useState([]);

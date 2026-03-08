@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { ContextGlobal } from "./utils/global.context";
+import { ContextGlobal } from "@/contexts/global.context";
 import Quantity from "./Quantity";
 
 const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
