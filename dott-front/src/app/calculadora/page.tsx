@@ -3,31 +3,53 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, CardContent, CardHeader, Input } from "@/app/components/ui";
 
-const PAYMENT_OPTIONS = [
-  { key: "3", label: "3 cuotas" },
-  { key: "6", label: "6 cuotas" },
-  { key: "planZ", label: "Plan Z" },
+const GATEWAY_OPTIONS = [
+  { key: "tacataca", label: "Taca-taca" },
+  { key: "payway", label: "Payway" },
+  { key: "mercadopago", label: "Mercadopago" },
 ] as const;
+
+type GatewayKey = (typeof GATEWAY_OPTIONS)[number]["key"];
 
 const DEFAULT_RATES = {
   cardFee: 1.8,
   advanceFee: 6,
   vat: 21,
-  installmentFees: {
-    "3": 7.78,
-    "6": 14.96,
-    planZ: 13.4,
-  },
 };
 
-type PaymentOptionKey = (typeof PAYMENT_OPTIONS)[number]["key"];
+type GatewayPlan = { planKey: string; label: string; rate: number };
 
 type Rates = {
   cardFee: number;
   advanceFee: number;
+  cost24h: number;
   vat: number;
-  installmentFees: Record<PaymentOptionKey, number>;
 };
+
+/** Config unificada: costos editables (array) + IVA + planes. También soporta forma legacy (cardFee, advanceFee, etc.). */
+type GatewayConfigCalc = {
+  costs?: { id: string; label: string; value: number }[];
+  vat: number;
+  plans?: GatewayPlan[];
+  cardFee?: number;
+  advanceFee?: number;
+  cost24h?: number;
+  instantRate?: number;
+};
+
+const DEFAULT_PLANS_STANDARD: GatewayPlan[] = [
+  { planKey: "3", label: "3 cuotas", rate: 7.78 },
+  { planKey: "6", label: "6 cuotas", rate: 14.96 },
+  { planKey: "planZ", label: "Plan Z", rate: 13.4 },
+];
+
+const DEFAULT_PLANS_MP: GatewayPlan[] = [
+  { planKey: "2", label: "2 cuotas", rate: 6.1 },
+  { planKey: "3", label: "3 cuotas", rate: 7.78 },
+  { planKey: "6", label: "6 cuotas", rate: 14.96 },
+  { planKey: "9", label: "9 cuotas", rate: 12 },
+  { planKey: "12", label: "12 cuotas", rate: 15 },
+];
 
 function parseNumber(value: string): number {
   if (!value) {
@@ -57,28 +79,37 @@ function formatPercent(value: number): string {
 
 export default function CalculadoraPage() {
   const [netAmountInput, setNetAmountInput] = useState("100");
-  const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOptionKey>("3");
-  const [rates, setRates] = useState<Rates>(DEFAULT_RATES);
+  const [selectedPaymentOption, setSelectedPaymentOption] = useState<string>("3");
+  const [selectedGateway, setSelectedGateway] = useState<GatewayKey>("tacataca");
+  const [config, setConfig] = useState<{
+    flat: { cardFee: number; advanceFee: number; vat: number };
+    gateways: Record<string, GatewayConfigCalc>;
+  }>({
+    flat: { cardFee: DEFAULT_RATES.cardFee, advanceFee: DEFAULT_RATES.advanceFee, vat: DEFAULT_RATES.vat },
+    gateways: {},
+  });
   const [loadingRates, setLoadingRates] = useState(true);
+
+  const parsePlans = (arr: unknown): GatewayPlan[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((p) => p && typeof p.planKey === "string")
+      .map((p) => ({
+        planKey: String(p.planKey),
+        label: typeof p.label === "string" ? p.label : String(p.planKey),
+        rate: typeof p.rate === "number" && Number.isFinite(p.rate) ? p.rate : 0,
+      }))
+      .filter((p) => p.planKey.trim());
+  };
 
   useEffect(() => {
     const fetchRatesFromBackend = async () => {
       setLoadingRates(true);
       try {
-        const [plansRes, configRes] = await Promise.all([
-          fetch("/api/nest/quote", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ active: true }),
-          }),
-          fetch("/api/nest/calculator-config"),
-        ]);
-
-        const plansJson = plansRes.ok ? await plansRes.json() : null;
+        const configRes = await fetch("/api/nest/calculator-config");
         const configJson = configRes.ok ? await configRes.json() : null;
 
-        const nextRates: Rates = {
-          ...DEFAULT_RATES,
+        const flat = {
           cardFee:
             typeof configJson?.settings?.cardFee === "number"
               ? configJson.settings.cardFee
@@ -91,23 +122,57 @@ export default function CalculadoraPage() {
             typeof configJson?.settings?.vat === "number"
               ? configJson.settings.vat
               : DEFAULT_RATES.vat,
-          installmentFees: { ...DEFAULT_RATES.installmentFees },
         };
 
-        const plans = Array.isArray(plansJson?.plans)
-          ? (plansJson.plans as Array<{ planKey: string; tasa: number }>)
-          : [];
+        const raw =
+          configJson?.settings?.gateways && typeof configJson.settings.gateways === "object"
+            ? configJson.settings.gateways
+            : {};
 
-        plans.forEach((plan) => {
-          const key = String(plan.planKey) as PaymentOptionKey;
-          if (key in nextRates.installmentFees && typeof plan.tasa === "number") {
-            nextRates.installmentFees[key] = plan.tasa;
-          }
-        });
+        const parseCosts = (arr: unknown): { id: string; label: string; value: number }[] => {
+          if (!Array.isArray(arr)) return [];
+          return arr
+            .filter((c) => c && typeof c.id === "string")
+            .map((c) => ({
+              id: String(c.id),
+              label: typeof c.label === "string" ? c.label : String(c.id),
+              value: typeof c.value === "number" && Number.isFinite(c.value) ? c.value : 0,
+            }));
+        };
 
-        setRates(nextRates);
+        const buildGateway = (g: unknown, defaultPlans: GatewayPlan[]): GatewayConfigCalc => {
+          if (!g || typeof g !== "object") return { vat: flat.vat, plans: defaultPlans };
+          const obj = g as Record<string, unknown>;
+          const costs = parseCosts(obj.costs);
+          const plans = parsePlans(obj.plans).length ? parsePlans(obj.plans) : defaultPlans;
+          const vat = typeof obj.vat === "number" ? obj.vat : flat.vat;
+          if (costs.length > 0) return { costs, vat, plans };
+          if (obj.instantRate != null) return { instantRate: Number(obj.instantRate), vat, plans };
+          if (obj.cost24h != null) return { cardFee: Number(obj.cardFee ?? flat.cardFee), cost24h: Number(obj.cost24h), vat, plans };
+          return { cardFee: Number(obj.cardFee ?? flat.cardFee), advanceFee: Number(obj.advanceFee ?? flat.advanceFee), vat, plans };
+        };
+
+        const gateways: Record<string, GatewayConfigCalc> = {};
+        if (raw.tacataca) gateways.tacataca = buildGateway(raw.tacataca, DEFAULT_PLANS_STANDARD);
+        if (raw.payway) gateways.payway = buildGateway(raw.payway, DEFAULT_PLANS_STANDARD);
+        if (raw.mercadopago) {
+          const mp = raw.mercadopago as { plans?: unknown; installmentRates?: Record<string, number> };
+          const plansFromApi = parsePlans(mp.plans);
+          const plans =
+            plansFromApi.length > 0
+              ? plansFromApi
+              : mp.installmentRates
+                ? Object.entries(mp.installmentRates).map(([k, v]) => ({ planKey: k, label: k === "planZ" ? "Plan Z" : `${k} cuotas`, rate: Number(v) }))
+                : DEFAULT_PLANS_MP;
+          gateways.mercadopago = buildGateway(raw.mercadopago, plans);
+        }
+
+        setConfig({ flat, gateways });
       } catch {
-        setRates(DEFAULT_RATES);
+        setConfig({
+          flat: { cardFee: DEFAULT_RATES.cardFee, advanceFee: DEFAULT_RATES.advanceFee, vat: DEFAULT_RATES.vat },
+          gateways: {},
+        });
       } finally {
         setLoadingRates(false);
       }
@@ -116,15 +181,68 @@ export default function CalculadoraPage() {
     fetchRatesFromBackend();
   }, []);
 
+  const paymentOptions = useMemo(() => {
+    const g = config.gateways[selectedGateway];
+    const plans = g?.plans?.length ? g.plans : selectedGateway === "mercadopago" ? DEFAULT_PLANS_MP : DEFAULT_PLANS_STANDARD;
+    if (selectedGateway === "mercadopago") return [{ key: "instant", label: "En el momento" }, ...plans.map((p) => ({ key: p.planKey, label: p.label }))];
+    return plans.map((p) => ({ key: p.planKey, label: p.label }));
+  }, [config.gateways, selectedGateway]);
+
+  useEffect(() => {
+    const validKeys = paymentOptions.map((o) => o.key);
+    if (!validKeys.includes(selectedPaymentOption)) {
+      setSelectedPaymentOption(validKeys[0] ?? "3");
+    }
+  }, [selectedGateway, paymentOptions, selectedPaymentOption]);
+
+  const rates: Rates = useMemo(() => {
+    const g = config.gateways[selectedGateway];
+    const vat = g?.vat ?? config.flat.vat;
+    if (g?.costs?.length) {
+      const sum = g.costs.reduce((s, c) => s + c.value, 0);
+      return { cardFee: sum, advanceFee: 0, cost24h: 0, vat };
+    }
+    return {
+      cardFee: g?.cardFee ?? config.flat.cardFee,
+      advanceFee: g?.advanceFee ?? config.flat.advanceFee,
+      cost24h: g?.cost24h ?? 0,
+      vat,
+    };
+  }, [config, selectedGateway]);
+
   const desiredNetAmount = useMemo(() => parseNumber(netAmountInput), [netAmountInput]);
 
   const calculation = useMemo(() => {
-    const installmentRate = rates.installmentFees[selectedPaymentOption] / 100;
-    const cardRate = rates.cardFee / 100;
-    const advanceRate = rates.advanceFee / 100;
     const vatRate = rates.vat / 100;
+    let commissionRate: number;
 
-    const commissionRate = installmentRate + cardRate + advanceRate;
+    const g = config.gateways[selectedGateway];
+    const costsArr = g?.costs;
+    const hasCostsArray = Array.isArray(costsArr) && costsArr.length > 0;
+    const sumCosts = hasCostsArray ? costsArr!.reduce((s, c) => s + c.value, 0) / 100 : 0;
+
+    if (selectedGateway === "mercadopago") {
+      const plans = g?.plans ?? DEFAULT_PLANS_MP;
+      if (selectedPaymentOption === "instant") {
+        commissionRate = hasCostsArray ? sumCosts : ((g?.instantRate ?? 6.6) / 100);
+      } else {
+        const plan = plans.find((p) => p.planKey === selectedPaymentOption);
+        commissionRate = (plan?.rate ?? 0) / 100;
+      }
+    } else {
+      const plans = g?.plans ?? DEFAULT_PLANS_STANDARD;
+      const plan = plans.find((p) => p.planKey === selectedPaymentOption);
+      const installmentRate = (plan?.rate ?? 0) / 100;
+      if (hasCostsArray) {
+        commissionRate = sumCosts + installmentRate;
+      } else {
+        const cardRate = rates.cardFee / 100;
+        const advanceRate = rates.advanceFee / 100;
+        const cost24hRate = rates.cost24h / 100;
+        commissionRate = installmentRate + cardRate + advanceRate + cost24hRate;
+      }
+    }
+
     const totalDeductionRate = commissionRate * (1 + vatRate);
 
     if (totalDeductionRate >= 1) {
@@ -157,7 +275,7 @@ export default function CalculadoraPage() {
       netReceivedAmount,
       effectiveMarkupOverNet,
     };
-  }, [desiredNetAmount, selectedPaymentOption, rates]);
+  }, [desiredNetAmount, selectedPaymentOption, selectedGateway, config.gateways, rates]);
 
   return (
     <main className="container-page py-10 md:py-14">
@@ -191,9 +309,32 @@ export default function CalculadoraPage() {
             />
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Plan / cuotas</p>
+              <p className="text-sm font-medium text-foreground">Pasarela de pago</p>
               <div className="grid grid-cols-3 gap-2">
-                {PAYMENT_OPTIONS.map((option) => (
+                {GATEWAY_OPTIONS.map((option) => (
+                  <Button
+                    key={option.key}
+                    type="button"
+                    variant="secondary"
+                    className={
+                      selectedGateway === option.key
+                        ? "border-red-950 bg-red-950 text-white hover:bg-red-900 hover:text-white"
+                        : "border-red-300 bg-white text-red-950 hover:bg-red-50"
+                    }
+                    onClick={() => setSelectedGateway(option.key)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">
+                {selectedGateway === "mercadopago" ? "Cobro en el momento o cuotas sin interés" : "Plan / cuotas"}
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {paymentOptions.map((option) => (
                   <Button
                     key={option.key}
                     type="button"

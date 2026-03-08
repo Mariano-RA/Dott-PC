@@ -5,7 +5,6 @@ import { useUser } from "@auth0/nextjs-auth0/client";
 import { useRouter } from "next/navigation";
 import Alert from "../components/Alert";
 import { Badge, Button, Card, CardContent, Input } from "@/app/components/ui";
-import { useAdminRates } from "./hooks/useAdminRates";
 import { useAdminDolar } from "./hooks/useAdminDolar";
 import { getUserRoles } from "@/lib/auth0Roles";
 
@@ -61,29 +60,126 @@ function AdminPage() {
   const [providerToDelete, setProviderToDelete] = useState("");
   const [newProviderName, setNewProviderName] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [newPlanKey, setNewPlanKey] = useState("");
-  const [newPlanLabel, setNewPlanLabel] = useState("");
-  const [newPlanRate, setNewPlanRate] = useState("");
-  const [newPlanOrder, setNewPlanOrder] = useState("");
-  const [newPlanActive, setNewPlanActive] = useState(true);
-  const [calculatorConfig, setCalculatorConfig] = useState({
+  const GATEWAY_KEYS = ["tacataca", "payway", "mercadopago"] as const;
+
+  type GatewayPlan = { planKey: string; label: string; rate: string };
+  type GatewayCost = { id: string; label: string; value: string };
+  type GatewayConfig = { costs: GatewayCost[]; vat: string; plans: GatewayPlan[] };
+
+  const defaultPlansStandard: GatewayPlan[] = [
+    { planKey: "3", label: "3 cuotas", rate: "7.78" },
+    { planKey: "6", label: "6 cuotas", rate: "14.96" },
+    { planKey: "planZ", label: "Plan Z", rate: "13.4" },
+  ];
+  const defaultPlansMercadopago: GatewayPlan[] = [
+    { planKey: "2", label: "2 cuotas", rate: "6.1" },
+    { planKey: "3", label: "3 cuotas", rate: "7.78" },
+    { planKey: "6", label: "6 cuotas", rate: "14.96" },
+    { planKey: "9", label: "9 cuotas", rate: "12" },
+    { planKey: "12", label: "12 cuotas", rate: "15" },
+  ];
+
+  const defaultCostsTacataca: GatewayCost[] = [
+    { id: "cardFee", label: "Uso de tarjeta", value: "1.8" },
+    { id: "advanceFee", label: "Anticipo", value: "6" },
+  ];
+  const defaultCostsPayway: GatewayCost[] = [
+    { id: "cardFee", label: "Uso de tarjeta de crédito", value: "1.8" },
+    { id: "cost24h", label: "Costo por cobro a 24hs", value: "0" },
+  ];
+  const defaultCostsMercadopago: GatewayCost[] = [
+    { id: "instantRate", label: "Costo por cobro en el momento", value: "6.6" },
+  ];
+
+  const defaultGateway = (costs: GatewayCost[], plans: GatewayPlan[]): GatewayConfig => ({
+    costs: [...costs],
+    vat: "21",
+    plans: [...plans],
+  });
+
+  const parsePlansForFetch = (arr: unknown): GatewayPlan[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((p) => p && typeof p.planKey === "string")
+      .map((p) => ({
+        planKey: String(p.planKey),
+        label: typeof p.label === "string" ? p.label : String(p.planKey),
+        rate: String(typeof p.rate === "number" ? p.rate : p.rate ?? "0"),
+      }));
+  };
+
+  const parseCostsForFetch = (arr: unknown): GatewayCost[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((c) => c && typeof c.id === "string")
+      .map((c) => ({
+        id: String(c.id),
+        label: typeof c.label === "string" ? c.label : String(c.id),
+        value: String(typeof c.value === "number" ? c.value : c.value ?? "0"),
+      }));
+  };
+
+  const buildGatewayFromRaw = (
+    g: unknown,
+    defaultCosts: GatewayCost[],
+    defaultPlans: GatewayPlan[]
+  ): GatewayConfig => {
+    if (!g || typeof g !== "object") return defaultGateway(defaultCosts, defaultPlans);
+    const obj = g as Record<string, unknown>;
+    const costsFromApi = parseCostsForFetch(obj.costs);
+    const plansFromApi = parsePlansForFetch(obj.plans);
+    const vat = obj.vat != null ? String(obj.vat) : "21";
+
+    if (costsFromApi.length > 0) {
+      return { costs: costsFromApi, vat, plans: plansFromApi.length > 0 ? plansFromApi : defaultPlans };
+    }
+
+    if (obj.instantRate != null) {
+      return {
+        costs: [{ id: "instantRate", label: "Costo por cobro en el momento", value: String(obj.instantRate) }],
+        vat,
+        plans: plansFromApi.length > 0 ? plansFromApi : defaultPlansMercadopago,
+      };
+    }
+    if (obj.cost24h != null) {
+      return {
+        costs: [
+          { id: "cardFee", label: "Uso de tarjeta de crédito", value: String(obj.cardFee ?? "1.8") },
+          { id: "cost24h", label: "Costo por cobro a 24hs", value: String(obj.cost24h) },
+        ],
+        vat,
+        plans: plansFromApi.length > 0 ? plansFromApi : defaultPlansStandard,
+      };
+    }
+    if (obj.advanceFee != null || obj.cardFee != null) {
+      return {
+        costs: [
+          { id: "cardFee", label: "Uso de tarjeta", value: String(obj.cardFee ?? "1.8") },
+          { id: "advanceFee", label: "Anticipo", value: String(obj.advanceFee ?? "6") },
+        ],
+        vat,
+        plans: plansFromApi.length > 0 ? plansFromApi : defaultPlansStandard,
+      };
+    }
+    return defaultGateway(defaultCosts, defaultPlans);
+  };
+
+  const [calculatorConfig, setCalculatorConfig] = useState<{
+    cardFee: string;
+    advanceFee: string;
+    vat: string;
+    gateways: Record<string, GatewayConfig>;
+  }>({
     cardFee: "1.8",
     advanceFee: "6",
     vat: "21",
+    gateways: {
+      tacataca: defaultGateway(defaultCostsTacataca, defaultPlansStandard),
+      payway: defaultGateway(defaultCostsPayway, defaultPlansStandard),
+      mercadopago: defaultGateway(defaultCostsMercadopago, defaultPlansMercadopago),
+    },
   });
   const [savingCalculatorConfig, setSavingCalculatorConfig] = useState(false);
-
-  const {
-    rates,
-    loading: loadingRates,
-    statusByKey,
-    fetchRates,
-    updateRate,
-    saveRate,
-    saveAllRates,
-    createRate,
-    deleteRate,
-  } = useAdminRates();
 
   const {
     rows: dolarRows,
@@ -107,6 +203,9 @@ function AdminPage() {
         .sort((a, b) => a.localeCompare(b)),
     [dolarRows]
   );
+
+  const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar">("proveedores");
+  const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<"tacataca" | "payway" | "mercadopago">("tacataca");
 
   const [alerta, setAlerta] = useState({
     show: false,
@@ -151,9 +250,8 @@ function AdminPage() {
   }, [isAuthorized, router]);
 
   useEffect(() => {
-    fetchRates();
     fetchDolar();
-  }, [fetchRates, fetchDolar]);
+  }, [fetchDolar]);
 
   useEffect(() => {
     const fetchCalculatorConfig = async () => {
@@ -164,11 +262,19 @@ function AdminPage() {
           return;
         }
 
-        setCalculatorConfig({
+        const flat = {
           cardFee: String(json?.settings?.cardFee ?? "1.8"),
           advanceFee: String(json?.settings?.advanceFee ?? "6"),
           vat: String(json?.settings?.vat ?? "21"),
-        });
+        };
+        const raw = json?.settings?.gateways;
+
+        const gateways: Record<string, GatewayConfig> = {
+          tacataca: buildGatewayFromRaw(raw?.tacataca, defaultCostsTacataca, defaultPlansStandard),
+          payway: buildGatewayFromRaw(raw?.payway, defaultCostsPayway, defaultPlansStandard),
+          mercadopago: buildGatewayFromRaw(raw?.mercadopago, defaultCostsMercadopago, defaultPlansMercadopago),
+        };
+        setCalculatorConfig({ ...flat, gateways });
       } catch {
         // Keep defaults if API is unavailable.
       }
@@ -177,7 +283,7 @@ function AdminPage() {
     fetchCalculatorConfig();
   }, []);
 
-  const isLoading = loadingRates || loadingDolar;
+  const isLoading = loadingDolar;
 
   const onChangeFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
@@ -284,71 +390,6 @@ function AdminPage() {
     setAlerta({ show: true, type: "success", message: `Proveedor ${providerToDelete} eliminado del maestro.` });
   };
 
-  const savePlanRow = async (planKey: string) => {
-    const result = await saveRate(planKey);
-    if (!result.ok) {
-      setAlerta({ show: true, type: "error", message: result.message || "No se pudo guardar plan." });
-      return;
-    }
-    setAlerta({ show: true, type: "success", message: `Plan ${planKey} guardado.` });
-  };
-
-  const saveAllPlans = async () => {
-    const result = await saveAllRates();
-    setAlerta({
-      show: true,
-      type: result.ok ? "success" : "error",
-      message: result.message || (result.ok ? "Planes guardados." : "No se pudieron guardar los planes."),
-    });
-  };
-
-  const handleCreatePlan = async () => {
-    const planKey = newPlanKey.trim();
-    const label = newPlanLabel.trim();
-    const tasa = Number(newPlanRate.replace(",", "."));
-    const orden = Number(newPlanOrder || "0");
-
-    if (!planKey || !label) {
-      setAlerta({ show: true, type: "error", message: "Completá clave y nombre del plan." });
-      return;
-    }
-
-    if (!Number.isFinite(tasa) || tasa < 0) {
-      setAlerta({ show: true, type: "error", message: "Ingresá una tasa válida." });
-      return;
-    }
-
-    const result = await createRate({
-      planKey,
-      label,
-      tasa,
-      orden: Number.isFinite(orden) ? orden : 0,
-      activo: newPlanActive,
-    });
-
-    if (!result.ok) {
-      setAlerta({ show: true, type: "error", message: result.message || "No se pudo crear plan." });
-      return;
-    }
-
-    setNewPlanKey("");
-    setNewPlanLabel("");
-    setNewPlanRate("");
-    setNewPlanOrder("");
-    setNewPlanActive(true);
-    setAlerta({ show: true, type: "success", message: "Plan creado." });
-  };
-
-  const handleDeletePlan = async (planKey: string) => {
-    const result = await deleteRate(planKey);
-    if (!result.ok) {
-      setAlerta({ show: true, type: "error", message: result.message || "No se pudo borrar plan." });
-      return;
-    }
-
-    setAlerta({ show: true, type: "success", message: `Plan ${planKey} eliminado.` });
-  };
-
   const saveDolarRow = async (proveedor: string) => {
     const result = await saveRow(proveedor);
     if (!result.ok) {
@@ -368,20 +409,39 @@ function AdminPage() {
   };
 
   const handleSaveCalculatorConfig = async () => {
-    const payload = {
-      cardFee: Number(calculatorConfig.cardFee.replace(",", ".")),
-      advanceFee: Number(calculatorConfig.advanceFee.replace(",", ".")),
-      vat: Number(calculatorConfig.vat.replace(",", ".")),
-    };
-
-    if (
-      !Number.isFinite(payload.cardFee) ||
-      !Number.isFinite(payload.advanceFee) ||
-      !Number.isFinite(payload.vat)
-    ) {
-      setAlerta({ show: true, type: "error", message: "Ingresá valores numéricos válidos para la calculadora." });
-      return;
+    const toNum = (s: string) => Number(String(s).replace(",", "."));
+    const gatewaysPayload: Record<string, { costs: { id: string; label: string; value: number }[]; vat: number; plans: { planKey: string; label: string; rate: number }[] }> = {};
+    for (const key of GATEWAY_KEYS) {
+      const g = calculatorConfig.gateways[key];
+      if (!g) continue;
+      const costsPayload = (g.costs ?? [])
+        .filter((c) => String(c.id).trim())
+        .map((c) => ({ id: c.id.trim(), label: (c.label || c.id).trim(), value: toNum(c.value) }));
+      const vat = toNum(g.vat);
+      if (!Number.isFinite(vat)) {
+        setAlerta({ show: true, type: "error", message: `Pasarela "${key}": IVA inválido.` });
+        return;
+      }
+      if (costsPayload.some((c) => !Number.isFinite(c.value))) {
+        setAlerta({ show: true, type: "error", message: `Pasarela "${key}": revisá que cada costo tenga un valor numérico.` });
+        return;
+      }
+      const plans = (g.plans ?? []).filter((p) => String(p.planKey).trim());
+      const plansPayload = plans.map((p) => ({ planKey: p.planKey.trim(), label: (p.label || p.planKey).trim(), rate: toNum(p.rate) }));
+      if (plansPayload.some((p) => !Number.isFinite(p.rate))) {
+        setAlerta({ show: true, type: "error", message: `Pasarela "${key}": revisá que cada plan tenga una tasa numérica.` });
+        return;
+      }
+      gatewaysPayload[key] = { costs: costsPayload, vat, plans: plansPayload };
     }
+    const tacataca = gatewaysPayload.tacataca;
+    const firstCost = tacataca?.costs?.[0]?.value;
+    const payload = {
+      cardFee: firstCost ?? toNum(calculatorConfig.cardFee),
+      advanceFee: tacataca?.costs?.[1]?.value ?? toNum(calculatorConfig.advanceFee),
+      vat: tacataca?.vat ?? toNum(calculatorConfig.vat),
+      gateways: gatewaysPayload,
+    };
 
     setSavingCalculatorConfig(true);
     try {
@@ -397,12 +457,20 @@ function AdminPage() {
         return;
       }
 
-      setCalculatorConfig({
-        cardFee: String(json?.settings?.cardFee ?? payload.cardFee),
-        advanceFee: String(json?.settings?.advanceFee ?? payload.advanceFee),
-        vat: String(json?.settings?.vat ?? payload.vat),
-      });
-      setAlerta({ show: true, type: "success", message: "Parámetros de calculadora actualizados." });
+      const settings = json?.settings ?? {};
+      const flat = {
+        cardFee: String(settings.cardFee ?? payload.cardFee),
+        advanceFee: String(settings.advanceFee ?? payload.advanceFee),
+        vat: String(settings.vat ?? payload.vat),
+      };
+      const raw = settings.gateways ?? payload.gateways;
+      const gateways: Record<string, GatewayConfig> = {
+        tacataca: buildGatewayFromRaw(raw?.tacataca, defaultCostsTacataca, defaultPlansStandard),
+        payway: buildGatewayFromRaw(raw?.payway, defaultCostsPayway, defaultPlansStandard),
+        mercadopago: buildGatewayFromRaw(raw?.mercadopago, defaultCostsMercadopago, defaultPlansMercadopago),
+      };
+      setCalculatorConfig({ ...flat, gateways });
+      setAlerta({ show: true, type: "success", message: "Parámetros de calculadora (por pasarela) actualizados." });
     } catch {
       setAlerta({ show: true, type: "error", message: "Error de red al guardar parámetros de calculadora." });
     } finally {
@@ -446,6 +514,33 @@ function AdminPage() {
           </Card>
         ) : null}
 
+        <div className="border-b border-border">
+          <nav className="-mb-px flex gap-1" aria-label="Pestañas">
+            {(
+              [
+                { id: "proveedores" as const, label: "Proveedores y listados" },
+                { id: "calculadora" as const, label: "Calculadora" },
+                { id: "dolar" as const, label: "Dólar" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={
+                  activeTab === tab.id
+                    ? "border-b-2 border-red-950 px-4 py-3 text-sm font-medium text-red-950"
+                    : "border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground hover:border-neutral-300 hover:text-foreground"
+                }
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {activeTab === "proveedores" && (
+          <>
         <Card>
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <h3>Alta de proveedor</h3>
@@ -519,152 +614,234 @@ function AdminPage() {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
 
+        {activeTab === "calculadora" && (
         <Card>
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <div className="flex items-center justify-between gap-3">
-              <h3>Planes y cuotas (fuente única)</h3>
-              <Button onClick={saveAllPlans}>Guardar todos los planes</Button>
-            </div>
-            <div className="grid items-end gap-3 rounded-md border border-border p-3 md:grid-cols-6">
-              <Input
-                label="Clave"
-                value={newPlanKey}
-                onChange={(event) => setNewPlanKey(event.target.value)}
-                placeholder="ej: 12 o planPremium"
-              />
-              <Input
-                label="Nombre"
-                value={newPlanLabel}
-                onChange={(event) => setNewPlanLabel(event.target.value)}
-                placeholder="12 cuotas"
-              />
-              <Input
-                label="Tasa (%)"
-                type="number"
-                step="0.01"
-                value={newPlanRate}
-                onChange={(event) => setNewPlanRate(event.target.value)}
-                placeholder="0"
-              />
-              <Input
-                label="Orden"
-                type="number"
-                value={newPlanOrder}
-                onChange={(event) => setNewPlanOrder(event.target.value)}
-                placeholder="0"
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={newPlanActive}
-                  onChange={(event) => setNewPlanActive(event.target.checked)}
-                />
-                Activo
-              </label>
-              <div className="flex justify-end">
-                <Button size="sm" onClick={handleCreatePlan}>
-                  Crear plan
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {rates.map((rate) => (
-                <div key={rate.planKey} className="grid items-center gap-3 rounded-md border border-border p-3 md:grid-cols-6">
-                  <p className="text-sm font-medium text-foreground">{rate.label}</p>
-                  <Input
-                    className="text-right"
-                    value={rate.tasa}
-                    onChange={(event) => updateRate(rate.planKey, "tasa", event.target.value)}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1000"
-                  />
-                  <Input
-                    className="text-right"
-                    value={rate.orden}
-                    onChange={(event) => updateRate(rate.planKey, "orden", Number(event.target.value || 0))}
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="999"
-                  />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={rate.activo}
-                      onChange={(event) => updateRate(rate.planKey, "activo", event.target.checked)}
-                    />
-                    Activo
-                  </label>
-                  <p className="text-sm text-muted-foreground">{statusPill(statusByKey[rate.planKey] || "idle")}</p>
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" onClick={() => savePlanRow(rate.planKey)}>
-                      Guardar
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => handleDeletePlan(rate.planKey)}>
-                      Borrar
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="space-y-4 px-4 py-5 md:px-6">
-            <div className="flex items-center justify-between gap-3">
-              <h3>Parámetros de calculadora (interno)</h3>
+              <h3>Parámetros de calculadora por pasarela</h3>
               <Button loading={savingCalculatorConfig} onClick={handleSaveCalculatorConfig}>
                 Guardar parámetros
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Estos valores impactan en `/calculadora` y no se muestran como editables para clientes.
+              Costos y comisiones por pasarela. Impactan en <code>/calculadora</code>.
             </p>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Input
-                label="Uso de tarjeta (%)"
-                type="number"
-                step="0.01"
-                value={calculatorConfig.cardFee}
-                onChange={(event) =>
-                  setCalculatorConfig((prev) => ({
-                    ...prev,
-                    cardFee: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                label="Anticipo (%)"
-                type="number"
-                step="0.01"
-                value={calculatorConfig.advanceFee}
-                onChange={(event) =>
-                  setCalculatorConfig((prev) => ({
-                    ...prev,
-                    advanceFee: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                label="IVA (%)"
-                type="number"
-                step="0.01"
-                value={calculatorConfig.vat}
-                onChange={(event) =>
-                  setCalculatorConfig((prev) => ({
-                    ...prev,
-                    vat: event.target.value,
-                  }))
-                }
-              />
+            <div className="border-b border-border">
+              <nav className="-mb-px flex gap-1" aria-label="Pasarela">
+                {(
+                  [
+                    { id: "tacataca" as const, label: "Taca-taca" },
+                    { id: "payway" as const, label: "Payway" },
+                    { id: "mercadopago" as const, label: "Mercadopago" },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setCalculatorGatewayTab(tab.id)}
+                    className={
+                      calculatorGatewayTab === tab.id
+                        ? "border-b-2 border-red-950 px-3 py-2 text-sm font-medium text-red-950"
+                        : "border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:border-neutral-300 hover:text-foreground"
+                    }
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+            <div className="space-y-6 pt-2">
+              {GATEWAY_KEYS.filter((k) => k === calculatorGatewayTab).map((gatewayKey) => {
+                const label = gatewayKey === "tacataca" ? "Taca-taca" : gatewayKey === "payway" ? "Payway" : "Mercadopago";
+                const gw = calculatorConfig.gateways[gatewayKey] ?? defaultGateway(
+                  gatewayKey === "mercadopago" ? defaultCostsMercadopago : gatewayKey === "payway" ? defaultCostsPayway : defaultCostsTacataca,
+                  gatewayKey === "mercadopago" ? defaultPlansMercadopago : defaultPlansStandard
+                );
+                const costs = gw.costs ?? [];
+                const plans = gw.plans ?? (gatewayKey === "mercadopago" ? defaultPlansMercadopago : defaultPlansStandard);
+
+                return (
+                  <div key={gatewayKey} className="rounded-lg border border-border p-4">
+                    <h4 className="mb-3 text-sm font-semibold text-foreground">{label}</h4>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Costos y comisiones (podés agregar o quitar ítems). Las cuotas se configuran abajo.
+                    </p>
+
+                    <p className="text-xs font-medium text-foreground">Costos y comisiones (%)</p>
+                    <div className="mt-2 space-y-2">
+                      {costs.map((cost, idx) => (
+                        <div key={gatewayKey + "-cost-" + idx} className="grid gap-2 rounded border border-border p-2 sm:grid-cols-4">
+                          <Input
+                            placeholder="Id (ej: cardFee, cost24h)"
+                            value={cost.id}
+                            onChange={(event) =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = [...(prevGw.costs ?? [])];
+                                if (next[idx]) next[idx] = { ...next[idx], id: event.target.value };
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, costs: next } } };
+                              })
+                            }
+                          />
+                          <Input
+                            placeholder="Nombre (ej: Uso de tarjeta)"
+                            value={cost.label}
+                            onChange={(event) =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = [...(prevGw.costs ?? [])];
+                                if (next[idx]) next[idx] = { ...next[idx], label: event.target.value };
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, costs: next } } };
+                              })
+                            }
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Valor %"
+                            value={cost.value}
+                            onChange={(event) =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = [...(prevGw.costs ?? [])];
+                                if (next[idx]) next[idx] = { ...next[idx], value: event.target.value };
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, costs: next } } };
+                              })
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = (prevGw.costs ?? []).filter((_, i) => i !== idx);
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, costs: next } } };
+                              })
+                            }
+                          >
+                            Quitar
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          setCalculatorConfig((prev) => {
+                            const prevGw = prev.gateways[gatewayKey] ?? gw;
+                            const next = [...(prevGw.costs ?? []), { id: "", label: "", value: "0" }];
+                            return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, costs: next } } };
+                          })
+                        }
+                      >
+                        Agregar costo / comisión
+                      </Button>
+                    </div>
+
+                    <div className="mt-4">
+                      <Input
+                        label="IVA (%)"
+                        type="number"
+                        step="0.01"
+                        value={gw.vat}
+                        onChange={(event) =>
+                          setCalculatorConfig((prev) => {
+                            const prevGw = prev.gateways[gatewayKey] ?? gw;
+                            return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, vat: event.target.value } } };
+                          })
+                        }
+                      />
+                    </div>
+
+                    <p className="mt-3 text-xs font-medium text-foreground">Planes de cuotas (tasa %)</p>
+                    <div className="mt-2 space-y-2">
+                      {plans.map((plan, idx) => (
+                        <div key={gatewayKey + "-plan-" + idx} className="grid gap-2 rounded border border-border p-2 sm:grid-cols-4">
+                          <Input
+                            placeholder="Clave (ej: 3, planZ)"
+                            value={plan.planKey}
+                            onChange={(event) =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = [...(prevGw.plans ?? [])];
+                                if (next[idx]) next[idx] = { ...next[idx], planKey: event.target.value };
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, plans: next } } };
+                              })
+                            }
+                          />
+                          <Input
+                            placeholder="Etiqueta (ej: 3 cuotas)"
+                            value={plan.label}
+                            onChange={(event) =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = [...(prevGw.plans ?? [])];
+                                if (next[idx]) next[idx] = { ...next[idx], label: event.target.value };
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, plans: next } } };
+                              })
+                            }
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Tasa %"
+                            value={plan.rate}
+                            onChange={(event) =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = [...(prevGw.plans ?? [])];
+                                if (next[idx]) next[idx] = { ...next[idx], rate: event.target.value };
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, plans: next } } };
+                              })
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = (prevGw.plans ?? []).filter((_, i) => i !== idx);
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, plans: next } } };
+                              })
+                            }
+                          >
+                            Quitar
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          setCalculatorConfig((prev) => {
+                            const prevGw = prev.gateways[gatewayKey] ?? gw;
+                            const next = [...(prevGw.plans ?? []), { planKey: "", label: "", rate: "0" }];
+                            return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, plans: next } } };
+                          })
+                        }
+                      >
+                        Agregar plan
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
+        )}
 
+        {activeTab === "dolar" && (
+          <>
         <Card>
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <div className="flex items-center justify-between gap-3">
@@ -723,6 +900,8 @@ function AdminPage() {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
 
         <Alert
           alertText={alerta.message}

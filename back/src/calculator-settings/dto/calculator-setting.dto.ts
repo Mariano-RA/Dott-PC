@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsNumber, Max, Min } from "class-validator";
+import { IsNumber, IsOptional, IsObject, Max, Min } from "class-validator";
 
 export class CalculatorSettingDto {
   @Type(() => Number)
@@ -19,4 +19,9 @@ export class CalculatorSettingDto {
   @Min(0)
   @Max(1000)
   vat: number;
+
+  /** Por pasarela: { tacataca: { costs, vat, plans }, payway: {...}, mercadopago: {...} } */
+  @IsOptional()
+  @IsObject()
+  gateways?: Record<string, unknown>;
 }

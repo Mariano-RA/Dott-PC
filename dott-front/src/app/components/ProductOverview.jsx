@@ -80,7 +80,7 @@ export default function ProductOverview({ action, close, product }) {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 hidden bg-red-950/50 transition-opacity md:block" />
+          <div className="fixed inset-0 hidden bg-neutral-900/60 transition-opacity md:block" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 w-screen overflow-y-auto">

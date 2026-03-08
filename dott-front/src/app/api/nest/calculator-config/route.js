@@ -59,13 +59,18 @@ export async function PUT(request) {
 
     const body = await request.json();
 
+    const payload = {
+      cardFee: body?.cardFee,
+      advanceFee: body?.advanceFee,
+      vat: body?.vat,
+    };
+    if (body?.gateways != null && typeof body.gateways === "object") {
+      payload.gateways = body.gateways;
+    }
+
     const { data: settings } = await axios.post(
       `${apiUrl}/calculator-settings`,
-      {
-        cardFee: body?.cardFee,
-        advanceFee: body?.advanceFee,
-        vat: body?.vat,
-      },
+      payload,
       {
         httpsAgent: agent,
         headers: {
