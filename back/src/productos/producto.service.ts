@@ -138,6 +138,7 @@ export class ProductosService {
   @Inject(CuotasService) private readonly cuotasService: CuotasService;
   @Inject(ProveedorService) private readonly proveedorService: ProveedorService;
   private client: ClientProxy;
+  private fetchPricesClient: ClientProxy;
 
   constructor(
     @InjectRepository(Producto)
@@ -146,6 +147,7 @@ export class ProductosService {
   ) {
     const rabbitmqUrl = this.configService.get<string>(EnvKeys.RABBIT_MQ_URI);
     const pythonQueue = this.configService.get<string>(EnvKeys.RABBITMQ_PYTHON_QUEUE);
+    const fetchPricesQueue = this.configService.get<string>(EnvKeys.RABBITMQ_FETCH_PRICES_QUEUE);
     this.client = ClientProxyFactory.create({
       transport: Transport.RMQ,
       options: {
@@ -153,6 +155,23 @@ export class ProductosService {
         queue: pythonQueue,
       },
     });
+    this.fetchPricesClient = ClientProxyFactory.create({
+      transport: Transport.RMQ,
+      options: {
+        urls: [rabbitmqUrl],
+        queue: fetchPricesQueue || "fetch_prices",
+      },
+    });
+  }
+
+  async triggerFetchPrices(proveedor?: string): Promise<string> {
+    const payload = proveedor ? { proveedor: proveedor.trim().toLowerCase() } : { proveedor: null };
+    await this.fetchPricesClient.emit("fetch_prices", payload);
+    const msg = proveedor
+      ? `Se envió la solicitud de descarga del listado para ${proveedor}.`
+      : "Se envió la solicitud de descarga para todos los proveedores configurados.";
+    console.log(msg);
+    return msg;
   }
 
   async sendMessageData(newMessageDto) {
@@ -168,10 +187,15 @@ export class ProductosService {
   }
 
   async updateTable(data: newTableDto) {
-    const productDto = data.resultado;
+    // Aceptar payload directo o anidado (p. ej. { data: { proveedor_actualizado, resultado } })
+    const productDto =
+      Array.isArray(data?.resultado) ? data.resultado : (data as any)?.data?.resultado;
 
     try {
       if (!Array.isArray(productDto) || productDto.length === 0) {
+        console.warn(
+          `[carga_tabla] No se recibieron productos. proveedor_actualizado=${(data as any)?.proveedor_actualizado ?? (data as any)?.data?.proveedor_actualizado ?? "?"}`,
+        );
         return "No se recibieron productos para procesar";
       }
 

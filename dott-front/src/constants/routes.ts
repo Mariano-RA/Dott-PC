@@ -33,6 +33,7 @@ export const api = {
       list: path("/api/nest/products/list"),
       category: path("/api/nest/products/category"),
       keywords: path("/api/nest/products/keywords"),
+      fetchPrices: path("/api/nest/products/fetch-prices"),
     },
   },
   /** Rutas de Auth0 (Next.js API routes) */

@@ -47,6 +47,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - NODE_ENV=${NODE_ENV:-development}
       - ISSUER_BASE_URL=${ISSUER_BASE_URL}
       - AUDIENCE=${AUDIENCE}
       - CLIENT_ORIGIN_URL=${CLIENT_ORIGIN_URL}
@@ -64,6 +65,7 @@ services:
       - LOCAL_DEV_AUTH_BYPASS=${LOCAL_DEV_AUTH_BYPASS}
       - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
       - RABBITMQ_PYTHON_QUEUE=${RABBITMQ_PYTHON_QUEUE}
+      - RABBITMQ_FETCH_PRICES_QUEUE=${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
       - RABBIT_MQ_URI=amqp://dottpc-rabbit:5672
     command: ["sh", "-c", "npm ci || npm install; npm run start:dev"]
     volumes:
@@ -89,9 +91,68 @@ services:
     environment:
       - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
       - RABBITMQ_PYTHON_QUEUE=${RABBITMQ_PYTHON_QUEUE}
+      - RABBITMQ_FETCH_PRICES_QUEUE=${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
       - RABBITMQ_RETRY_DELAY=${RABBITMQ_RETRY_DELAY}
       - RABBITMQ_URL=dottpc-rabbit
-    command: ["sh", "-c", "pip install -r requirements.txt && python dottDB.py"]
+      - SUPPLIER_AIR_URL=${SUPPLIER_AIR_URL:-}
+      - SUPPLIER_AIR_USER=${SUPPLIER_AIR_USER:-}
+      - SUPPLIER_AIR_PASSWORD=${SUPPLIER_AIR_PASSWORD:-}
+      - SUPPLIER_ELIT_URL=${SUPPLIER_ELIT_URL:-}
+      - SUPPLIER_ELIT_USER_ID=${SUPPLIER_ELIT_USER_ID:-}
+      - SUPPLIER_ELIT_TOKEN=${SUPPLIER_ELIT_TOKEN:-}
+      - SUPPLIER_HDC_URL=${SUPPLIER_HDC_URL:-}
+      - SUPPLIER_HDC_USER=${SUPPLIER_HDC_USER:-}
+      - SUPPLIER_HDC_PASSWORD=${SUPPLIER_HDC_PASSWORD:-}
+      - SUPPLIER_INVID_URL=${SUPPLIER_INVID_URL:-}
+      - SUPPLIER_INVID_USER=${SUPPLIER_INVID_USER:-}
+      - SUPPLIER_INVID_PASSWORD=${SUPPLIER_INVID_PASSWORD:-}
+      - SUPPLIER_NB_URL=${SUPPLIER_NB_URL:-}
+      - SUPPLIER_NB_API_KEY=${SUPPLIER_NB_API_KEY:-}
+      - SUPPLIER_NB_TOKEN=${SUPPLIER_NB_TOKEN:-}
+      - SUPPLIER_MEGA_URL=${SUPPLIER_MEGA_URL:-}
+      - SUPPLIER_MEGA_USER=${SUPPLIER_MEGA_USER:-}
+      - SUPPLIER_MEGA_PASSWORD=${SUPPLIER_MEGA_PASSWORD:-}
+    command: ["sh", "-c", "pip install -q -r requirements.txt && python dottDB.py"]
+    volumes:
+      - ./python-api:/app
+    depends_on:
+      dottpc-rabbit:
+        condition: service_healthy
+    networks:
+      - rabbitnetwork
+
+  python-api-fetch:
+    build:
+      context: ./python-api
+      dockerfile: ./Dockerfile
+    container_name: dott-python-fetch
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+      - RABBITMQ_PYTHON_QUEUE=${RABBITMQ_PYTHON_QUEUE}
+      - RABBITMQ_FETCH_PRICES_QUEUE=${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
+      - RABBITMQ_RETRY_DELAY=${RABBITMQ_RETRY_DELAY}
+      - RABBITMQ_URL=dottpc-rabbit
+      - SUPPLIER_AIR_URL=${SUPPLIER_AIR_URL:-}
+      - SUPPLIER_AIR_USER=${SUPPLIER_AIR_USER:-}
+      - SUPPLIER_AIR_PASSWORD=${SUPPLIER_AIR_PASSWORD:-}
+      - SUPPLIER_ELIT_URL=${SUPPLIER_ELIT_URL:-}
+      - SUPPLIER_ELIT_USER_ID=${SUPPLIER_ELIT_USER_ID:-}
+      - SUPPLIER_ELIT_TOKEN=${SUPPLIER_ELIT_TOKEN:-}
+      - SUPPLIER_HDC_URL=${SUPPLIER_HDC_URL:-}
+      - SUPPLIER_HDC_USER=${SUPPLIER_HDC_USER:-}
+      - SUPPLIER_HDC_PASSWORD=${SUPPLIER_HDC_PASSWORD:-}
+      - SUPPLIER_INVID_URL=${SUPPLIER_INVID_URL:-}
+      - SUPPLIER_INVID_USER=${SUPPLIER_INVID_USER:-}
+      - SUPPLIER_INVID_PASSWORD=${SUPPLIER_INVID_PASSWORD:-}
+      - SUPPLIER_NB_URL=${SUPPLIER_NB_URL:-}
+      - SUPPLIER_NB_API_KEY=${SUPPLIER_NB_API_KEY:-}
+      - SUPPLIER_NB_TOKEN=${SUPPLIER_NB_TOKEN:-}
+      - SUPPLIER_MEGA_URL=${SUPPLIER_MEGA_URL:-}
+      - SUPPLIER_MEGA_USER=${SUPPLIER_MEGA_USER:-}
+      - SUPPLIER_MEGA_PASSWORD=${SUPPLIER_MEGA_PASSWORD:-}
+    command: ["sh", "-c", "pip install -q -r requirements.txt && python fetch_price_list_consumer.py"]
     volumes:
       - ./python-api:/app
     depends_on:

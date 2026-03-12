@@ -61,6 +61,8 @@ function AdminPage() {
   const [providerToDelete, setProviderToDelete] = useState("");
   const [newProviderName, setNewProviderName] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [fetchPricesProveedor, setFetchPricesProveedor] = useState("");
+  const [fetchPricesLoading, setFetchPricesLoading] = useState(false);
   const GATEWAY_KEYS = ["tacataca", "payway", "mercadopago"] as const;
 
   type GatewayPlan = { planKey: string; label: string; rate: string };
@@ -203,6 +205,13 @@ function AdminPage() {
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b)),
     [dolarRows]
+  );
+
+  /** Proveedores con descarga automática (fetcher). Se muestran en el select de "Descargar listados". */
+  const fetchPricesProviderOptions = useMemo(
+    () =>
+      Array.from(new Set(["air", "elit", "nb", "invid", "mega", "hdc", ...providerOptions])).sort((a, b) => a.localeCompare(b)),
+    [providerOptions]
   );
 
   const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar">("proveedores");
@@ -391,6 +400,31 @@ function AdminPage() {
     setAlerta({ show: true, type: "success", message: `Proveedor ${providerToDelete} eliminado del maestro.` });
   };
 
+  const handleFetchPrices = async () => {
+    setFetchPricesLoading(true);
+    try {
+      const res = await fetch(api.nest.products.fetchPrices, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: fetchPricesProveedor ? JSON.stringify({ proveedor: fetchPricesProveedor }) : "{}",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.error || "Error al solicitar descarga de listados." });
+        return;
+      }
+      setAlerta({
+        show: true,
+        type: "success",
+        message: json?.response || "Se envió la solicitud de descarga. Revisá los logs del consumer.",
+      });
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al solicitar descarga." });
+    } finally {
+      setFetchPricesLoading(false);
+    }
+  };
+
   const saveDolarRow = async (proveedor: string) => {
     const result = await saveRow(proveedor);
     if (!result.ok) {
@@ -556,6 +590,34 @@ function AdminPage() {
             <div className="flex justify-end">
               <Button type="button" onClick={handleCreateProvider}>
                 Crear proveedor
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 px-4 py-5 md:px-6">
+            <h3>Descargar listados desde la web del proveedor</h3>
+            <p className="text-sm text-muted-foreground">
+              Dispara la descarga automática del listado de precios (requiere consumer Python activo). Elegí un proveedor o &quot;Todos&quot;.
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                value={fetchPricesProveedor}
+                onChange={(event) => setFetchPricesProveedor(event.target.value)}
+              >
+                <option value="">Todos los proveedores</option>
+                {fetchPricesProviderOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {capitalizeLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end">
+              <Button type="button" onClick={handleFetchPrices} loading={fetchPricesLoading}>
+                Descargar listados
               </Button>
             </div>
           </CardContent>

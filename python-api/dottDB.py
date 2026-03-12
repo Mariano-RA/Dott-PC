@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import csv
 import io
 import json
@@ -28,6 +29,8 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+# Evitar salida de depuración de xlrd al leer .xls (ej. MEGA)
+logging.getLogger("xlrd").setLevel(logging.WARNING)
 
 csv.field_size_limit(sys.maxsize)
 
@@ -48,15 +51,27 @@ def calcular_precio(precio, iva=0):
 
 
 def _is_excel_binary(file_data: bytes) -> bool:
-    # XLSX files are ZIP containers and usually start with PK magic bytes.
-    return file_data.startswith(b"PK")
+    # XLSX: ZIP container (PK). XLS (BIFF/OLE): D0 CF 11 E0.
+    return file_data.startswith(b"PK") or (len(file_data) >= 8 and file_data[:8] == b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1")
+
+
+def _read_excel_to_rows(file_data: bytes):
+    """Lee Excel (.xls o .xlsx) y devuelve lista de filas (cada fila es lista de celdas como string)."""
+    engine = "xlrd" if (len(file_data) >= 8 and file_data[:8] == b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1") else "openpyxl"
+    with open(os.devnull, "w", encoding="utf-8") as devnull:
+        with contextlib.redirect_stdout(devnull):
+            try:
+                df = pd.read_excel(io.BytesIO(file_data), header=None, engine=engine)
+            except Exception:
+                engine = "xlrd" if engine == "openpyxl" else "openpyxl"
+                df = pd.read_excel(io.BytesIO(file_data), header=None, engine=engine)
+    df = df.fillna("")
+    return [[str(cell).strip() for cell in row] for row in df.values.tolist()]
 
 
 def _rows_from_csv_or_excel(file_data: bytes, csv_delimiter=",", csv_encoding="utf-8"):
     if _is_excel_binary(file_data):
-        df = pd.read_excel(io.BytesIO(file_data), header=None)
-        df = df.fillna("")
-        return [[str(cell).strip() for cell in row] for row in df.values.tolist()]
+        return _read_excel_to_rows(file_data)
 
     decoded = file_data.decode(csv_encoding, errors="replace").splitlines()
     return [row for row in csv.reader(decoded, delimiter=csv_delimiter)]
@@ -127,6 +142,8 @@ def tablaAir(archivo_bytesios):
                     'precio': calcular_precio(row[2], row[4])
                 }
                 data.append(registro)
+        if not data and rows:
+            logging.warning("AIR: se leyeron %d filas pero ninguna cumplió el filtro (len>=11, row[5:9] no todos '0'). Revisar formato CSV.", len(rows))
         return data
     except Exception as ex:
         logging.exception(f"Error procesando datos del proveedor AIR: {ex}")
@@ -156,17 +173,93 @@ def tablaEikon(archivo_bytesio):
 
 def tablaElit(archivo_bytesio):
     try:
-        df = pd.read_excel(archivo_bytesio)
+        raw = archivo_bytesio.read()
+        if _is_excel_binary(raw):
+            df = pd.read_excel(io.BytesIO(raw))
+            data = []
+            for _, row in df.iterrows():
+                registro = {
+                    "proveedor": "elit",
+                    "producto": row[1],
+                    "categoria": normalizar_categoria("elit", row[5], ""),
+                    "precio": calcular_precio(row[8], float(row[9]) + float(row[10])),
+                }
+                data.append(registro)
+            return data
+
+        # CSV (endpoint /productos/csv). Intentamos mapear por nombres de columnas.
+        text = raw.decode("utf-8", errors="replace")
+        sample = "\n".join([ln for ln in text.splitlines() if ln.strip()][:20])
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=";,|\t")
+            delimiter = dialect.delimiter
+        except Exception:
+            delimiter = ";"
+
+        reader = csv.reader(text.splitlines(), delimiter=delimiter)
+        rows = [r for r in reader if r and any(str(c).strip() for c in r)]
+        if not rows:
+            return []
+
+        header = [str(c).strip().lower() for c in rows[0]]
+        idx = {name: i for i, name in enumerate(header) if name}
+
+        def _first_idx(*names):
+            for n in names:
+                if n in idx:
+                    return idx[n]
+            return None
+
+        producto_i = _first_idx("producto", "nombre", "descripcion", "descripción", "articulo", "artículo")
+        cat_i = _first_idx("categoria", "categoría", "rubro", "linea", "línea")
+        sub_i = _first_idx("subcategoria", "subcategoría", "sub_rubro", "subrubro")
+        precio_i = _first_idx("pvp_ars", "pvp", "precio", "precio_ars", "importe", "valor")
+        iva_i = _first_idx("iva", "iva_porcentaje", "alicuota_iva", "alícuota_iva")
+        imp_i = _first_idx("impuesto_interno", "imp_interno", "interno")
+
+        def _to_float(v):
+            if v is None:
+                return None
+            s = str(v).strip()
+            if not s:
+                return None
+            s = s.replace("U$s", "").replace("%", "").replace("+", "").strip()
+            s = s.replace(".", "").replace(",", ".") if s.count(",") == 1 and s.count(".") >= 1 else s.replace(",", ".")
+            try:
+                return float(s)
+            except Exception:
+                return None
+
         data = []
-        for index, row in df.iterrows():
-            registro = {
-                "proveedor": "elit",
-                "producto": row[1],
-                'categoria': normalizar_categoria('elit', row[5], ''),
-                "precio": calcular_precio(row[8], float(row[9]) + float(row[10]))
-            }
-            data.append(registro)
-        return data    
+        for r in rows[1:]:
+            try:
+                producto = str(r[producto_i]).strip() if producto_i is not None and producto_i < len(r) else ""
+                if not producto:
+                    continue
+                cat = ""
+                if cat_i is not None and cat_i < len(r):
+                    cat = str(r[cat_i]).strip()
+                if not cat and sub_i is not None and sub_i < len(r):
+                    cat = str(r[sub_i]).strip()
+
+                precio = _to_float(r[precio_i]) if precio_i is not None and precio_i < len(r) else None
+                if precio is None:
+                    continue
+                iva = _to_float(r[iva_i]) if iva_i is not None and iva_i < len(r) else 0.0
+                imp = _to_float(r[imp_i]) if imp_i is not None and imp_i < len(r) else 0.0
+                iva_total = float(iva or 0) + float(imp or 0)
+
+                registro = {
+                    "proveedor": "elit",
+                    "producto": producto,
+                    "categoria": normalizar_categoria("elit", cat, ""),
+                    "precio": calcular_precio(precio, iva_total),
+                }
+                data.append(registro)
+            except Exception:
+                continue
+
+        return data
     except Exception as ex:
         logging.exception(f"Error procesando datos del proveedor ELIT: {ex}")
         return []
@@ -191,7 +284,15 @@ def tablaHdc(archivo_bytesio):
 
 def tablaInvid(archivo_bytesio):
     try:
-        df = pd.read_excel(archivo_bytesio, header=None)
+        try:
+            df = pd.read_excel(archivo_bytesio, header=None)
+        except ValueError:
+            # Algunos listados vienen como .xls (requiere xlrd)
+            try:
+                archivo_bytesio.seek(0)
+            except Exception:
+                pass
+            df = pd.read_excel(archivo_bytesio, header=None, engine="xlrd")
         df = df.drop([0, 1, 2, 3, 4, 5, 6]).reset_index(drop=True)
         categoria_actual = ""
         data = []
@@ -233,44 +334,82 @@ def tablaNb(archivo_bytesio):
         logging.exception(f"Error procesando datos del proveedor NB: {ex}")
         return []
 
+def _safe_float(val, default=None):
+    if val is None or (isinstance(val, str) and not val.strip()):
+        return default
+    s = str(val).replace("U$s", "").replace("+", "").replace("%", "").strip()
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return default
+
+
+def _parse_mega_row(partes_or_list, from_excel=False):
+    """Extrae (producto, precio_ars, iva_porcentaje) de una fila; devuelve None si no es fila de producto."""
+    if from_excel:
+        if len(partes_or_list) < 5:
+            return None
+        producto = str(partes_or_list[1]).strip().replace('"', '')
+        precio_ars = _safe_float(partes_or_list[2])
+        iva_porcentaje = _safe_float(partes_or_list[4])
+        if not producto or precio_ars is None or iva_porcentaje is None:
+            return None
+        return (producto, precio_ars, iva_porcentaje)
+    # CSV: partes ya son strings
+    partes = partes_or_list
+    if len(partes) < 5:
+        return None
+    producto = partes[1].strip().replace('"', '')
+    precio_ars = _safe_float(partes[2])
+    iva_porcentaje = _safe_float(partes[4])
+    if not producto or precio_ars is None or iva_porcentaje is None:
+        return None
+    return (producto, precio_ars, iva_porcentaje)
+
+
+def _xls_to_csv_semicolon(file_data: bytes) -> str:
+    """Convierte XLS/XLSX a texto CSV con separador ; (como el flujo anterior de MEGA)."""
+    rows = _read_excel_to_rows(file_data)
+    lines = []
+    for row in rows:
+        # Celdas como string; si contienen ";" se escapan entre comillas para CSV
+        cells = []
+        for c in row:
+            s = str(c).strip() if c is not None else ""
+            if ";" in s or "\n" in s or '"' in s:
+                s = '"' + s.replace('"', '""') + '"'
+            cells.append(s)
+        lines.append(";".join(cells))
+    return "\n".join(lines)
+
+
 def tablaMega(archivo_bytesio):
     try:
-        csv_data = archivo_bytesio.read().decode("utf-8", errors="replace").splitlines()
-        registros = []    
+        raw = archivo_bytesio.read()
+        registros = []
         current_category = ""
-        
+
+        # MEGA entrega .xls: se convierte a CSV con ";" como antes y se procesa igual.
+        if _is_excel_binary(raw):
+            raw = _xls_to_csv_semicolon(raw).encode("utf-8", errors="replace")
+
+        csv_data = raw.decode("utf-8", errors="replace").splitlines()
         for line in csv_data:
             if line.endswith(";;;;"):
-                # Si la línea es una categoría, actualizamos la variable
-                current_category = line.split(';')[0].strip()
+                current_category = line.split(";")[0].strip()
             else:
-                # Si no es una categoría, procesamos el producto
-                partes = line.strip().split(';')
-                
-                if len(partes) < 5:
+                partes = line.strip().split(";")
+                parsed = _parse_mega_row(partes, from_excel=False)
+                if parsed is None:
                     continue
-
-                producto = partes[1].strip().replace('"', '') 
-                precio_ars = float(partes[2].replace('U$s', '').strip())
-                
-                # Extraemos y procesamos el IVA
-                iva_porcentaje = float(partes[4].strip().replace('+', '').replace('%', ''))
-                
-                # Calculamos precioFinal
+                producto, precio_ars, iva_porcentaje = parsed
                 precio_final = calcular_precio(precio_ars, iva_porcentaje)
-                
-                # Aseguramos que la categoría no esté vacía
-                if current_category:
-                    categoria = current_category
-                else:
-                    categoria = ""
-                
                 registros.append({
                     "proveedor": "mega",
                     "producto": producto,
-                    'categoria': normalizar_categoria('mega', categoria, ''),
-                    "precio": precio_final  # Precio con IVA aplicado y margen adicional
-                })    
+                    "categoria": normalizar_categoria("mega", current_category or "", ""),
+                    "precio": precio_final,
+                })
         return registros
     except Exception as ex:
         logging.exception(f"Error procesando datos del proveedor MEGA: {ex}")

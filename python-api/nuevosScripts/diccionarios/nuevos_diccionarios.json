@@ -1,27 +1,45 @@
 {
-    "air": [
-        " UVC ETIQUETA  CONTROL RADIACIÓN UV-C  X100U - ",
-        "ASPIRADORA ROBOT EZVIZ SMART HOME RE5 4000PA - 001-1212",
-        "CAMARA P/AUTOS TRANSCEND DRIVE PRO250 64GB 2K WIFI - ",
-        "GAB ARKHAM CANCRI 4*FAN ARGB ATX - 002-0190",
-        "GAB ARKHAM CANCRI ECO 4*FAN ARGB ATX - 002-0190",
-        "GAB ARKHAM COZU 4*FAN ARGB ATX - 002-0190",
-        "GAB ARKHAM LOTOR 6*FAN ARGB M-ATX - 002-0190",
-        "GAB ARKHAM MEL 4*FAN ARGB ATX - 002-0190",
-        "GAB ARKHAM PYGMA 6*FAN ARGB E-ATX - 002-0190",
-        "GAB ARKHAM VORUS ECO 4*FAN ARGB ATX - 002-0190",
-        "KIT DE REEMPLAZO ASPIRADORA TP-LINK TAPO RVA105 - 001-1212",
-        "VIDEOPORTERO IP 2MP EZVIZ HP4 - 001-0306"
+    "elit": [
+        " - ",
+        " - Almacenamiento",
+        " - Audio",
+        " - Computadoras",
+        " - Conectividad",
+        " - Estuches",
+        " - Hardware",
+        " - Imagen",
+        " - Impresoras",
+        " - Insumos",
+        " - Memorias",
+        " - Muebles",
+        " - Networking",
+        " - Papelería",
+        " - Periféricos",
+        " - Seguridad",
+        " - Software",
+        " - Unidad de Energia",
+        " - Video Juegos"
     ],
-    "eikon": [
-        " - ACCESORIOS PARA GABINETES",
-        " - ACCESS POINT/EXTENDER",
-        " - ADAPTADORES",
-        " - CABLES DISPLAY PORT",
-        " - CASE PARA DISCOS",
-        " - COMBO MOUSE+TECLADO+PARLANTE",
-        " - FUENTES PARA PC",
-        " - HUB USB",
-        " - TECLADOS INALAMBRICOS"
+    "invid": [
+        " - Computadoras /KIT PC",
+        " - Conectividad /Cables /De red",
+        " - Conectividad /Cables /Multimedia y Periféricos",
+        " - Conectividad /Cámaras IP",
+        " - Conectividad /POE (Power Over Ethernet)",
+        " - Gabinetes y Fuentes /Fuentes de Alimentación",
+        " - Gabinetes y Fuentes /Gabinetes con Fuente",
+        " - Gabinetes y Fuentes /Gabinetes sin Fuente",
+        " - Gabinetes y Fuentes /Kit Gabinete, teclado, mouse y parlante",
+        " - Gamers /Sillas y Escritorios",
+        " - Memorias RAM /Memoria Sodimm /DDR3",
+        " - Memorias RAM /Memoria Sodimm /DDR4",
+        " - Memorias RAM /Memoria Sodimm /DDR5",
+        " - Periféricos /Power Banks",
+        " - Placas de video /Línea Intel Arc",
+        " - Tablets"
+    ],
+    "nb": [
+        " - OUTLET",
+        " - kits y bundles"
     ]
 }

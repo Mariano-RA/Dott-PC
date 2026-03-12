@@ -22,6 +22,7 @@ import {
 } from "@nestjs/microservices";
 import { newTableDto } from "./dto/newTableDto";
 import { newMessageDto } from "./dto/newMessageDto";
+import { FetchPricesDto } from "./dto/fetchPricesDto";
 
 @Controller("productos")
 export class ProductosController {
@@ -32,6 +33,13 @@ export class ProductosController {
   @Post()
   async updateTable(@Body() newMessageDto: newMessageDto) {
     return await this.productosService.sendMessageData(newMessageDto);
+  }
+
+  @UseGuards(AuthorizationGuard, PermissionGuard)
+  @SetMetadata("permissions", ["create:tablas"])
+  @Post("fetch-prices")
+  async fetchPrices(@Body() dto: FetchPricesDto) {
+    return await this.productosService.triggerFetchPrices(dto.proveedor);
   }
 
   @MessagePattern("carga_tabla")

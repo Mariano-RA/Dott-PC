@@ -85,7 +85,12 @@ export async function POST(request) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
-    const body = await request.json();
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      // body vacío o ya consumido
+    }
     const payload = normalizeProveedorBody(body);
 
     if (!payload) {
