@@ -410,7 +410,7 @@ function AdminPage() {
     setAddingBulk(true);
     try {
       const mappings: { proveedor: string; categoriaRaw: string; categoriaNormalizada: string }[] = [];
-      for (const key of selectedCategoryKeys) {
+      for (const key of Array.from(selectedCategoryKeys)) {
         const [proveedor, ...rawParts] = key.split(":");
         const categoriaRaw = rawParts.join(":").trim();
         const normalizada = (normalizadaByKey[key] ?? categoriaRaw).trim() || categoriaRaw;
