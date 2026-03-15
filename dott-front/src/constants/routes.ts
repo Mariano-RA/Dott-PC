@@ -40,6 +40,7 @@ export const api = {
       newDiscardBulk: path("/api/nest/categories/new/discard-bulk"),
       dictionary: path("/api/nest/categories/dictionary"),
       dictionaryBulk: path("/api/nest/categories/dictionary/bulk"),
+      masterList: path("/api/nest/categories/sql/master"),
     },
   },
   /** Rutas de Auth0 (Next.js API routes) */

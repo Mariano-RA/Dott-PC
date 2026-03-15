@@ -29,10 +29,10 @@ async function getAccessTokenForWrite(request) {
   }
 }
 
-/** Proxy a /categories/new o /categories/dictionary según el segmento. */
+/** Proxy a /categories/new, /categories/dictionary o /categories/sql/master según el segmento. */
 export async function GET(request, context) {
   const slug = context.params?.slug || [];
-  const segment = slug[0]; // "new" | "dictionary"
+  const segment = slug[0]; // "new" | "dictionary" | "sql"
 
   if (segment === "new") {
     try {
@@ -52,6 +52,17 @@ export async function GET(request, context) {
     } catch (error) {
       const status = error?.response?.status || 500;
       const message = error?.response?.data?.message || error?.message || "Error al obtener diccionario";
+      return NextResponse.json({ error: message }, { status });
+    }
+  }
+
+  if (segment === "sql" && slug[1] === "master") {
+    try {
+      const { data } = await axios.get(`${apiUrl}/categories/sql/master`, { httpsAgent: agent });
+      return NextResponse.json(data);
+    } catch (error) {
+      const status = error?.response?.status || 500;
+      const message = error?.response?.data?.message || error?.message || "Error al obtener categorías maestras";
       return NextResponse.json({ error: message }, { status });
     }
   }

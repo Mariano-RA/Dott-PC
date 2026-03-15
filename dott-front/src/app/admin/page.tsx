@@ -221,8 +221,11 @@ function AdminPage() {
 
   /** Categorías nuevas (sin mapear en DB) agrupadas por proveedor. */
   type NewCategoryGroup = { categoriaRaw: string; examples: string[] };
+  type MasterCategoryItem = { id: number; name: string; slug: string };
   const [categoriesNew, setCategoriesNew] = useState<Record<string, NewCategoryGroup[]>>({});
   const [categoriesNewLoading, setCategoriesNewLoading] = useState(false);
+  const [masterCategories, setMasterCategories] = useState<MasterCategoryItem[]>([]);
+  const [masterCategoriesLoading, setMasterCategoriesLoading] = useState(false);
   const [addingMapping, setAddingMapping] = useState<string | null>(null);
   const [discardingKey, setDiscardingKey] = useState<string | null>(null);
   /** Valor del input "categoría normalizada" por clave "proveedor:categoriaRaw". */
@@ -231,6 +234,9 @@ function AdminPage() {
   const [selectedCategoryKeys, setSelectedCategoryKeys] = useState<Set<string>>(new Set());
   const [addingBulk, setAddingBulk] = useState(false);
   const [discardingBulk, setDiscardingBulk] = useState(false);
+
+  const OTHER_OPTION_VALUE = "__otra__";
+  const masterCategoryNames = useMemo(() => masterCategories.map((m) => m.name), [masterCategories]);
 
   const [alerta, setAlerta] = useState({
     show: false,
@@ -295,8 +301,28 @@ function AdminPage() {
     }
   };
 
+  const fetchMasterCategories = async () => {
+    setMasterCategoriesLoading(true);
+    try {
+      const res = await fetch(api.nest.categories.masterList);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setMasterCategories(data as MasterCategoryItem[]);
+      } else {
+        setMasterCategories([]);
+      }
+    } catch {
+      setMasterCategories([]);
+    } finally {
+      setMasterCategoriesLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (activeTab === "categorias") fetchCategoriesNew();
+    if (activeTab === "categorias") {
+      fetchCategoriesNew();
+      fetchMasterCategories();
+    }
   }, [activeTab]);
 
   const handleAddMapping = async (
@@ -1237,13 +1263,35 @@ function AdminPage() {
                                     <p className="mt-0.5 text-xs text-muted-foreground">Ejemplo: {ejemplo}</p>
                                   ) : null}
                                 </div>
-                                <div className="min-w-0">
-                                  <Input
-                                    placeholder="Categoría normalizada"
-                                    value={normalizada}
-                                    onChange={(e) => setNormalizadaByKey((prev) => ({ ...prev, [key]: e.target.value }))}
-                                    className="h-9 w-full"
-                                  />
+                                <div className="min-w-0 space-y-1.5">
+                                  <select
+                                    value={masterCategoryNames.includes(normalizada) ? normalizada : OTHER_OPTION_VALUE}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setNormalizadaByKey((prev) => ({
+                                        ...prev,
+                                        [key]: v === OTHER_OPTION_VALUE ? "" : v,
+                                      }));
+                                    }}
+                                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label="Categoría a la que corresponde"
+                                  >
+                                    <option value="">— Elegir categoría —</option>
+                                    {masterCategories.map((mc) => (
+                                      <option key={mc.id} value={mc.name}>
+                                        {mc.name}
+                                      </option>
+                                    ))}
+                                    <option value={OTHER_OPTION_VALUE}>— Otra (escribir abajo) —</option>
+                                  </select>
+                                  {!masterCategoryNames.includes(normalizada) && (
+                                    <Input
+                                      placeholder="Categoría normalizada (si no está en la lista)"
+                                      value={normalizada}
+                                      onChange={(e) => setNormalizadaByKey((prev) => ({ ...prev, [key]: e.target.value }))}
+                                      className="h-9 w-full"
+                                    />
+                                  )}
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   <Button
