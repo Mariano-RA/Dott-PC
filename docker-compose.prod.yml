@@ -79,8 +79,10 @@ services:
         condition: service_healthy
       mysql:
         condition: service_healthy
-    volumes:
-      - dottpc_categories_data:/app/categories_data
+    # categories_data viene de la imagen (diccionarios.json). Para override: montá
+    # tu carpeta, ej.: - ./python-api/data/categories:/app/categories_data
+    # volumes:
+    #   - dottpc_categories_data:/app/categories_data
     networks:
       - dottpc_net
 
@@ -155,4 +157,4 @@ networks:
 
 volumes:
   dottpc_mysql_data:
-  dottpc_categories_data:
+  # dottpc_categories_data:  # opcional si querés persistir/override categories_data

@@ -5,6 +5,7 @@ on:
     branches: ["main"]                # publica solo al mergear a main
     paths:
       - "back/**"
+      - "python-api/data/categories/**"   # diccionarios.json embebido en imagen backend
       - ".github/workflows/backend-ci.yml"
     tags:
       - "v*"                          # publica cuando se pushea un tag vX.Y.Z
@@ -12,6 +13,7 @@ on:
     branches: ["main"]                # en PR solo construye (sin push)
     paths:
       - "back/**"
+      - "python-api/data/categories/**"
       - ".github/workflows/backend-ci.yml"
   workflow_dispatch:                  # ejecutar manualmente
     inputs:
@@ -38,7 +40,7 @@ jobs:
         include:
           - name: back
             image: dott-back
-            context: back
+            context: .
             dockerfile: back/Dockerfile
             cache_scope: back
 

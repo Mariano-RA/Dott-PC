@@ -41,15 +41,16 @@ FROM node:20-alpine AS base
 WORKDIR /app
 
 # Etapa dependencias (para cachear node_modules de build)
+# Build context: repo root (.) para poder copiar python-api/data/categories
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
-COPY package.json package-lock.json* ./
+COPY back/package.json back/package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm i; fi
 
 # Etapa build (compila tu app)
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY back/ .
 # Si necesitás variables en build, podés agregar ARG acá
 RUN npm run build
 # (No prunes acá: instalaremos deps de prod en el runner)
@@ -61,12 +62,17 @@ ENV NODE_ENV=production
 RUN addgroup -S app && adduser -S app -G app
 
 # Instalar SOLO dependencias de producción en el contenedor final
-COPY package.json package-lock.json* ./
+COPY back/package.json back/package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm i --omit=dev; fi
 
 # Copiar artefactos de build
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/secrets ./secrets
+
+# Diccionarios para categorías (POST /categories/sql/import). Si montás un volumen en
+# /app/categories_data lo reemplazás; si no, se usa este por defecto.
+COPY python-api/data/categories /app/categories_data
+RUN chown -R app:app /app/categories_data
 
 USER app
 EXPOSE 3000

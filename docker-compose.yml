@@ -42,8 +42,8 @@ services:
 
   backend:
     build:
-      context: ./back
-      dockerfile: ./Dockerfile
+      context: .
+      dockerfile: back/Dockerfile
     image: dottpc-back:latest
     # Producción: usar docker-compose -f docker-compose.yml -f docker-compose.prod.yml
     container_name: dottpc-back
@@ -77,7 +77,8 @@ services:
       mysql:
         condition: service_healthy
     volumes:
-      - dottpc_categories_data:/app/categories_data
+      # Montar carpeta del repo para que diccionarios.json esté disponible (dev y build local)
+      - ./python-api/data/categories:/app/categories_data
     networks:
       - dottpc_net
 
@@ -157,4 +158,3 @@ networks:
 
 volumes:
   dottpc_mysql_data:
-  dottpc_categories_data:
