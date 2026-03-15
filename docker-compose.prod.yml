@@ -6,6 +6,10 @@
 #
 # Imágenes Docker Hub: marianora/dott-back:latest y marianora/dott-python:latest
 # (override con DOCKERHUB_BACKEND_IMAGE y DOCKERHUB_PYTHON_IMAGE si usás otro tag)
+#
+# RabbitMQ: RABBITMQ_URL y RABBIT_MQ_URI deben usar el HOST del servicio dentro
+# de la red Docker (p. ej. dottpc-rabbit), no localhost. Por defecto se usa
+# amqp://guest:guest@dottpc-rabbit:5672/
 # =============================================================================
 
 services:
@@ -68,7 +72,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_SYNC: ${DB_SYNC:-false}
-      RABBIT_MQ_URI: ${RABBIT_MQ_URI}
+      RABBIT_MQ_URI: ${RABBIT_MQ_URI:-amqp://guest:guest@dottpc-rabbit:5672/}
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
       RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
       RABBITMQ_FETCH_PRICES_QUEUE: ${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
@@ -93,7 +97,8 @@ services:
     ports:
       - "${PYTHON_API_PORT:-5000}:5000"
     environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
+      # Host = nombre del servicio Rabbit en la red (dottpc-rabbit). No usar localhost.
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@dottpc-rabbit:5672/}
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
       RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
       RABBITMQ_RETRY_DELAY: ${RABBITMQ_RETRY_DELAY:-5}
@@ -124,7 +129,7 @@ services:
     container_name: dottpc-python-fetch
     restart: unless-stopped
     environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@dottpc-rabbit:5672/}
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
       RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
       RABBITMQ_FETCH_PRICES_QUEUE: ${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
