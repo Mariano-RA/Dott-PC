@@ -38,6 +38,7 @@ def fetch_elit() -> Optional[bytes]:
 
             if user_id is not None:
                 csv_url = url or DEFAULT_ELIT_CSV_URL
+                logger.info("Elit: descargando desde %s (CSV)", csv_url)
                 r = requests.get(
                     csv_url,
                     params={"user_id": user_id, "token": str(token).strip()},
@@ -46,6 +47,8 @@ def fetch_elit() -> Optional[bytes]:
                 r.raise_for_status()
                 content = r.content
                 if content:
+                    size_kb = round(len(content) / 1024, 1)
+                    logger.info("Elit: descarga ok (CSV), %s KB", size_kb)
                     return content
 
         # 2) Fallback a XLSX por Bearer si hay token
@@ -58,9 +61,13 @@ def fetch_elit() -> Optional[bytes]:
             "Authorization": f"Bearer {str(token).strip()}",
             "Accept": "application/json, text/plain, */*",
         }
+        logger.info("Elit: descargando desde %s (XLSX)", xlsx_url)
         r = requests.get(xlsx_url, headers=headers, timeout=180)
         r.raise_for_status()
         content = r.content
+        if content:
+            size_kb = round(len(content) / 1024, 1)
+            logger.info("Elit: descarga ok (XLSX), %s KB", size_kb)
     except requests.RequestException as e:
         logger.exception("Error descargando listado de Elit: %s", e)
         return None

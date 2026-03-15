@@ -29,3 +29,8 @@ Thumbs.db
 *.swp
 .idea/
 back/dist/
+back/docs/CATEGORIAS_MIGRACION.md
+back/docs/TEST_CATEGORIAS.md
+python-api/docs/ANALISIS_CODIGO_NO_USADO.md
+python-api/docs/categories_sql.md
+README.docker.md

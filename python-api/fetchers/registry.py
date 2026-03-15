@@ -4,6 +4,7 @@ Registro de fetchers por proveedor.
 import logging
 from typing import Callable, Optional
 
+from . import fetch_air
 from . import fetch_elit
 from . import fetch_generic
 from . import fetch_invid
@@ -12,15 +13,16 @@ from . import fetch_nb
 
 logger = logging.getLogger(__name__)
 
-PROVEEDORES_SOPORTADOS = ("air", "elit", "hdc", "invid", "nb", "mega")
+# Proveedores incluidos en "descargar todos". HDC y EIKON se cargan solo manualmente.
+PROVEEDORES_DESCARGA_AUTOMATICA = ("air", "elit", "invid", "mega", "nb")
 
 _FETCHERS = {
-    "air": lambda: fetch_generic.fetch_by_name("air"),
+    "air": fetch_air.fetch_air,
     "elit": fetch_elit.fetch_elit,
     "hdc": lambda: fetch_generic.fetch_by_name("hdc"),
     "invid": fetch_invid.fetch_invid,
-    "nb": fetch_nb.fetch_nb,
     "mega": fetch_mega.fetch_mega,
+    "nb": fetch_nb.fetch_nb,
 }
 
 
@@ -30,4 +32,5 @@ def get_fetcher(proveedor: str) -> Optional[Callable[[], Optional[bytes]]]:
 
 
 def list_proveedores():
-    return list(_FETCHERS.keys())
+    """Lista de proveedores para descarga múltiple / automática."""
+    return list(PROVEEDORES_DESCARGA_AUTOMATICA)

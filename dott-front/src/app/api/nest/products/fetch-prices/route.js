@@ -41,6 +41,9 @@ const agent = new https.Agent({
 export async function POST(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
+    // #region agent log
+    fetch('http://127.0.0.1:7901/ingest/a43c9f0d-9231-46cb-8160-6f5aa7d983c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'bcf522'},body:JSON.stringify({sessionId:'bcf522',location:'fetch-prices/route.js:POST',message:'Next fetch-prices auth state',data:{IS_LOCAL_AUTH_BYPASS,hasAccessToken:!!accessToken,sendingAuthHeader:!!accessToken},timestamp:Date.now(),hypothesisId:'H1-H2-H5'})}).catch(()=>{});
+    // #endregion
 
     if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });

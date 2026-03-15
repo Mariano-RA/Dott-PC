@@ -1,58 +1,158 @@
-services:
-  dottpc-rabbit:
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
+# =============================================================================
+# Dott-PC - Producción (Portainer)
+# =============================================================================
+# Uso: copiar y pegar este archivo en Portainer (Stack > Compose) y luego
+# importar las variables de entorno (Stack > Environment variables).
+#
+# Imágenes Docker Hub: marianora/dott-back:latest y marianora/dott-python:latest
+# (override con DOCKERHUB_BACKEND_IMAGE y DOCKERHUB_PYTHON_IMAGE si usás otro tag)
+# =============================================================================
 
+services:
   mysql:
+    image: mysql:8.0
+    container_name: dottpc-mysql
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
+    volumes:
+      - dottpc_mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - dottpc_net
+
+  dottpc-rabbit:
+    container_name: dottpc-rabbit
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    ports:
+      - "${RABBIT_PORT_AMQP:-5672}:5672"
+      - "${RABBIT_PORT_MGMT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dottpc_net
 
   backend:
+    image: ${DOCKERHUB_BACKEND_IMAGE:-marianora/dott-back:latest}
+    container_name: dottpc-back
     restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
-      - ISSUER_BASE_URL=${ISSUER_BASE_URL}
-      - AUDIENCE=${AUDIENCE}
-      - CLIENT_ORIGIN_URL=${CLIENT_ORIGIN_URL}
-      - ENABLE_HTTPS=${ENABLE_HTTPS}
-      - HTTPS_KEY_PATH=${HTTPS_KEY_PATH}
-      - HTTPS_CERT_PATH=${HTTPS_CERT_PATH}
-      - JWT_AT_SECRET=${JWT_AT_SECRET}
-      - JWT_RT_SECRET=${JWT_RT_SECRET}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DB_SYNC=${DB_SYNC}
-      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
-      - RABBITMQ_PYTHON_QUEUE=${RABBITMQ_PYTHON_QUEUE}
-      - RABBIT_MQ_URI=amqp://dottpc-rabbit:5672
+      NODE_ENV: ${NODE_ENV:-production}
+      ISSUER_BASE_URL: ${ISSUER_BASE_URL}
+      AUDIENCE: ${AUDIENCE}
+      CLIENT_ORIGIN_URL: ${CLIENT_ORIGIN_URL}
+      ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
+      HTTPS_KEY_PATH: ${HTTPS_KEY_PATH:-./secrets/privkey.pem}
+      HTTPS_CERT_PATH: ${HTTPS_CERT_PATH:-./secrets/fullchain.pem}
+      JWT_AT_SECRET: ${JWT_AT_SECRET}
+      JWT_RT_SECRET: ${JWT_RT_SECRET}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SYNC: ${DB_SYNC:-false}
+      RABBIT_MQ_URI: ${RABBIT_MQ_URI}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
+      RABBITMQ_FETCH_PRICES_QUEUE: ${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
+      LOCAL_DEV_AUTH_BYPASS: ${LOCAL_DEV_AUTH_BYPASS:-}
+      CATEGORIES_DATA_PATH: /app/categories_data
     depends_on:
       dottpc-rabbit:
         condition: service_healthy
       mysql:
         condition: service_healthy
+    volumes:
+      - dottpc_categories_data:/app/categories_data
+    networks:
+      - dottpc_net
 
   python-api:
+    image: ${DOCKERHUB_PYTHON_IMAGE:-marianora/dott-python:latest}
+    container_name: dottpc-python
     restart: unless-stopped
+    ports:
+      - "${PYTHON_API_PORT:-5000}:5000"
     environment:
-      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
-      - RABBITMQ_PYTHON_QUEUE=${RABBITMQ_PYTHON_QUEUE}
-      - RABBITMQ_RETRY_DELAY=${RABBITMQ_RETRY_DELAY}
-      - RABBITMQ_URL=dottpc-rabbit
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
+      RABBITMQ_RETRY_DELAY: ${RABBITMQ_RETRY_DELAY:-5}
+      SUPPLIER_AIR_URL: ${SUPPLIER_AIR_URL:-}
+      SUPPLIER_AIR_USER: ${SUPPLIER_AIR_USER:-}
+      SUPPLIER_AIR_PASSWORD: ${SUPPLIER_AIR_PASSWORD:-}
+      SUPPLIER_ELIT_URL: ${SUPPLIER_ELIT_URL:-}
+      SUPPLIER_ELIT_USER_ID: ${SUPPLIER_ELIT_USER_ID:-}
+      SUPPLIER_ELIT_TOKEN: ${SUPPLIER_ELIT_TOKEN:-}
+      SUPPLIER_INVID_URL: ${SUPPLIER_INVID_URL:-}
+      SUPPLIER_INVID_USER: ${SUPPLIER_INVID_USER:-}
+      SUPPLIER_INVID_PASSWORD: ${SUPPLIER_INVID_PASSWORD:-}
+      SUPPLIER_NB_URL: ${SUPPLIER_NB_URL:-}
+      SUPPLIER_NB_API_KEY: ${SUPPLIER_NB_API_KEY:-}
+      SUPPLIER_NB_TOKEN: ${SUPPLIER_NB_TOKEN:-}
+      SUPPLIER_MEGA_URL: ${SUPPLIER_MEGA_URL:-}
+      SUPPLIER_MEGA_USER: ${SUPPLIER_MEGA_USER:-}
+      SUPPLIER_MEGA_PASSWORD: ${SUPPLIER_MEGA_PASSWORD:-}
+    command: ["python", "dottDB.py"]
     depends_on:
       dottpc-rabbit:
         condition: service_healthy
+    networks:
+      - dottpc_net
+
+  python-api-fetch:
+    image: ${DOCKERHUB_PYTHON_IMAGE:-marianora/dott-python:latest}
+    container_name: dottpc-python-fetch
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
+      RABBITMQ_FETCH_PRICES_QUEUE: ${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
+      RABBITMQ_RETRY_DELAY: ${RABBITMQ_RETRY_DELAY:-5}
+      SUPPLIER_AIR_URL: ${SUPPLIER_AIR_URL:-}
+      SUPPLIER_AIR_USER: ${SUPPLIER_AIR_USER:-}
+      SUPPLIER_AIR_PASSWORD: ${SUPPLIER_AIR_PASSWORD:-}
+      SUPPLIER_ELIT_URL: ${SUPPLIER_ELIT_URL:-}
+      SUPPLIER_ELIT_USER_ID: ${SUPPLIER_ELIT_USER_ID:-}
+      SUPPLIER_ELIT_TOKEN: ${SUPPLIER_ELIT_TOKEN:-}
+      SUPPLIER_INVID_URL: ${SUPPLIER_INVID_URL:-}
+      SUPPLIER_INVID_USER: ${SUPPLIER_INVID_USER:-}
+      SUPPLIER_INVID_PASSWORD: ${SUPPLIER_INVID_PASSWORD:-}
+      SUPPLIER_NB_URL: ${SUPPLIER_NB_URL:-}
+      SUPPLIER_NB_API_KEY: ${SUPPLIER_NB_API_KEY:-}
+      SUPPLIER_NB_TOKEN: ${SUPPLIER_NB_TOKEN:-}
+      SUPPLIER_MEGA_URL: ${SUPPLIER_MEGA_URL:-}
+      SUPPLIER_MEGA_USER: ${SUPPLIER_MEGA_USER:-}
+      SUPPLIER_MEGA_PASSWORD: ${SUPPLIER_MEGA_PASSWORD:-}
+    command: ["python", "fetch_price_list_consumer.py"]
+    depends_on:
+      dottpc-rabbit:
+        condition: service_healthy
+    networks:
+      - dottpc_net
+
+networks:
+  dottpc_net:
+    driver: bridge
+
+volumes:
+  dottpc_mysql_data:
+  dottpc_categories_data:

@@ -30,9 +30,12 @@ def fetch_nb() -> Optional[bytes]:
         base = url.rstrip("/")
         final_url = f"{base}/{token}"
 
+    logger.info("NB: descargando listado (URL configurada)")
     try:
         r = requests.get(final_url, timeout=120)
         r.raise_for_status()
+        size_kb = round(len(r.content) / 1024, 1)
+        logger.info("NB: descarga ok, %s KB", size_kb)
         return r.content
     except requests.RequestException as e:
         logger.exception("Error descargando listado NB: %s", e)

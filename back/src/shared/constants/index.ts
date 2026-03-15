@@ -1,6 +1,5 @@
 /**
  * Application-wide constants.
- * Module-specific constants stay in their modules (e.g. auth/constans.ts).
  */
 
 export const APP = {

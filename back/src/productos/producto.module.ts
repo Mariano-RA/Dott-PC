@@ -4,19 +4,20 @@ import { DolaresModule } from "src/dolar/dolar.module";
 import { Producto } from "./entities/producto.entity";
 import { ProductosController } from "./producto.controller";
 import { ProductosService } from "./producto.service";
+import { FetchPricesTriggerService } from "./fetch-prices-trigger.service";
 import { CuotasModule } from "src/cuota/cuota.module";
-import { ClientsModule, Transport } from "@nestjs/microservices";
 import { ProveedorModule } from "src/proveedor/proveedor.module";
-import { createProductoDto } from '../shared/createProductoDto';
+import { CategoriesModule } from "src/categories/categories.module";
 
 @Module({
   imports: [
-    CuotasModule, 
-    DolaresModule, 
+    CuotasModule,
+    DolaresModule,
     ProveedorModule,
-    TypeOrmModule.forFeature([Producto])
+    CategoriesModule,
+    TypeOrmModule.forFeature([Producto]),
   ],
   controllers: [ProductosController],
-  providers: [ProductosService],
+  providers: [ProductosService, FetchPricesTriggerService],
 })
 export class ProductosModule {}

@@ -1,57 +1,160 @@
+# Dott-PC - docker-compose para desarrollo local (build) y producción (imágenes).
+# Local: build activo. Producción: comentar build y descomentar image/pull_policy en cada servicio.
+# La única diferencia entre entornos son las variables de entorno (.env).
+
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: dottpc-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
+    volumes:
+      - dottpc_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dottpc_net
+
   dottpc-rabbit:
     container_name: dottpc-rabbit
     image: rabbitmq:3-management
+    restart: unless-stopped
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBIT_PORT_AMQP:-5672}:5672"
+      - "${RABBIT_PORT_MGMT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
-      - rabbitnetwork
-
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-database
-    ports:
-      - "3306:3306"
-    command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - rabbitnetwork
+      - dottpc_net
 
   backend:
-    # build:
-    #   dockerfile: ./Dockerfile
-    #   context: ./back
-    image: marianora/dott-back:latest
-    container_name: dott-back
+    build:
+      context: ./back
+      dockerfile: ./Dockerfile
+    image: dottpc-back:latest
+    # Producción: usar docker-compose -f docker-compose.yml -f docker-compose.prod.yml
+    container_name: dottpc-back
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
-      - RABBIT_MQ_URI=amqp://dottpc-rabbit:5672
+      NODE_ENV: ${NODE_ENV:-production}
+      ISSUER_BASE_URL: ${ISSUER_BASE_URL}
+      AUDIENCE: ${AUDIENCE}
+      CLIENT_ORIGIN_URL: ${CLIENT_ORIGIN_URL}
+      ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
+      HTTPS_KEY_PATH: ${HTTPS_KEY_PATH:-./secrets/privkey.pem}
+      HTTPS_CERT_PATH: ${HTTPS_CERT_PATH:-./secrets/fullchain.pem}
+      JWT_AT_SECRET: ${JWT_AT_SECRET}
+      JWT_RT_SECRET: ${JWT_RT_SECRET}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SYNC: ${DB_SYNC:-false}
+      RABBIT_MQ_URI: ${RABBIT_MQ_URI}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
+      RABBITMQ_FETCH_PRICES_QUEUE: ${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
+      LOCAL_DEV_AUTH_BYPASS: ${LOCAL_DEV_AUTH_BYPASS:-}
+      CATEGORIES_DATA_PATH: /app/categories_data
     depends_on:
-      - dottpc-rabbit
+      dottpc-rabbit:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    volumes:
+      - dottpc_categories_data:/app/categories_data
     networks:
-      - rabbitnetwork
+      - dottpc_net
 
   python-api:
-    # build:
-    #   dockerfile: ./Dockerfile
-    #   context: ./python-api
-    image: marianora/dott-python:latest
-    container_name: dott-python
+    build:
+      context: ./python-api
+      dockerfile: ./Dockerfile
+    image: dottpc-python:latest
+    # Producción: usar docker-compose -f docker-compose.yml -f docker-compose.prod.yml
+    container_name: dottpc-python
     ports:
-      - "5000:5000"
+      - "${PYTHON_API_PORT:-5000}:5000"
     environment:
-      - RABBITMQ_URL=dottpc-rabbit
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
+      RABBITMQ_RETRY_DELAY: ${RABBITMQ_RETRY_DELAY:-5}
+      SUPPLIER_AIR_URL: ${SUPPLIER_AIR_URL:-}
+      SUPPLIER_AIR_USER: ${SUPPLIER_AIR_USER:-}
+      SUPPLIER_AIR_PASSWORD: ${SUPPLIER_AIR_PASSWORD:-}
+      SUPPLIER_ELIT_URL: ${SUPPLIER_ELIT_URL:-}
+      SUPPLIER_ELIT_USER_ID: ${SUPPLIER_ELIT_USER_ID:-}
+      SUPPLIER_ELIT_TOKEN: ${SUPPLIER_ELIT_TOKEN:-}
+      SUPPLIER_INVID_URL: ${SUPPLIER_INVID_URL:-}
+      SUPPLIER_INVID_USER: ${SUPPLIER_INVID_USER:-}
+      SUPPLIER_INVID_PASSWORD: ${SUPPLIER_INVID_PASSWORD:-}
+      SUPPLIER_NB_URL: ${SUPPLIER_NB_URL:-}
+      SUPPLIER_NB_API_KEY: ${SUPPLIER_NB_API_KEY:-}
+      SUPPLIER_NB_TOKEN: ${SUPPLIER_NB_TOKEN:-}
+      SUPPLIER_MEGA_URL: ${SUPPLIER_MEGA_URL:-}
+      SUPPLIER_MEGA_USER: ${SUPPLIER_MEGA_USER:-}
+      SUPPLIER_MEGA_PASSWORD: ${SUPPLIER_MEGA_PASSWORD:-}
+    command: ["python", "dottDB.py"]
     depends_on:
-      - dottpc-rabbit
+      dottpc-rabbit:
+        condition: service_healthy
     networks:
-      - rabbitnetwork
+      - dottpc_net
+
+  # Misma imagen que python-api (mismo Dockerfile/código), otro comando (fetch_price_list_consumer.py).
+  # La imagen se construye con el servicio python-api; este solo la reutiliza.
+  python-api-fetch:
+    image: dottpc-python:latest
+    # Producción: descomentar si usás imagen preconstruida (pull_policy: never)
+    container_name: dottpc-python-fetch
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_PYTHON_QUEUE: ${RABBITMQ_PYTHON_QUEUE}
+      RABBITMQ_FETCH_PRICES_QUEUE: ${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
+      RABBITMQ_RETRY_DELAY: ${RABBITMQ_RETRY_DELAY:-5}
+      SUPPLIER_AIR_URL: ${SUPPLIER_AIR_URL:-}
+      SUPPLIER_AIR_USER: ${SUPPLIER_AIR_USER:-}
+      SUPPLIER_AIR_PASSWORD: ${SUPPLIER_AIR_PASSWORD:-}
+      SUPPLIER_ELIT_URL: ${SUPPLIER_ELIT_URL:-}
+      SUPPLIER_ELIT_USER_ID: ${SUPPLIER_ELIT_USER_ID:-}
+      SUPPLIER_ELIT_TOKEN: ${SUPPLIER_ELIT_TOKEN:-}
+      SUPPLIER_INVID_URL: ${SUPPLIER_INVID_URL:-}
+      SUPPLIER_INVID_USER: ${SUPPLIER_INVID_USER:-}
+      SUPPLIER_INVID_PASSWORD: ${SUPPLIER_INVID_PASSWORD:-}
+      SUPPLIER_NB_URL: ${SUPPLIER_NB_URL:-}
+      SUPPLIER_NB_API_KEY: ${SUPPLIER_NB_API_KEY:-}
+      SUPPLIER_NB_TOKEN: ${SUPPLIER_NB_TOKEN:-}
+      SUPPLIER_MEGA_URL: ${SUPPLIER_MEGA_URL:-}
+      SUPPLIER_MEGA_USER: ${SUPPLIER_MEGA_USER:-}
+      SUPPLIER_MEGA_PASSWORD: ${SUPPLIER_MEGA_PASSWORD:-}
+    command: ["python", "fetch_price_list_consumer.py"]
+    depends_on:
+      dottpc-rabbit:
+        condition: service_healthy
+    networks:
+      - dottpc_net
 
 networks:
-  rabbitnetwork:
+  dottpc_net:
     driver: bridge
 
 volumes:
-  mysql_data:
+  dottpc_mysql_data:
+  dottpc_categories_data:

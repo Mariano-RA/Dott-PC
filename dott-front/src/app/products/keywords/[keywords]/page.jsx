@@ -17,7 +17,7 @@ import ProductsEmptyState from "@/app/products/shared/ProductsEmptyState";
 const Page = ({ params }) => {
   const decodedKeywords = decodeURIComponent(params.keywords || "");
   const keywordsParam = useMemo(
-    () => decodedKeywords.trim().split(/\s+/).filter(Boolean).join(","),
+    () => decodedKeywords.trim().split(/\s+/).filter(Boolean).join(" "),
     [decodedKeywords]
   );
 

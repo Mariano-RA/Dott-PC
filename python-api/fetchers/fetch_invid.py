@@ -31,6 +31,7 @@ def fetch_invid() -> Optional[bytes]:
         logger.warning("SUPPLIER_INVID_USER/PASSWORD no configurado.")
         return None
 
+    logger.info("INVID: descargando desde %s (login + listado)", url)
     base_url = "https://www.invidcomputers.com/"
     login_url = urljoin(base_url, "login.php")
     referer_url = urljoin(base_url, "home_usuario.php")
@@ -65,6 +66,8 @@ def fetch_invid() -> Optional[bytes]:
             logger.error("INVID devolvió HTML en vez de XLSX. content-type=%s snippet=%s", ct, snippet)
             return None
 
+        size_kb = round(len(r.content) / 1024, 1)
+        logger.info("INVID: descarga ok, %s KB", size_kb)
         return r.content
     except requests.RequestException as e:
         logger.exception("Error descargando listado INVID: %s", e)

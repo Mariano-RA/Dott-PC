@@ -1,11 +1,12 @@
-import { APP_FILTER, NestFactory } from "@nestjs/core";
+import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import * as bodyParser from "body-parser";
 import { ConfigService } from "@nestjs/config";
 import { urlencoded } from "express";
 import { Logger } from "nestjs-pino";
-import { MicroserviceOptions, Transport } from "@nestjs/microservices";
+import { Transport } from "@nestjs/microservices";
 import { ValidationPipe } from "@nestjs/common";
+import { APP } from "./shared/constants";
 
 function checkEnvironment(configService: ConfigService) {
   const requiredEnvVars = [
@@ -75,8 +76,8 @@ async function bootstrap() {
     })
   );
   app.enableCors();
-  app.use(bodyParser.json({ limit: "50mb" }));
-  app.use(urlencoded({ extended: true, limit: "50mb" }));
-  await app.listen(3000);
+  app.use(bodyParser.json({ limit: APP.BODY_PARSER_LIMIT }));
+  app.use(urlencoded({ extended: true, limit: APP.BODY_PARSER_LIMIT }));
+  await app.listen(APP.DEFAULT_PORT);
 }
 bootstrap();

@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ProductosService } from "./producto.service";
+import { FetchPricesTriggerService } from "./fetch-prices-trigger.service";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
 import { PermissionGuard } from "src/authTest/permission.guard";
 import {
@@ -26,7 +27,10 @@ import { FetchPricesDto } from "./dto/fetchPricesDto";
 
 @Controller("productos")
 export class ProductosController {
-  constructor(private readonly productosService: ProductosService) {}
+  constructor(
+    private readonly productosService: ProductosService,
+    private readonly fetchPricesTriggerService: FetchPricesTriggerService,
+  ) {}
 
   @UseGuards(AuthorizationGuard, PermissionGuard)
   @SetMetadata("permissions", ["create:tablas"])
@@ -39,7 +43,7 @@ export class ProductosController {
   @SetMetadata("permissions", ["create:tablas"])
   @Post("fetch-prices")
   async fetchPrices(@Body() dto: FetchPricesDto) {
-    return await this.productosService.triggerFetchPrices(dto.proveedor);
+    return await this.fetchPricesTriggerService.triggerFetchPrices(dto.proveedor);
   }
 
   @MessagePattern("carga_tabla")
@@ -89,14 +93,14 @@ export class ProductosController {
   findByKeyWordAndCategory(
     @Query("category") category: string,
     @Query("keywords", new ParseArrayPipe({ items: String, separator: "," }))
-    keywords: String[],
+    keywords: string[],
     @Query("skip") skip: number,
     @Query("take") take: number,
     @Query("orderBy") orderBy: string,
     @Query("proveedor") proveedor?: string
   ) {
     return this.productosService.findByKeyWordAndCategory(
-      keywords,
+      Array.isArray(keywords) ? keywords.map(String) : [],
       category,
       skip,
       take,

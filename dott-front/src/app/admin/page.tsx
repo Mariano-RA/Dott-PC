@@ -207,15 +207,30 @@ function AdminPage() {
     [dolarRows]
   );
 
-  /** Proveedores con descarga automática (fetcher). Se muestran en el select de "Descargar listados". */
+  /** Proveedores con descarga automática (fetcher). Solo estos en el select "Descargar listados". */
   const fetchPricesProviderOptions = useMemo(
-    () =>
-      Array.from(new Set(["air", "elit", "nb", "invid", "mega", "hdc", ...providerOptions])).sort((a, b) => a.localeCompare(b)),
-    [providerOptions]
+    () => ["air", "elit", "invid", "mega", "nb"].sort((a, b) => a.localeCompare(b)),
+    []
   );
 
-  const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar">("proveedores");
+  /** Proveedores de carga manual (CSV/Excel). Solo estos en el select "Carga CSV de proveedor". */
+  const manualUploadProviderOptions = useMemo(() => ["eikon", "hdc"].sort((a, b) => a.localeCompare(b)), []);
+
+  const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar" | "categorias">("proveedores");
   const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<"tacataca" | "payway" | "mercadopago">("tacataca");
+
+  /** Categorías nuevas (sin mapear en DB) agrupadas por proveedor. */
+  type NewCategoryGroup = { categoriaRaw: string; examples: string[] };
+  const [categoriesNew, setCategoriesNew] = useState<Record<string, NewCategoryGroup[]>>({});
+  const [categoriesNewLoading, setCategoriesNewLoading] = useState(false);
+  const [addingMapping, setAddingMapping] = useState<string | null>(null);
+  const [discardingKey, setDiscardingKey] = useState<string | null>(null);
+  /** Valor del input "categoría normalizada" por clave "proveedor:categoriaRaw". */
+  const [normalizadaByKey, setNormalizadaByKey] = useState<Record<string, string>>({});
+  /** Claves "proveedor:categoriaRaw" seleccionadas para agregar en lote. */
+  const [selectedCategoryKeys, setSelectedCategoryKeys] = useState<Set<string>>(new Set());
+  const [addingBulk, setAddingBulk] = useState(false);
+  const [discardingBulk, setDiscardingBulk] = useState(false);
 
   const [alerta, setAlerta] = useState({
     show: false,
@@ -262,6 +277,169 @@ function AdminPage() {
   useEffect(() => {
     fetchDolar();
   }, [fetchDolar]);
+
+  const fetchCategoriesNew = async () => {
+    setCategoriesNewLoading(true);
+    try {
+      const res = await fetch(api.nest.categories.new);
+      const data = await res.json();
+      if (res.ok && typeof data === "object" && data !== null) {
+        setCategoriesNew(data as Record<string, NewCategoryGroup[]>);
+      } else {
+        setCategoriesNew({});
+      }
+    } catch {
+      setCategoriesNew({});
+    } finally {
+      setCategoriesNewLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "categorias") fetchCategoriesNew();
+  }, [activeTab]);
+
+  const handleAddMapping = async (
+    proveedor: string,
+    categoriaRaw: string,
+    categoriaNormalizada: string
+  ) => {
+    const key = `${proveedor}:${categoriaRaw}`;
+    setAddingMapping(key);
+    try {
+      const res = await fetch(api.nest.categories.dictionary, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          proveedor: proveedor.trim().toLowerCase(),
+          categoriaRaw: categoriaRaw.trim(),
+          categoriaNormalizada: categoriaNormalizada.trim() || categoriaRaw.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.error || "Error al agregar al diccionario." });
+        return;
+      }
+      setAlerta({ show: true, type: "success", message: "Mapeo agregado al diccionario." });
+      await fetchCategoriesNew();
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al agregar mapeo." });
+    } finally {
+      setAddingMapping(null);
+    }
+  };
+
+  const handleDiscardNew = async (proveedor: string, categoriaRaw: string) => {
+    const key = `${proveedor}:${categoriaRaw}`;
+    setDiscardingKey(key);
+    try {
+      const params = new URLSearchParams({ proveedor, categoriaRaw });
+      const res = await fetch(`${api.nest.categories.new}?${params}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.error || "Error al descartar." });
+        return;
+      }
+      setAlerta({ show: true, type: "success", message: "Entradas descartadas." });
+      await fetchCategoriesNew();
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al descartar." });
+    } finally {
+      setDiscardingKey(null);
+    }
+  };
+
+  const handleDiscardNewBulk = async () => {
+    if (selectedCategoryKeys.size === 0) return;
+    setDiscardingBulk(true);
+    try {
+      const items = Array.from(selectedCategoryKeys).map((key) => {
+        const i = key.indexOf(":");
+        return {
+          proveedor: key.slice(0, i),
+          categoriaRaw: i >= 0 ? key.slice(i + 1) : key,
+        };
+      });
+      const res = await fetch(api.nest.categories.newDiscardBulk, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.error || "Error al descartar en lote." });
+        return;
+      }
+      const deleted = json?.deleted ?? 0;
+      setAlerta({ show: true, type: "success", message: `${deleted} categoría(s) descartada(s).` });
+      setSelectedCategoryKeys(new Set());
+      await fetchCategoriesNew();
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al descartar en lote." });
+    } finally {
+      setDiscardingBulk(false);
+    }
+  };
+
+  const toggleCategorySelection = (key: string) => {
+    setSelectedCategoryKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectAllCategoriesInProvider = (proveedor: string, groups: NewCategoryGroup[]) => {
+    const keys = groups.map((g) => `${proveedor}:${g.categoriaRaw}`);
+    setSelectedCategoryKeys((prev) => {
+      const next = new Set(prev);
+      const allSelected = keys.every((k) => next.has(k));
+      if (allSelected) keys.forEach((k) => next.delete(k));
+      else keys.forEach((k) => next.add(k));
+      return next;
+    });
+  };
+
+  const handleAddMappingsBulk = async () => {
+    if (selectedCategoryKeys.size === 0) {
+      setAlerta({ show: true, type: "error", message: "Seleccioná al menos una categoría." });
+      return;
+    }
+    setAddingBulk(true);
+    try {
+      const mappings: { proveedor: string; categoriaRaw: string; categoriaNormalizada: string }[] = [];
+      for (const key of selectedCategoryKeys) {
+        const [proveedor, ...rawParts] = key.split(":");
+        const categoriaRaw = rawParts.join(":").trim();
+        const normalizada = (normalizadaByKey[key] ?? categoriaRaw).trim() || categoriaRaw;
+        mappings.push({
+          proveedor: proveedor.trim().toLowerCase(),
+          categoriaRaw,
+          categoriaNormalizada: normalizada,
+        });
+      }
+      const res = await fetch(api.nest.categories.dictionaryBulk, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mappings }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.message || json?.error || "Error al agregar en lote." });
+        return;
+      }
+      const count = json?.updated ?? 0;
+      setAlerta({ show: true, type: "success", message: `${count} mapeo(s) agregado(s) al diccionario.` });
+      setSelectedCategoryKeys(new Set());
+      await fetchCategoriesNew();
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al agregar en lote." });
+    } finally {
+      setAddingBulk(false);
+    }
+  };
 
   useEffect(() => {
     const fetchCalculatorConfig = async () => {
@@ -537,7 +715,7 @@ function AdminPage() {
     <div className="container-page py-8 md:py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="flex items-center gap-3">
-          <Badge variant="warning">Admin</Badge>
+          <Badge variant="danger">Admin</Badge>
           <h1>Gestión de tablas y tasas</h1>
         </div>
 
@@ -556,6 +734,7 @@ function AdminPage() {
                 { id: "proveedores" as const, label: "Proveedores y listados" },
                 { id: "calculadora" as const, label: "Calculadora" },
                 { id: "dolar" as const, label: "Dólar" },
+                { id: "categorias" as const, label: "Categorías nuevas" },
               ] as const
             ).map((tab) => (
               <button
@@ -565,7 +744,7 @@ function AdminPage() {
                 className={
                   activeTab === tab.id
                     ? "border-b-2 border-red-950 px-4 py-3 text-sm font-medium text-red-950"
-                    : "border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground hover:border-neutral-300 hover:text-foreground"
+                    : "border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground hover:border-red-200 hover:text-red-900"
                 }
               >
                 {tab.label}
@@ -588,7 +767,7 @@ function AdminPage() {
               />
             </div>
             <div className="flex justify-end">
-              <Button type="button" onClick={handleCreateProvider}>
+              <Button type="button" variant="red" onClick={handleCreateProvider}>
                 Crear proveedor
               </Button>
             </div>
@@ -616,7 +795,7 @@ function AdminPage() {
               </select>
             </div>
             <div className="flex justify-end">
-              <Button type="button" onClick={handleFetchPrices} loading={fetchPricesLoading}>
+              <Button type="button" variant="red" onClick={handleFetchPrices} loading={fetchPricesLoading}>
                 Descargar listados
               </Button>
             </div>
@@ -633,7 +812,7 @@ function AdminPage() {
                 onChange={(event) => setProviderToUpload(event.target.value)}
               >
                 <option value="">Proveedor</option>
-                {providerOptions.map((item) => (
+                {manualUploadProviderOptions.map((item) => (
                   <option key={item} value={item}>
                     {capitalizeLabel(item)}
                   </option>
@@ -643,7 +822,7 @@ function AdminPage() {
             </div>
 
             <div className="flex justify-end">
-              <Button type="button" onClick={handleUploadProvider}>
+              <Button type="button" variant="red" onClick={handleUploadProvider}>
                 Cargar listado
               </Button>
             </div>
@@ -685,7 +864,7 @@ function AdminPage() {
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <div className="flex items-center justify-between gap-3">
               <h3>Parámetros de calculadora por pasarela</h3>
-              <Button loading={savingCalculatorConfig} onClick={handleSaveCalculatorConfig}>
+              <Button variant="red" loading={savingCalculatorConfig} onClick={handleSaveCalculatorConfig}>
                 Guardar parámetros
               </Button>
             </div>
@@ -708,7 +887,7 @@ function AdminPage() {
                     className={
                       calculatorGatewayTab === tab.id
                         ? "border-b-2 border-red-950 px-3 py-2 text-sm font-medium text-red-950"
-                        : "border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:border-neutral-300 hover:text-foreground"
+                        : "border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:border-red-200 hover:text-red-900"
                     }
                   >
                     {tab.label}
@@ -909,7 +1088,7 @@ function AdminPage() {
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <div className="flex items-center justify-between gap-3">
               <h3>Valor del dólar por proveedor</h3>
-              <Button onClick={saveAllDolar}>Guardar todos</Button>
+              <Button variant="red" onClick={saveAllDolar}>Guardar todos</Button>
             </div>
             <div className="space-y-3">
               {dolarRows.map((row) => (
@@ -931,7 +1110,7 @@ function AdminPage() {
                   />
                   <p className="text-sm text-muted-foreground">{statusPill(statusByProveedor[row.proveedor] || "idle")}</p>
                   <div className="md:col-span-2 flex justify-end">
-                    <Button size="sm" onClick={() => saveDolarRow(row.proveedor)}>
+                    <Button variant="red" size="sm" onClick={() => saveDolarRow(row.proveedor)}>
                       Guardar proveedor
                     </Button>
                   </div>
@@ -964,6 +1143,139 @@ function AdminPage() {
           </CardContent>
         </Card>
           </>
+        )}
+
+        {activeTab === "categorias" && (
+          <Card>
+            <CardContent className="space-y-4 px-4 py-5 md:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3>Categorías nuevas (pendientes de alta)</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedCategoryKeys.size > 0 && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="red"
+                        size="sm"
+                        onClick={handleAddMappingsBulk}
+                        loading={addingBulk}
+                      >
+                        Agregar seleccionados ({selectedCategoryKeys.size})
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleDiscardNewBulk}
+                        loading={discardingBulk}
+                      >
+                        Descartar seleccionadas ({selectedCategoryKeys.size})
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={fetchCategoriesNew}
+                    loading={categoriesNewLoading}
+                  >
+                    Actualizar
+                  </Button>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Categorías detectadas en listados que no están en el diccionario. Asigná una categoría normalizada y agregá al diccionario (una por una o varias con &quot;Agregar seleccionados&quot;), o descartá.
+              </p>
+              {categoriesNewLoading ? (
+                <p className="text-sm text-muted-foreground">Cargando...</p>
+              ) : Object.keys(categoriesNew).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay categorías nuevas pendientes.</p>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(categoriesNew).map(([proveedor, groups]) => {
+                    const providerKeys = groups.map((g) => `${proveedor}:${g.categoriaRaw}`);
+                    const selectedCount = providerKeys.filter((k) => selectedCategoryKeys.has(k)).length;
+                    const allSelected = providerKeys.length > 0 && selectedCount === providerKeys.length;
+                    return (
+                      <div key={proveedor} className="rounded-lg border border-border p-4">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <h4 className="text-sm font-semibold capitalize text-foreground">{proveedor}</h4>
+                          <button
+                            type="button"
+                            onClick={() => selectAllCategoriesInProvider(proveedor, groups)}
+                            className="text-xs text-muted-foreground underline hover:text-red-900"
+                          >
+                            {allSelected ? "Quitar selección" : "Seleccionar todo"}
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {groups.map((group) => {
+                            const key = `${proveedor}:${group.categoriaRaw}`;
+                            const normalizada = normalizadaByKey[key] ?? group.categoriaRaw;
+                            const isAdding = addingMapping === key;
+                            const isDiscarding = discardingKey === key;
+                            const isSelected = selectedCategoryKeys.has(key);
+                            const ejemplo = Array.isArray(group.examples) && group.examples.length > 0 ? group.examples[0] : "";
+                            return (
+                              <div
+                                key={key}
+                                className="grid gap-x-4 gap-y-2 rounded border border-border bg-muted/30 p-3 text-sm grid-cols-1 sm:grid-cols-[auto_1fr_1fr_auto] sm:items-center"
+                              >
+                                <div className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleCategorySelection(key)}
+                                    className="h-4 w-4 rounded border-input"
+                                    aria-label={`Seleccionar ${group.categoriaRaw}`}
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-foreground">Raw: {group.categoriaRaw}</p>
+                                  {ejemplo ? (
+                                    <p className="mt-0.5 text-xs text-muted-foreground">Ejemplo: {ejemplo}</p>
+                                  ) : null}
+                                </div>
+                                <div className="min-w-0">
+                                  <Input
+                                    placeholder="Categoría normalizada"
+                                    value={normalizada}
+                                    onChange={(e) => setNormalizadaByKey((prev) => ({ ...prev, [key]: e.target.value }))}
+                                    className="h-9 w-full"
+                                  />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="red"
+                                    size="sm"
+                                    onClick={() => handleAddMapping(proveedor, group.categoriaRaw, normalizada)}
+                                    loading={isAdding}
+                                  >
+                                    Agregar
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => handleDiscardNew(proveedor, group.categoriaRaw)}
+                                    loading={isDiscarding}
+                                  >
+                                    Descartar
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         <Alert

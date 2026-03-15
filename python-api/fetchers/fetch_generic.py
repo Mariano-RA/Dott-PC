@@ -24,9 +24,12 @@ def fetch_by_name(proveedor: str) -> Optional[bytes]:
     headers = {}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
+    logger.info("%s: descargando desde %s", proveedor, url)
     try:
         r = requests.get(url, auth=auth, headers=headers or None, timeout=120)
         r.raise_for_status()
+        size_kb = round(len(r.content) / 1024, 1)
+        logger.info("%s: descarga ok, %s KB", proveedor, size_kb)
         return r.content
     except requests.RequestException as e:
         logger.exception("Error descargando listado %s: %s", proveedor, e)
