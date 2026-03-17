@@ -1,33 +1,15 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getAccessToken, getSession } from "@auth0/nextjs-auth0";
 import { apiUrl } from "../../utils/utils";
-import axios from "axios";
-import https from "https";
-
-const agent = new https.Agent({ rejectUnauthorized: false });
-
-const IS_LOCAL_AUTH_BYPASS =
-  process.env.NODE_ENV === "development" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
-const LOCAL_DEV_BEARER_TOKEN = process.env.LOCAL_DEV_AUTH_BEARER_TOKEN || "";
-
-async function getAccessTokenForWrite(request) {
-  if (IS_LOCAL_AUTH_BYPASS) return LOCAL_DEV_BEARER_TOKEN;
-  try {
-    const session = await getSession(request);
-    if (session?.accessToken) return session.accessToken;
-    const { accessToken } = await getAccessToken(request, new NextResponse(), {
-      authorizationParams: {
-        audience: process.env.AUTH0_AUDIENCE,
-        scope: "create:tablas offline_access",
-      },
-    });
-    return accessToken || "";
-  } catch {
-    return "";
-  }
-}
+import {
+  getAccessTokenForWrite,
+  getUpstreamErrorMessage,
+  isLocalAuthBypassEnabled,
+  proxyDelete,
+  proxyGet,
+  proxyPost,
+} from "../../_shared/upstream";
 
 /** Proxy a /categories/new, /categories/dictionary o /categories/sql/master según el segmento. */
 export async function GET(request, context) {
@@ -36,33 +18,73 @@ export async function GET(request, context) {
 
   if (segment === "new") {
     try {
-      const { data } = await axios.get(`${apiUrl}/categories/new`, { httpsAgent: agent });
+      const data = await proxyGet(`${apiUrl}/categories/new`);
       return NextResponse.json(data);
     } catch (error) {
       const status = error?.response?.status || 500;
-      const message = error?.response?.data?.message || error?.message || "Error al obtener categorías nuevas";
+      const message = getUpstreamErrorMessage(error, "Error al obtener categorías nuevas");
+      return NextResponse.json({ error: message }, { status });
+    }
+  }
+
+  if (segment === "dictionary" && slug[1] === "export") {
+    try {
+      // Necesitamos headers upstream para Content-Disposition, así que usamos axios directo con el mismo agent centralizado.
+      const axiosModule = (await import("axios")).default;
+      const { getHttpsAgent } = await import("../../_shared/upstream");
+      const res = await axiosModule.get(`${apiUrl}/categories/dictionary/export`, { httpsAgent: getHttpsAgent() });
+      const nextRes = NextResponse.json(res.data);
+      if (res.headers?.["content-disposition"]) {
+        nextRes.headers.set("Content-Disposition", res.headers["content-disposition"]);
+      }
+      return nextRes;
+    } catch (error) {
+      const status = error?.response?.status || 500;
+      const message = getUpstreamErrorMessage(error, "Error al exportar");
       return NextResponse.json({ error: message }, { status });
     }
   }
 
   if (segment === "dictionary") {
     try {
-      const { data } = await axios.get(`${apiUrl}/categories/dictionary`, { httpsAgent: agent });
+      const data = await proxyGet(`${apiUrl}/categories/dictionary`);
       return NextResponse.json(data);
     } catch (error) {
       const status = error?.response?.status || 500;
-      const message = error?.response?.data?.message || error?.message || "Error al obtener diccionario";
+      const message = getUpstreamErrorMessage(error, "Error al obtener diccionario");
+      return NextResponse.json({ error: message }, { status });
+    }
+  }
+
+  if (segment === "sql" && slug[1] === "master-tree") {
+    try {
+      const data = await proxyGet(`${apiUrl}/categories/sql/master-tree`);
+      return NextResponse.json(data);
+    } catch (error) {
+      const status = error?.response?.status || 500;
+      const message = getUpstreamErrorMessage(error, "Error al obtener árbol de categorías");
+      return NextResponse.json({ error: message }, { status });
+    }
+  }
+
+  if (segment === "sql" && slug[1] === "master-flat") {
+    try {
+      const data = await proxyGet(`${apiUrl}/categories/sql/master-flat`);
+      return NextResponse.json(data);
+    } catch (error) {
+      const status = error?.response?.status || 500;
+      const message = getUpstreamErrorMessage(error, "Error al obtener lista de subcategorías");
       return NextResponse.json({ error: message }, { status });
     }
   }
 
   if (segment === "sql" && slug[1] === "master") {
     try {
-      const { data } = await axios.get(`${apiUrl}/categories/sql/master`, { httpsAgent: agent });
+      const data = await proxyGet(`${apiUrl}/categories/sql/master`);
       return NextResponse.json(data);
     } catch (error) {
       const status = error?.response?.status || 500;
-      const message = error?.response?.data?.message || error?.message || "Error al obtener categorías maestras";
+      const message = getUpstreamErrorMessage(error, "Error al obtener categorías maestras");
       return NextResponse.json({ error: message }, { status });
     }
   }
@@ -77,21 +99,15 @@ export async function POST(request, context) {
   }
   try {
     const accessToken = await getAccessTokenForWrite(request);
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
     const body = await request.json();
-    const { data } = await axios.post(`${apiUrl}/categories/dictionary`, body, {
-      httpsAgent: agent,
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-    });
+    const data = await proxyPost(`${apiUrl}/categories/dictionary`, body, { accessToken });
     return NextResponse.json(data);
   } catch (error) {
     const status = error?.response?.status || 500;
-    const message = error?.response?.data?.message || error?.message || "Error al agregar mapeo";
+    const message = getUpstreamErrorMessage(error, "Error al agregar mapeo");
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -103,21 +119,20 @@ export async function DELETE(request, context) {
   }
   try {
     const accessToken = await getAccessTokenForWrite(request);
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
     const { searchParams } = new URL(request.url);
     const proveedor = searchParams.get("proveedor") || "";
     const categoriaRaw = searchParams.get("categoriaRaw") || "";
-    const { data } = await axios.delete(`${apiUrl}/categories/new`, {
-      httpsAgent: agent,
+    const data = await proxyDelete(`${apiUrl}/categories/new`, {
+      accessToken,
       params: { proveedor, categoriaRaw },
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     return NextResponse.json(data);
   } catch (error) {
     const status = error?.response?.status || 500;
-    const message = error?.response?.data?.message || error?.message || "Error al descartar";
+    const message = getUpstreamErrorMessage(error, "Error al descartar");
     return NextResponse.json({ error: message }, { status });
   }
 }

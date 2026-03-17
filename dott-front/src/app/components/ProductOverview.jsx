@@ -5,14 +5,7 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "@/contexts/global.context";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { getUserRoles } from "@/lib/auth0Roles";
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(Number(value) || 0);
-}
+import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 
 export default function ProductOverview({ action, close, product }) {
   const [open, setOpen] = useState(false);
@@ -30,14 +23,7 @@ export default function ProductOverview({ action, close, product }) {
   }, [product?.precioCuotas]);
 
   const cuotaDesde = useMemo(() => {
-    const primeraCuota = cuotas.find((cuota) => Number(cuota?.CantidadCuotas) > 0);
-    if (!primeraCuota) {
-      return "Sin cuotas disponibles";
-    }
-
-    const cantidad = Number(primeraCuota.CantidadCuotas);
-    const porCuota = cantidad > 0 ? Math.round((Number(primeraCuota.Total) || 0) / cantidad) : Number(primeraCuota.Total) || 0;
-    return `${cantidad}x ${formatCurrency(porCuota)}`;
+    return getCuotaDesdeText(cuotas, { emptyText: "Sin cuotas disponibles" });
   }, [cuotas]);
 
   useEffect(() => {
@@ -124,7 +110,7 @@ export default function ProductOverview({ action, close, product }) {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-lg border border-red-100 bg-red-50 p-4">
                         <p className="text-xs uppercase tracking-wide text-red-700">Precio contado</p>
-                        <p className="mt-1 text-2xl font-semibold text-red-950">{formatCurrency(product?.precioEfectivo)}</p>
+                        <p className="mt-1 text-2xl font-semibold text-red-950">{formatARS(product?.precioEfectivo)}</p>
                       </div>
                       <div className="rounded-lg border border-red-100 bg-white p-4">
                         <p className="text-xs uppercase tracking-wide text-red-700">Cuotas desde</p>
@@ -152,7 +138,7 @@ export default function ProductOverview({ action, close, product }) {
                                 className="flex items-center justify-between rounded-md border border-red-100 px-3 py-2"
                               >
                                 <span className="text-sm font-medium text-neutral-800">{planLabel}</span>
-                                <span className="text-sm font-semibold text-red-900">{formatCurrency(porCuota)}</span>
+                                <span className="text-sm font-semibold text-red-900">{formatARS(porCuota)}</span>
                               </li>
                             );
                           })}

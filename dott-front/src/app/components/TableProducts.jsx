@@ -8,28 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { getUserRoles } from "@/lib/auth0Roles";
-
-function formatPrice(value) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-}
-
-function getCuotaDesde(product) {
-  const primeraCuota = product?.precioCuotas?.find((cuota) => Number(cuota?.CantidadCuotas) > 0);
-
-  if (!primeraCuota) {
-    return "Sin cuotas";
-  }
-
-  const cantidadCuotas = Number(primeraCuota.CantidadCuotas);
-  const totalCuotas = Number(primeraCuota.Total) || 0;
-  const porCuota = cantidadCuotas > 0 ? totalCuotas / cantidadCuotas : totalCuotas;
-
-  return `${cantidadCuotas}x ${formatPrice(porCuota)}`;
-}
+import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 
 const ProductTableRow = memo(function ProductTableRow({
   product,
@@ -41,8 +20,8 @@ const ProductTableRow = memo(function ProductTableRow({
   return (
     <tr className="border-b border-border hover:bg-neutral-50">
       <td className="px-3 py-3 text-left text-sm font-semibold text-foreground">{product?.producto?.toUpperCase()}</td>
-      <td className="px-3 py-3 text-sm text-foreground">{formatPrice(product?.precioEfectivo)}</td>
-      <td className="px-3 py-3 text-sm text-muted-foreground">{getCuotaDesde(product)}</td>
+      <td className="px-3 py-3 text-sm text-foreground">{formatARS(product?.precioEfectivo)}</td>
+      <td className="px-3 py-3 text-sm text-muted-foreground">{getCuotaDesdeText(product?.precioCuotas)}</td>
       {isAdmin ? <td className="px-3 py-3 text-sm text-muted-foreground">{product?.proveedor?.toUpperCase()}</td> : null}
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
@@ -109,8 +88,8 @@ const TableProducts = ({ products }) => {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground">{product?.producto?.toUpperCase()}</p>
                   <div className="mt-1 space-y-1">
-                    <span className="block text-base font-medium text-foreground">{formatPrice(product?.precioEfectivo)}</span>
-                    <span className="block text-xs text-muted-foreground">Cuotas desde: {getCuotaDesde(product)}</span>
+                    <span className="block text-base font-medium text-foreground">{formatARS(product?.precioEfectivo)}</span>
+                    <span className="block text-xs text-muted-foreground">Cuotas desde: {getCuotaDesdeText(product?.precioCuotas)}</span>
                     {isAdmin ? <span className="text-xs uppercase text-muted-foreground">{product?.proveedor}</span> : null}
                   </div>
                 </div>

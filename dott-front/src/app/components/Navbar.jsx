@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Bars3Icon, XMarkIcon, ShoppingCartIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Category from "./Category";
 import Cart from "./Cart";
@@ -81,10 +82,13 @@ export default function Navbar() {
             <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
               <div className="flex flex-shrink-0 items-center">
                 <Link href="/">
-                  <img
+                  <Image
                     className="h-8 w-auto rounded-md bg-red-700"
                     src="/logo/logoLetras.png"
                     alt="Logo DottPC"
+                    width={160}
+                    height={32}
+                    priority
                   />
                 </Link>
               </div>

@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { useUser } from "@auth0/nextjs-auth0/client";
+import Image from "next/image";
 import useSWR from "swr";
 import { getUserRoles } from "@/lib/auth0Roles";
 import { api } from "@/constants/routes";
@@ -42,11 +43,14 @@ export const User = () => {
               {user.nickname?.[0]?.toUpperCase() || "U"}
             </div>
           ) : (
-            <img
+            <Image
               className="h-8 w-8 rounded-full"
               src={user.picture}
               alt={user.nickname || "User"}
-              // onError={handleImageError}
+              width={32}
+              height={32}
+              unoptimized
+              onError={handleImageError}
             />
           )}
         </Menu.Button>

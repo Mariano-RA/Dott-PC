@@ -234,6 +234,7 @@ function AdminPage() {
   const [selectedCategoryKeys, setSelectedCategoryKeys] = useState<Set<string>>(new Set());
   const [addingBulk, setAddingBulk] = useState(false);
   const [discardingBulk, setDiscardingBulk] = useState(false);
+  const [dictionaryExportLoading, setDictionaryExportLoading] = useState(false);
 
   const OTHER_OPTION_VALUE = "__otra__";
   const masterCategoryNames = useMemo(() => masterCategories.map((m) => m.name), [masterCategories]);
@@ -304,10 +305,12 @@ function AdminPage() {
   const fetchMasterCategories = async () => {
     setMasterCategoriesLoading(true);
     try {
-      const res = await fetch(api.nest.categories.masterList);
+      const res = await fetch(api.nest.categories.masterFlat);
       const data = await res.json();
       if (res.ok && Array.isArray(data)) {
-        setMasterCategories(data as MasterCategoryItem[]);
+        setMasterCategories(
+          (data as string[]).map((name, i) => ({ id: i, name, slug: name }))
+        );
       } else {
         setMasterCategories([]);
       }
@@ -415,6 +418,40 @@ function AdminPage() {
       else next.add(key);
       return next;
     });
+  };
+
+  const handleExportDictionary = async () => {
+    setDictionaryExportLoading(true);
+    try {
+      const res = await fetch("/api/admin/dictionary/export");
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setAlerta({
+          show: true,
+          type: "error",
+          message: json?.error || `Error ${res.status} al exportar diccionario.`,
+        });
+        return;
+      }
+      const blob = contentType.includes("application/json")
+        ? new Blob([JSON.stringify(await res.json(), null, 2)], { type: "application/json" })
+        : await res.blob();
+      const disposition = res.headers.get("content-disposition");
+      const match = disposition?.match(/filename="?([^";]+)"?/);
+      const filename = match?.[1]?.trim() || "diccionarios.json";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      setAlerta({ show: true, type: "success", message: "Diccionario exportado correctamente." });
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al exportar diccionario." });
+    } finally {
+      setDictionaryExportLoading(false);
+    }
   };
 
   const selectAllCategoriesInProvider = (proveedor: string, groups: NewCategoryGroup[]) => {
@@ -1207,6 +1244,15 @@ function AdminPage() {
                     loading={categoriesNewLoading}
                   >
                     Actualizar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleExportDictionary}
+                    loading={dictionaryExportLoading}
+                  >
+                    Descargar diccionario JSON
                   </Button>
                 </div>
               </div>

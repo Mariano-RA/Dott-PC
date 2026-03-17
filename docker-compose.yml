@@ -54,9 +54,10 @@ services:
       ISSUER_BASE_URL: ${ISSUER_BASE_URL}
       AUDIENCE: ${AUDIENCE}
       CLIENT_ORIGIN_URL: ${CLIENT_ORIGIN_URL}
+      # En producción, terminá TLS en un reverse proxy (Caddy/Traefik/Nginx) y dejá ENABLE_HTTPS=false.
+      # Si querés HTTPS directo en el backend (solo casos puntuales), montá los certs en el contenedor
+      # y definí HTTPS_KEY_PATH / HTTPS_CERT_PATH como paths dentro del contenedor.
       ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
-      HTTPS_KEY_PATH: ${HTTPS_KEY_PATH:-./secrets/privkey.pem}
-      HTTPS_CERT_PATH: ${HTTPS_CERT_PATH:-./secrets/fullchain.pem}
       JWT_AT_SECRET: ${JWT_AT_SECRET}
       JWT_RT_SECRET: ${JWT_RT_SECRET}
       DB_HOST: ${DB_HOST:-mysql}

@@ -1,0 +1,4 @@
+vps-3587040-x.dattaweb.com {
+  reverse_proxy backend:3000
+}
+

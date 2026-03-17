@@ -41,6 +41,8 @@ export const api = {
       dictionary: path("/api/nest/categories/dictionary"),
       dictionaryBulk: path("/api/nest/categories/dictionary/bulk"),
       masterList: path("/api/nest/categories/sql/master"),
+      masterTree: path("/api/nest/categories/sql/master-tree"),
+      masterFlat: path("/api/nest/categories/sql/master-flat"),
     },
   },
   /** Rutas de Auth0 (Next.js API routes) */

@@ -6,6 +6,7 @@ import {
   ShoppingBagIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 
 const ProductCard = ({ product }) => {
   const [show, setShow] = useState(false);
@@ -17,21 +18,7 @@ const ProductCard = ({ product }) => {
   }, [product.id, state.productCart]);
 
   const cuotaDesde = useMemo(() => {
-    const primeraCuota = product?.precioCuotas?.find((cuota) => Number(cuota?.CantidadCuotas) > 0);
-
-    if (!primeraCuota) {
-      return "Sin cuotas";
-    }
-
-    const cantidadCuotas = Number(primeraCuota.CantidadCuotas);
-    const totalCuotas = Number(primeraCuota.Total) || 0;
-    const porCuota = cantidadCuotas > 0 ? totalCuotas / cantidadCuotas : totalCuotas;
-
-    return `${cantidadCuotas}x ${new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: "ARS",
-      maximumFractionDigits: 0,
-    }).format(porCuota)}`;
+    return getCuotaDesdeText(product?.precioCuotas);
   }, [product?.precioCuotas]);
 
   const handleProductOverview = (product) => {
@@ -55,11 +42,7 @@ const ProductCard = ({ product }) => {
       <div className="space-y-2">
         <p className="line-clamp-3 text-sm font-semibold text-foreground">{product?.producto?.toUpperCase()}</p>
         <p className="text-lg font-semibold text-foreground">
-          {new Intl.NumberFormat("es-AR", {
-            style: "currency",
-            currency: "ARS",
-            maximumFractionDigits: 0,
-          }).format(product?.precioEfectivo || 0)}
+          {formatARS(product?.precioEfectivo)}
         </p>
         <p className="text-xs text-muted-foreground">Cuotas desde: {cuotaDesde}</p>
       </div>

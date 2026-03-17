@@ -6,6 +6,7 @@ import { api } from "@/constants/routes";
 export const initialState = {
   productCart: [],
   categorys: [],
+  categoryTree: [],
 };
 
 export const ContextGlobal = createContext(undefined);
@@ -21,6 +22,11 @@ function reducer(state, action) {
       return {
         ...state,
         categorys: action.payload,
+      };
+    case "set_category_tree":
+      return {
+        ...state,
+        categoryTree: action.payload,
       };
     case "remove_cart":
       return {
@@ -58,7 +64,7 @@ export const ContextProvider = ({ children }) => {
       const categorys = Array.isArray(parsed?.categorys) ? parsed.categorys : [];
       dispatch({
         type: "set_state",
-        state: { productCart, categorys },
+        state: { productCart, categorys, categoryTree: [] },
       });
     } catch {
       // Estado corrupto o formato antiguo: no hidratar
@@ -66,14 +72,49 @@ export const ContextProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("appState", JSON.stringify(state));
+    localStorage.setItem(
+      "appState",
+      JSON.stringify({ productCart: state.productCart, categorys: state.categorys })
+    );
   }, [state, dispatch]);
 
   useEffect(() => {
     const getCategorys = async () => {
-      const resVal = await fetch(api.nest.categorys);
-      const { categorys } = await resVal.json();
-      dispatch({ type: "set_categorys", payload: categorys });
+      try {
+        const res = await fetch(api.nest.categories.masterTree);
+        if (res.ok) {
+          const tree = await res.json();
+          if (Array.isArray(tree) && tree.length > 0) {
+            dispatch({ type: "set_category_tree", payload: tree });
+            const flat = tree.flatMap((cat) =>
+              [cat.nombre, ...(Array.isArray(cat.subcategorias) ? cat.subcategorias : [])].filter(Boolean)
+            );
+            dispatch({ type: "set_categorys", payload: flat });
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      try {
+        const res = await fetch(api.nest.categories.masterFlat);
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) {
+            dispatch({ type: "set_categorys", payload: list });
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      try {
+        const resVal = await fetch(api.nest.categorys);
+        const { categorys } = await resVal.json();
+        dispatch({ type: "set_categorys", payload: categorys ?? [] });
+      } catch {
+        dispatch({ type: "set_categorys", payload: [] });
+      }
     };
     getCategorys();
   }, []);

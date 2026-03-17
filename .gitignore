@@ -34,3 +34,8 @@ back/docs/TEST_CATEGORIAS.md
 python-api/docs/ANALISIS_CODIGO_NO_USADO.md
 python-api/docs/categories_sql.md
 README.docker.md
+Categorias.txt
+
+# Secrets / certificates (never commit)
+back/secrets/
+**/*.pem

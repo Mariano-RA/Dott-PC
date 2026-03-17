@@ -1,46 +1,17 @@
-import axios from "axios";
-import https from "https";
 import { apiUrl } from "../utils/utils";
 import { NextResponse } from "next/server";
-import { getAccessToken, getSession } from "@auth0/nextjs-auth0";
-
-const IS_LOCAL_AUTH_BYPASS =
-  process.env.NODE_ENV === "development" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
-
-const LOCAL_DEV_BEARER_TOKEN = process.env.LOCAL_DEV_AUTH_BEARER_TOKEN || "";
-
-async function getAccessTokenForWrite(request) {
-  if (IS_LOCAL_AUTH_BYPASS) {
-    return LOCAL_DEV_BEARER_TOKEN;
-  }
-
-  try {
-    const session = await getSession(request);
-    if (session?.accessToken) {
-      return session.accessToken;
-    }
-
-    const { accessToken } = await getAccessToken(request, new NextResponse(), {
-      authorizationParams: {
-        audience: process.env.AUTH0_AUDIENCE,
-        scope: "create:tablas offline_access",
-      },
-    });
-
-    return accessToken || "";
-  } catch {
-    return "";
-  }
-}
-
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-});
+import {
+  getAccessTokenForWrite,
+  getUpstreamErrorMessage,
+  isLocalAuthBypassEnabled,
+  proxyDelete,
+  proxyGet,
+  proxyPost,
+} from "../_shared/upstream";
 
 export async function GET() {
   try {
-    const { data: plans } = await axios.get(`${apiUrl}/cuota/plans`, {
-      httpsAgent: agent,
+    const plans = await proxyGet(`${apiUrl}/cuota/plans`, {
       headers: { "content-type": "application/json" },
       params: { active: "true" },
     });
@@ -57,12 +28,8 @@ export async function PATCH(request) {
     const accessToken = await getAccessTokenForWrite(request);
     const body = await request.json();
 
-    const { data: plans } = await axios.get(`${apiUrl}/cuota/plans`, {
-      httpsAgent: agent,
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
-      },
+    const plans = await proxyGet(`${apiUrl}/cuota/plans`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       params: { active: body?.active ? "true" : undefined },
     });
 
@@ -92,25 +59,19 @@ export async function PUT(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
 
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
     const body = await request.json();
 
-    const { data } = await axios.post(`${apiUrl}/cuota/plans`, body?.plans || [], {
-      httpsAgent: agent,
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
-      },
-    });
+    const data = await proxyPost(`${apiUrl}/cuota/plans`, body?.plans || [], { accessToken });
 
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
     console.error("Error en PUT cuotas/plans:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
-    const message = error?.response?.data?.message || error?.response?.data?.error || "Error al guardar planes";
+    const message = getUpstreamErrorMessage(error, "Error al guardar planes");
     return NextResponse.json({ error: message }, { status: upstreamStatus });
   }
 }
@@ -119,7 +80,7 @@ export async function DELETE(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
 
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
@@ -130,19 +91,15 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "planKey es requerido" }, { status: 400 });
     }
 
-    const { data } = await axios.delete(`${apiUrl}/cuota/plans/${encodeURIComponent(planKey)}`, {
-      httpsAgent: agent,
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
-      },
+    const data = await proxyDelete(`${apiUrl}/cuota/plans/${encodeURIComponent(planKey)}`, {
+      accessToken,
     });
 
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
     console.error("Error en DELETE cuotas/plans:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
-    const message = error?.response?.data?.message || error?.response?.data?.error || "Error al borrar plan";
+    const message = getUpstreamErrorMessage(error, "Error al borrar plan");
     return NextResponse.json({ error: message }, { status: upstreamStatus });
   }
 }

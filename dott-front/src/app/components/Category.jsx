@@ -1,29 +1,18 @@
 "use client";
-import { Fragment, useContext, useEffect, useState } from "react";
+import { Fragment } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import Link from "next/link";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import { ContextGlobal } from "@/contexts/global.context";
+import { buildCategoryHref, useCategoriesNavigation } from "@/app/components/hooks/useCategoriesNavigation";
 
 export default function Category() {
-  const [categorys, setCategorys] = useState([]);
-  const { state } = useContext(ContextGlobal);
-
-  // useEffect(() => {
-  //   const getCategorys = async () => {
-  //     const resVal = await fetch("/api/nest/categorys");
-  //     const { categorys } = await resVal.json();
-  //     setCategorys(categorys);
-  //   };
-  //   getCategorys();
-  // }, []);
-  useEffect(() => {
-    setCategorys(state.categorys);
-  }, [state]);
+  const { categoryTree, categorys, useTree } = useCategoriesNavigation();
 
   function classNames(...classes) {
     return classes.filter(Boolean).join(" ");
   }
+
+  const linkBase = "block px-4 py-2 text-sm leading-5";
 
   return (
     <Menu as="div" className="relative inline-block text-left">
@@ -45,21 +34,61 @@ export default function Category() {
       >
         <Menu.Items className="absolute z-20 mt-2 w-64 origin-top-right rounded-md border border-red-100 bg-white shadow-lg focus:outline-none">
           <div className="max-h-80 overflow-y-auto py-1">
-            {categorys?.map((category, index) => (
-              <Menu.Item key={index}>
-                {({ active }) => (
-                  <Link
-                    href={`/products/category/${category}`}
-                    className={classNames(
-                      active ? "bg-red-50 text-red-900" : "bg-white text-red-800",
-                      "block px-4 py-2 text-sm leading-5"
-                    )}
-                  >
-                    {category}
-                  </Link>
-                )}
-              </Menu.Item>
-            ))}
+            {useTree ? (
+              <>
+                {categoryTree.map((cat) => (
+                  <div key={cat.id} className="border-b border-red-50 last:border-0">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          href={buildCategoryHref(cat.nombre)}
+                          className={classNames(
+                            active ? "bg-red-50 text-red-900" : "text-red-800",
+                            linkBase,
+                            "font-semibold"
+                          )}
+                        >
+                          {cat.nombre}
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    {Array.isArray(cat.subcategorias) &&
+                      cat.subcategorias.map((sub) => (
+                        <Menu.Item key={sub}>
+                          {({ active }) => (
+                            <Link
+                              href={buildCategoryHref(sub)}
+                              className={classNames(
+                                active ? "bg-red-50 text-red-900" : "bg-white text-red-800",
+                                linkBase,
+                                "pl-6 font-normal"
+                              )}
+                            >
+                              {sub}
+                            </Link>
+                          )}
+                        </Menu.Item>
+                      ))}
+                  </div>
+                ))}
+              </>
+            ) : (
+              categorys?.map((category) => (
+                <Menu.Item key={category}>
+                  {({ active }) => (
+                    <Link
+                      href={buildCategoryHref(category)}
+                      className={classNames(
+                        active ? "bg-red-50 text-red-900" : "bg-white text-red-800",
+                        linkBase
+                      )}
+                    >
+                      {category}
+                    </Link>
+                  )}
+                </Menu.Item>
+              ))
+            )}
           </div>
         </Menu.Items>
       </Transition>

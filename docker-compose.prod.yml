@@ -13,6 +13,22 @@
 # =============================================================================
 
 services:
+  caddy:
+    image: caddy:2
+    container_name: dottpc-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - dottpc_caddy_data:/data
+      - dottpc_caddy_config:/config
+    depends_on:
+      - backend
+    networks:
+      - dottpc_net
+
   mysql:
     image: mysql:8.0
     container_name: dottpc-mysql
@@ -54,16 +70,14 @@ services:
     image: ${DOCKERHUB_BACKEND_IMAGE:-marianora/dott-back:latest}
     container_name: dottpc-back
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
+    expose:
+      - "3000"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       ISSUER_BASE_URL: ${ISSUER_BASE_URL}
       AUDIENCE: ${AUDIENCE}
       CLIENT_ORIGIN_URL: ${CLIENT_ORIGIN_URL}
       ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
-      HTTPS_KEY_PATH: ${HTTPS_KEY_PATH:-./secrets/privkey.pem}
-      HTTPS_CERT_PATH: ${HTTPS_CERT_PATH:-./secrets/fullchain.pem}
       JWT_AT_SECRET: ${JWT_AT_SECRET}
       JWT_RT_SECRET: ${JWT_RT_SECRET}
       DB_HOST: ${DB_HOST:-mysql}
@@ -162,4 +176,6 @@ networks:
 
 volumes:
   dottpc_mysql_data:
+  dottpc_caddy_data:
+  dottpc_caddy_config:
   # dottpc_categories_data:  # opcional si querés persistir/override categories_data

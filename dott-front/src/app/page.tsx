@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Badge, Button, Card, CardContent, Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui";
 
@@ -34,10 +35,14 @@ export default function Inicio() {
               <CarouselContent>
                 {imagenes.map((imagen) => (
                   <CarouselItem key={imagen.id} className="flex justify-center">
-                    <img
+                    <Image
                       src={imagen.url}
                       className="h-auto w-full rounded-lg object-cover shadow-md"
                       alt={`Slide ${imagen.id}`}
+                      width={1200}
+                      height={675}
+                      priority={imagen.id === 1}
+                      sizes="(max-width: 768px) 100vw, 900px"
                     />
                   </CarouselItem>
                 ))}

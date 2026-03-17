@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiUrl } from "../../utils/utils";
-import axios from "axios";
-import https from "https";
-
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-});
+import { proxyGet } from "../../_shared/upstream";
 
 export async function GET(req) {
   try {
@@ -22,16 +17,10 @@ export async function GET(req) {
       );
     }
 
-    const { data: response } = await axios.get(
-      `${apiUrl}/productos/buscarPorPalabrasClaves`,
-      {
-        httpsAgent: agent,
-        headers: {
-          "content-type": "application/json",
-        },
-        params: { keywords, skip, take, orderBy, proveedor },
-      }
-    );
+    const response = await proxyGet(`${apiUrl}/productos/buscarPorPalabrasClaves`, {
+      headers: { "content-type": "application/json" },
+      params: { keywords, skip, take, orderBy, proveedor },
+    });
 
     return NextResponse.json({ response }, { status: 200 });
   } catch (error) {

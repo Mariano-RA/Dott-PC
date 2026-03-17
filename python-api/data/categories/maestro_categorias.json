@@ -1,0 +1,159 @@
+{
+  "categorias_maestras": [
+    {
+      "id": "computadoras_portatiles",
+      "nombre": "Computadoras y Portátiles",
+      "subcategorias": [
+        "PC de Escritorio",
+        "All in One",
+        "Mini PC",
+        "Notebooks",
+        "Tablets",
+        "Servidores"
+      ]
+    },
+    {
+      "id": "componentes_pc",
+      "nombre": "Componentes de PC",
+      "subcategorias": [
+        "Procesadores",
+        "Motherboards",
+        "Memorias RAM",
+        "Almacenamiento Interno (SSD/HDD)",
+        "Tarjetas de Video",
+        "Fuentes de Alimentación",
+        "Gabinetes",
+        "Refrigeración y Coolers",
+        "Unidades Ópticas",
+        "Tarjetas de Sonido y Capturadoras"
+      ]
+    },
+    {
+      "id": "perifericos_audio",
+      "nombre": "Periféricos y Audio",
+      "subcategorias": [
+        "Mouses y Mousepads",
+        "Teclados",
+        "Combos Teclado + Mouse",
+        "Auriculares y Headsets",
+        "Micrófonos y Streaming",
+        "Parlantes para PC",
+        "Cámaras Web"
+      ]
+    },
+    {
+      "id": "gaming",
+      "nombre": "Gaming y Consolas",
+      "subcategorias": [
+        "Consolas de Videojuegos",
+        "Joysticks y Volantes",
+        "Sillas y Escritorios Gamers",
+        "Accesorios para Consolas"
+      ]
+    },
+    {
+      "id": "monitores_proyeccion",
+      "nombre": "Monitores y Proyección",
+      "subcategorias": ["Monitores", "Proyectores", "Soportes y Pantallas"]
+    },
+    {
+      "id": "conectividad_redes",
+      "nombre": "Conectividad y Redes",
+      "subcategorias": [
+        "Routers y Access Points",
+        "Switches y Hubs",
+        "Placas de Red (PCI/USB)"
+      ]
+    },
+    {
+      "id": "almacenamiento_externo",
+      "nombre": "Almacenamiento Externo",
+      "subcategorias": [
+        "Discos Externos y Portátiles",
+        "Pendrives y Memorias USB",
+        "Tarjetas de Memoria"
+      ]
+    },
+    {
+      "id": "impresion_insumos",
+      "nombre": "Impresión e Insumos",
+      "subcategorias": [
+        "Impresoras y Multifunciones",
+        "Scanners",
+        "Cartuchos y Toners",
+        "Resmas y Papelería"
+      ]
+    },
+    {
+      "id": "cables_energia",
+      "nombre": "Cables y Energía",
+      "subcategorias": [
+        "Cables (HDMI/DisplayPort/USB)",
+        "Adaptadores y Conversores",
+        "UPS y Estabilizadores",
+        "Protectores de Tensión",
+        "Cargadores y Fuentes"
+      ]
+    },
+    {
+      "id": "seguridad_smart_home",
+      "nombre": "Seguridad y Smart Home",
+      "subcategorias": [
+        "Cámaras de Seguridad e IP",
+        "Domótica y Smart Home",
+        "Alarmas y Sensores"
+      ]
+    },
+    {
+      "id": "accesorios_pc",
+      "nombre": "Accesorios para PC",
+      "subcategorias": [
+        "Mochilas, Fundas y Maletines",
+        "Accesorios para Notebooks",
+        "Limpieza y Mantenimiento",
+        "Seguridad Física (Candados)",
+        "Pilas y Baterías",
+        "Herramientas de Precisión",
+        "Accesorios para Celulares",
+        "Accesorios Generales"
+      ]
+    },
+    {
+      "id": "electronica_hogar",
+      "nombre": "Electrónica y Hogar",
+      "subcategorias": [
+        "Smart TV",
+        "Audio para el Hogar",
+        "Celulares y Telefonía",
+        "Electrodomésticos Pequeños",
+        "Electrodomésticos Grandes",
+        "Movilidad Eléctrica",
+        "Electrónica y Entretenimiento",
+        "Wearables y Smartwatches",
+        "GPS y Navegación",
+        "Óptica y Fotografía",
+        "Climatización y Ventilación",
+        "Cuidado Personal y Belleza",
+        "Hogar y Jardín"
+      ]
+    },
+    {
+      "id": "software_licencias",
+      "nombre": "Software y Licencias",
+      "subcategorias": [
+        "Sistemas Operativos",
+        "Antivirus y Seguridad Digital",
+        "Ofimática y Gestión"
+      ]
+    },
+    {
+      "id": "ofertas_outlet",
+      "nombre": "Ofertas y Outlet",
+      "subcategorias": [
+        "Super Ofertas",
+        "Productos Destacados",
+        "Outlet / Reacondicionados"
+      ]
+    }
+  ]
+}

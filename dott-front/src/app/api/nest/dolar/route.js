@@ -1,47 +1,19 @@
-import axios from "axios";
-import https from "https";
 import { apiUrl } from "../utils/utils";
 import { NextResponse } from "next/server";
-import { getAccessToken, getSession } from "@auth0/nextjs-auth0";
-
-const IS_LOCAL_AUTH_BYPASS =
-  process.env.NODE_ENV === "development" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
-
-const LOCAL_DEV_BEARER_TOKEN = process.env.LOCAL_DEV_AUTH_BEARER_TOKEN || "";
-
-async function getAccessTokenForWrite(request) {
-  if (IS_LOCAL_AUTH_BYPASS) {
-    return LOCAL_DEV_BEARER_TOKEN;
-  }
-
-  try {
-    const session = await getSession(request);
-    if (session?.accessToken) {
-      return session.accessToken;
-    }
-
-    const { accessToken } = await getAccessToken(request, new NextResponse(), {
-      authorizationParams: {
-        audience: process.env.AUTH0_AUDIENCE,
-        scope: "create:tablas offline_access",
-      },
-    });
-
-    return accessToken || "";
-  } catch {
-    return "";
-  }
-}
-
-const agent = new https.Agent({ rejectUnauthorized: false });
+import {
+  getAccessTokenForWrite,
+  getUpstreamErrorMessage,
+  isLocalAuthBypassEnabled,
+  proxyDelete,
+  proxyGet,
+  proxyPost,
+} from "../_shared/upstream";
 
 export async function GET() {
   try {
-    const { data: dolar } = await axios.get(`${apiUrl}/dolar`, {
-      httpsAgent: agent,
+    const dolar = await proxyGet(`${apiUrl}/dolar`, {
       headers: { "content-type": "application/json" },
     });
-
     return NextResponse.json({ dolar }, { status: 200 });
   } catch (error) {
     console.error("Error en GET /dolar:", error?.response?.data || error.message);
@@ -60,8 +32,7 @@ export async function PATCH(request) {
       limit: body?.limit || 100,
     };
 
-    const { data: history } = await axios.get(`${apiUrl}/dolar/history`, {
-      httpsAgent: agent,
+    const history = await proxyGet(`${apiUrl}/dolar/history`, {
       headers: { "content-type": "application/json" },
       params,
     });
@@ -80,29 +51,21 @@ export async function POST(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
 
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
     const datosDolar = await request.json();
 
-    const { data: response } = await axios.post(
-      `${apiUrl}/dolar`,
-      datosDolar.arrayDolar,
-      {
-        httpsAgent: agent,
-        headers: {
-          "Content-Type": "application/json",
-          ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
-        },
-      }
-    );
+    const response = await proxyPost(`${apiUrl}/dolar`, datosDolar.arrayDolar, {
+      accessToken,
+    });
 
     return NextResponse.json({ response }, { status: 200 });
   } catch (error) {
     console.error("Error en POST /dolar:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
-    const message = error?.response?.data?.message || error?.response?.data?.error || "Error en la solicitud POST";
+    const message = getUpstreamErrorMessage(error, "Error en la solicitud POST");
     return NextResponse.json(
       { error: message },
       { status: upstreamStatus }
@@ -114,7 +77,7 @@ export async function PUT(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
 
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
@@ -129,7 +92,7 @@ export async function PUT(request) {
       return NextResponse.json({ error: "Precio del dólar inválido" }, { status: 400 });
     }
 
-    const { data: response } = await axios.post(
+    const response = await proxyPost(
       `${apiUrl}/dolar/${encodeURIComponent(proveedor)}`,
       {
         precioDolar: body?.precioDolar,
@@ -137,19 +100,13 @@ export async function PUT(request) {
         usuario: body?.usuario,
         motivo: body?.motivo,
       },
-      {
-        httpsAgent: agent,
-        headers: {
-          "Content-Type": "application/json",
-          ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
-        },
-      }
+      { accessToken }
     );
 
     return NextResponse.json({ response }, { status: 200 });
   } catch (error) {
     console.error("Error en PUT /dolar:", error?.response?.data || error.message);
-    const errorMessage = error?.response?.data?.message || error?.response?.data?.error || error.message || "Error al guardar proveedor";
+    const errorMessage = getUpstreamErrorMessage(error, error?.message || "Error al guardar proveedor");
     return NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 });
   }
 }
@@ -158,7 +115,7 @@ export async function DELETE(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
 
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
@@ -169,22 +126,15 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 });
     }
 
-    const { data: response } = await axios.delete(
-      `${apiUrl}/dolar/${encodeURIComponent(proveedor)}`,
-      {
-        httpsAgent: agent,
-        headers: {
-          "Content-Type": "application/json",
-          ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
-        },
-      }
-    );
+    const response = await proxyDelete(`${apiUrl}/dolar/${encodeURIComponent(proveedor)}`, {
+      accessToken,
+    });
 
     return NextResponse.json({ response }, { status: 200 });
   } catch (error) {
     console.error("Error en DELETE /dolar:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
-    const message = error?.response?.data?.message || error?.response?.data?.error || "Error al borrar proveedor";
+    const message = getUpstreamErrorMessage(error, "Error al borrar proveedor");
     return NextResponse.json({ error: message }, { status: upstreamStatus });
   }
 }

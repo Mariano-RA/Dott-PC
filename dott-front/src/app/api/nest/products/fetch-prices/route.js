@@ -1,51 +1,18 @@
 import { NextResponse } from "next/server";
-import { getAccessToken, getSession } from "@auth0/nextjs-auth0";
 import { apiUrl } from "../../utils/utils";
-import axios from "axios";
-import https from "https";
-
-const IS_LOCAL_AUTH_BYPASS =
-  process.env.NODE_ENV === "development" && process.env.LOCAL_DEV_AUTH_BYPASS === "true";
-
-const LOCAL_DEV_BEARER_TOKEN = process.env.LOCAL_DEV_AUTH_BEARER_TOKEN || "";
-
-async function getAccessTokenForWrite(request) {
-  if (IS_LOCAL_AUTH_BYPASS) {
-    return LOCAL_DEV_BEARER_TOKEN;
-  }
-
-  try {
-    const session = await getSession(request);
-    if (session?.accessToken) {
-      return session.accessToken;
-    }
-
-    const { accessToken } = await getAccessToken(request, new NextResponse(), {
-      authorizationParams: {
-        audience: process.env.AUTH0_AUDIENCE,
-        scope: "create:tablas offline_access",
-      },
-    });
-
-    return accessToken || "";
-  } catch {
-    return "";
-  }
-}
-
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-});
+import {
+  getAccessTokenForWrite,
+  getUpstreamErrorMessage,
+  isLocalAuthBypassEnabled,
+  proxyPost,
+} from "../../_shared/upstream";
 
 /** POST: dispara la descarga automática del listado desde la web del proveedor. Body opcional: { proveedor?: string }. */
 export async function POST(request) {
   try {
     const accessToken = await getAccessTokenForWrite(request);
-    // #region agent log
-    fetch('http://127.0.0.1:7901/ingest/a43c9f0d-9231-46cb-8160-6f5aa7d983c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'bcf522'},body:JSON.stringify({sessionId:'bcf522',location:'fetch-prices/route.js:POST',message:'Next fetch-prices auth state',data:{IS_LOCAL_AUTH_BYPASS,hasAccessToken:!!accessToken,sendingAuthHeader:!!accessToken},timestamp:Date.now(),hypothesisId:'H1-H2-H5'})}).catch(()=>{});
-    // #endregion
 
-    if (!IS_LOCAL_AUTH_BYPASS && !accessToken) {
+    if (!isLocalAuthBypassEnabled() && !accessToken) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
     }
 
@@ -57,25 +24,13 @@ export async function POST(request) {
       // body vacío o inválido: se envía {} (todos los proveedores)
     }
 
-    const config = {
-      httpsAgent: agent,
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}),
-      },
-    };
-
-    const { data } = await axios.post(`${apiUrl}/productos/fetch-prices`, body, config);
+    const data = await proxyPost(`${apiUrl}/productos/fetch-prices`, body, { accessToken });
 
     return NextResponse.json({ response: data }, { status: 200 });
   } catch (error) {
     const upstreamStatus = error?.response?.status;
     const upstreamData = error?.response?.data;
-    const message =
-      upstreamData?.message ||
-      upstreamData?.error ||
-      error?.message ||
-      "Error al solicitar descarga de listados";
+    const message = getUpstreamErrorMessage(error, error?.message || "Error al solicitar descarga de listados");
 
     console.error("Error en POST /productos/fetch-prices:", upstreamData || error);
     return NextResponse.json(
