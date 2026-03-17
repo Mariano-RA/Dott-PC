@@ -67,7 +67,7 @@ RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm i --omit=dev; 
 
 # Copiar artefactos de build
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/secrets ./secrets
+# COPY --from=build /app/secrets ./secrets
 
 # Diccionarios para categorías (POST /categories/sql/import). Si montás un volumen en
 # /app/categories_data lo reemplazás; si no, se usa este por defecto.
