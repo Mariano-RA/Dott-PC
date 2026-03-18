@@ -2,10 +2,12 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
   ParseArrayPipe,
+  ParseIntPipe,
   Post,
   Query,
   SetMetadata,
@@ -32,6 +34,33 @@ export class ProductosController {
     private readonly fetchPricesTriggerService: FetchPricesTriggerService,
   ) {}
 
+  private safeDecodeURIComponent(value: string): string {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
+  /**
+   * Normaliza params de query que a veces llegan:
+   * - como array (category=a&category=b)
+   * - doble-encodeados (Memorias%2520RAM => Memorias%20RAM => Memorias RAM)
+   */
+  private asQueryText(value: unknown): string {
+    const raw = Array.isArray(value) ? value.map(String).join(" ").trim() : String(value ?? "").trim();
+    if (!raw) return "";
+
+    // Decodificamos hasta 2 veces para cubrir el caso "%2520" (doble encoding).
+    let decoded = raw;
+    for (let i = 0; i < 2; i++) {
+      const next = this.safeDecodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    }
+    return decoded.trim();
+  }
+
   @UseGuards(AuthorizationGuard, PermissionGuard)
   @SetMetadata("permissions", ["create:tablas"])
   @Post()
@@ -53,9 +82,9 @@ export class ProductosController {
 
   @Get()
   findAll(
-    @Query("skip") skip: number,
-    @Query("take") take: number,
-    @Query("orderBy") orderBy: string,
+    @Query("skip", new DefaultValuePipe(1), ParseIntPipe) skip: number,
+    @Query("take", new DefaultValuePipe(20), ParseIntPipe) take: number,
+    @Query("orderBy", new DefaultValuePipe("mayor")) orderBy: string,
     @Query("proveedor") proveedor?: string
   ) {
     return this.productosService.findAll(skip, take, orderBy, proveedor);
@@ -70,9 +99,9 @@ export class ProductosController {
   findByKeyWord(
     // @Query("keywords", new ParseArrayPipe({ items: String, separator: "," }))
     @Query("keywords") keywords: string,
-    @Query("skip") skip: number,
-    @Query("take") take: number,
-    @Query("orderBy") orderBy: string,
+    @Query("skip", new DefaultValuePipe(1), ParseIntPipe) skip: number,
+    @Query("take", new DefaultValuePipe(20), ParseIntPipe) take: number,
+    @Query("orderBy", new DefaultValuePipe("mayor")) orderBy: string,
     @Query("proveedor") proveedor?: string
   ) {
     return this.productosService.findByKeyWord(keywords, skip, take, orderBy, proveedor);
@@ -80,28 +109,36 @@ export class ProductosController {
 
   @Get("categoria")
   findByCategory(
-    @Query("category") category: string,
-    @Query("skip") skip: number,
-    @Query("take") take: number,
-    @Query("orderBy") orderBy: string,
-    @Query("proveedor") proveedor?: string
+    @Query("skip", new DefaultValuePipe(1), ParseIntPipe) skip: number,
+    @Query("take", new DefaultValuePipe(20), ParseIntPipe) take: number,
+    @Query("orderBy", new DefaultValuePipe("mayor")) orderBy: string,
+    @Query("proveedor") proveedor?: string,
+    @Query("category") category?: string | string[],
+    @Query("categoria") categoria?: string | string[],
   ) {
-    return this.productosService.findByCategory(category, skip, take, orderBy, proveedor);
+    return this.productosService.findByCategory(
+      this.asQueryText(category ?? categoria),
+      skip,
+      take,
+      orderBy,
+      proveedor
+    );
   }
 
   @Get("palabrasClavesYCategoria")
   findByKeyWordAndCategory(
-    @Query("category") category: string,
     @Query("keywords", new ParseArrayPipe({ items: String, separator: "," }))
     keywords: string[],
-    @Query("skip") skip: number,
-    @Query("take") take: number,
-    @Query("orderBy") orderBy: string,
-    @Query("proveedor") proveedor?: string
+    @Query("skip", new DefaultValuePipe(1), ParseIntPipe) skip: number,
+    @Query("take", new DefaultValuePipe(20), ParseIntPipe) take: number,
+    @Query("orderBy", new DefaultValuePipe("mayor")) orderBy: string,
+    @Query("proveedor") proveedor?: string,
+    @Query("category") category?: string | string[],
+    @Query("categoria") categoria?: string | string[],
   ) {
     return this.productosService.findByKeyWordAndCategory(
       Array.isArray(keywords) ? keywords.map(String) : [],
-      category,
+      this.asQueryText(category ?? categoria),
       skip,
       take,
       orderBy,

@@ -20,8 +20,14 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    command: >
+      sh -c "echo \"$$CADDY_HOST {\" > /etc/caddy/Caddyfile
+      && echo \"  reverse_proxy backend:3000\" >> /etc/caddy/Caddyfile
+      && echo \"}\" >> /etc/caddy/Caddyfile
+      && caddy run --config /etc/caddy/Caddyfile"
+    environment:
+      CADDY_HOST: ${CADDY_HOST:-vps-3587040-x.dattaweb.com}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - dottpc_caddy_data:/data
       - dottpc_caddy_config:/config
     depends_on:

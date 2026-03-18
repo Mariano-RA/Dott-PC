@@ -194,26 +194,45 @@ export class ProductosService {
       this.cuotasService.findPlans(true),
     ]);
 
+    const norm = (s: unknown) =>
+      String(s ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
     let filtered = productos;
     if (options.proveedor) {
-      const p = options.proveedor.toLowerCase();
+      const p = norm(options.proveedor);
       filtered = filtered.filter((x) =>
-        x.proveedor?.nombre?.toLowerCase().includes(p)
+        norm(x.proveedor?.nombre).includes(p)
       );
     }
     if (options.keywords) {
       const words = options.keywords.split(" ").filter(Boolean);
       filtered = filtered.filter((x) =>
         words.every((word) =>
-          x.producto.toLowerCase().includes(word.toLowerCase())
+          norm(x.producto).includes(norm(word))
         )
       );
     }
     if (options.category) {
-      const cat = options.category.toLowerCase();
-      filtered = filtered.filter((x) =>
-        x.categoria.toLowerCase().includes(cat)
+      const wanted = norm(options.category);
+      const tree = await this.categoriesService.getMasterCategoriesTree();
+      const parent = tree.find((c) => norm(c?.nombre) === wanted);
+      const allowed = new Set<string>(
+        (parent?.subcategorias ?? []).map((s) => norm(s)).filter(Boolean)
       );
+
+      // Si es categoría padre con subcategorías, matcheamos por igualdad contra las hijas.
+      // Caso contrario, mantenemos un fallback "includes" para no romper búsquedas previas.
+      if (allowed.size > 0) {
+        filtered = filtered.filter((x) => allowed.has(norm(x.categoria)));
+      } else {
+        filtered = filtered.filter((x) => {
+          const current = norm(x.categoria);
+          return current === wanted || current.includes(wanted);
+        });
+      }
     }
 
     const listadoProductos: ProductoDto[] = filtered.map((prod) => {
@@ -234,9 +253,12 @@ export class ProductosService {
 
     const listDto = new ListDto();
     listDto.cantResultados = listadoProductos.length;
+    // `skip` en el frontend a veces viene como 0 (offset-style). Acá lo tratamos como página 1-based.
+    const safeTake = Number.isFinite(options.take) && options.take > 0 ? options.take : 20;
+    const safeSkip = Number.isFinite(options.skip) && options.skip > 0 ? options.skip : 1;
     listDto.productos = pagination(
-      options.skip,
-      options.take,
+      safeSkip,
+      safeTake,
       handleOrder(options.orderBy, listadoProductos)
     );
     return listDto;
