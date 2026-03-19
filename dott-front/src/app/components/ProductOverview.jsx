@@ -10,6 +10,8 @@ import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 
 export default function ProductOverview({ action, close, product }) {
   const [open, setOpen] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   const { state, addCart, removeCart } = useContext(ContextGlobal);
   const { user } = useUser();
 
@@ -46,12 +48,15 @@ export default function ProductOverview({ action, close, product }) {
 
   useEffect(() => {
     setImageSrc(computedImageSrc);
+    setImageLoading(true);
   }, [computedImageSrc]);
 
   const handleImageError = () => {
     // Si falla el endpoint del proveedor, mostramos el placeholder local.
     setImageSrc((prev) => (prev === fallback ? prev : fallback));
+    setImageLoading(false);
   };
+  const canPreviewImage = imageSrc !== fallback;
 
   useEffect(() => {
     const handleShow = () => {
@@ -135,27 +140,36 @@ export default function ProductOverview({ action, close, product }) {
                     </div>
 
                     <div className="flex items-start gap-4">
-                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-red-100 bg-white">
+                      <button
+                        type="button"
+                        className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-red-100 bg-white ${
+                          canPreviewImage ? "cursor-zoom-in" : "cursor-default"
+                        }`}
+                        onClick={() => {
+                          if (canPreviewImage) {
+                            setImagePreviewOpen(true);
+                          }
+                        }}
+                        aria-label={canPreviewImage ? "Ampliar imagen del producto" : "Imagen no disponible"}
+                        disabled={!canPreviewImage}
+                      >
                         <Image
                           src={imageSrc}
                           alt={product?.producto ? `Imagen de ${product.producto}` : "Imagen del producto"}
                           fill
                           className="object-contain p-2"
                           sizes="96px"
+                          onLoad={() => setImageLoading(false)}
                           onError={handleImageError}
                         />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        {usrRoles.includes("admin") && product?.codigo ? (
-                          <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <span className="rounded-full border border-red-200 bg-white px-2 py-1 font-medium text-red-900">
-                              Código: {String(product.codigo)}
-                            </span>
-                          </div>
+                        {imageLoading ? (
+                          <span className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+                            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-r-transparent" />
+                          </span>
                         ) : null}
-                        <p className="text-xs text-neutral-600">
-                          {product?.codigo ? "Imagen cacheada por Dott PC." : "Sin imagen disponible."}
-                        </p>
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        {!canPreviewImage ? <p className="text-xs text-neutral-600">Sin imagen disponible.</p> : null}
                       </div>
                     </div>
 
@@ -221,6 +235,60 @@ export default function ProductOverview({ action, close, product }) {
           </div>
         </div>
       </Dialog>
+
+      <Transition.Root show={imagePreviewOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-20" onClose={setImagePreviewOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-neutral-900/70" />
+          </Transition.Child>
+          <div className="fixed inset-0 z-20 flex items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-red-100 bg-white p-3 shadow-2xl">
+                <button
+                  type="button"
+                  className="absolute right-3 top-3 rounded-md bg-white/90 p-1 text-neutral-700 transition hover:bg-red-50 hover:text-red-900"
+                  onClick={() => setImagePreviewOpen(false)}
+                >
+                  <span className="sr-only">Cerrar vista ampliada</span>
+                  <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                </button>
+                <div className="relative h-[60vh] w-full">
+                  <Image
+                    src={imageSrc}
+                    alt={product?.producto ? `Imagen ampliada de ${product.producto}` : "Imagen ampliada del producto"}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 768px) 95vw, 70vw"
+                    onLoad={() => setImageLoading(false)}
+                    onError={handleImageError}
+                  />
+                  {imageLoading ? (
+                    <span className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                      <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-red-500 border-r-transparent" />
+                    </span>
+                  ) : null}
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition.Root>
     </Transition.Root>
   );
 }
