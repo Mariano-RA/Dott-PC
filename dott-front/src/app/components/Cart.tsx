@@ -56,7 +56,8 @@ export default function Cart({ action, handleCloseCart }: CartProps) {
       <Transition.Root show={open} as={Fragment}>
         <div className="relative z-20" role="dialog" aria-modal="true" aria-label="Carrito de compras">
           <Transition.Child
-            as={Fragment}
+            as="div"
+            className="contents"
             enter="ease-in-out duration-500"
             enterFrom="opacity-0"
             enterTo="opacity-100"
@@ -74,7 +75,8 @@ export default function Cart({ action, handleCloseCart }: CartProps) {
             <div className="absolute inset-0 overflow-hidden">
               <div className="pointer-events-none absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
                 <Transition.Child
-                  as={Fragment}
+                  as="div"
+                  className="contents"
                   enter="transform transition ease-in-out duration-500 sm:duration-700"
                   enterFrom="translate-x-full"
                   enterTo="translate-x-0"
