@@ -20,8 +20,12 @@ def parse(archivo_bytesio) -> List[dict]:
         for _, row in df.iterrows():
             codigo = str(row[0]).strip() if len(row) > 0 else ""
             cat_raw = str(row[5]).strip() if len(row) > 5 else ""
-            # URL de imagen por código (ajustar si Eikon usa otro patrón)
-            imagen_url = f"https://www.eikonweb.com.ar/img/{codigo}.jpg" if codigo else ""
+            # EIKON publica imágenes en la carpeta Items con sufijo "_800".
+            imagen_url = (
+                f"https://www.eikonweb.com.ar/Temp/App_WebSite/App_PictureFiles/Items/{codigo}_800.jpg"
+                if codigo
+                else ""
+            )
             registro = {
                 "proveedor": "eikon",
                 "codigo": codigo,
