@@ -1,4 +1,4 @@
-import React, { memo, useContext, useMemo, useState } from "react";
+import React, { memo, useContext, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import ProductOverview from "@/app/components/ProductOverview";
 import { ContextGlobal } from "@/contexts/global.context";
@@ -14,8 +14,9 @@ const ProductCard = ({ product }) => {
   const [productDetail, setProductDetail] = useState({});
   const { state, addCart, removeCart } = useContext(ContextGlobal);
 
-  const imageSrc = useMemo(() => {
-    const fallback = "/img/product-placeholder.svg";
+  const fallback = "/img/product-placeholder.svg";
+
+  const computedImageSrc = useMemo(() => {
     const prov =
       typeof product?.proveedor === "string"
         ? product.proveedor.trim().toLowerCase()
@@ -27,6 +28,17 @@ const ProductCard = ({ product }) => {
     }
     return fallback;
   }, [product?.proveedor, product?.codigo]);
+
+  const [imageSrc, setImageSrc] = useState(computedImageSrc);
+
+  useEffect(() => {
+    setImageSrc(computedImageSrc);
+  }, [computedImageSrc]);
+
+  const handleImageError = () => {
+    // Si falla el endpoint del proveedor, mostramos el placeholder local.
+    setImageSrc((prev) => (prev === fallback ? prev : fallback));
+  };
 
   const isSelected = useMemo(() => {
     return state.productCart.some((prodCart) => prodCart.id === product.id);
@@ -62,6 +74,7 @@ const ProductCard = ({ product }) => {
             fill
             className="object-contain p-1"
             sizes="64px"
+            onError={handleImageError}
           />
         </div>
 

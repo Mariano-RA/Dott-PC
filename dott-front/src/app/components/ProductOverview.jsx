@@ -27,8 +27,9 @@ export default function ProductOverview({ action, close, product }) {
     return getCuotaDesdeText(cuotas, { emptyText: "Sin cuotas disponibles" });
   }, [cuotas]);
 
-  const imageSrc = useMemo(() => {
-    const fallback = "/img/product-placeholder.svg";
+  const fallback = "/img/product-placeholder.svg";
+
+  const computedImageSrc = useMemo(() => {
     const prov =
       typeof product?.proveedor === "string"
         ? product.proveedor.trim().toLowerCase()
@@ -40,6 +41,17 @@ export default function ProductOverview({ action, close, product }) {
     }
     return fallback;
   }, [product?.proveedor, product?.codigo]);
+
+  const [imageSrc, setImageSrc] = useState(computedImageSrc);
+
+  useEffect(() => {
+    setImageSrc(computedImageSrc);
+  }, [computedImageSrc]);
+
+  const handleImageError = () => {
+    // Si falla el endpoint del proveedor, mostramos el placeholder local.
+    setImageSrc((prev) => (prev === fallback ? prev : fallback));
+  };
 
   useEffect(() => {
     const handleShow = () => {
@@ -130,6 +142,7 @@ export default function ProductOverview({ action, close, product }) {
                           fill
                           className="object-contain p-2"
                           sizes="96px"
+                          onError={handleImageError}
                         />
                       </div>
                       <div className="min-w-0 flex-1">
