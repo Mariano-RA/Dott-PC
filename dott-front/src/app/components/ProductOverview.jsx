@@ -90,7 +90,8 @@ export default function ProductOverview({ action, close, product }) {
     <Transition.Root show={open} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={setOpen}>
         <Transition.Child
-          as={Fragment}
+          as="div"
+          className="contents"
           enter="ease-out duration-300"
           enterFrom="opacity-0"
           enterTo="opacity-100"
@@ -104,7 +105,8 @@ export default function ProductOverview({ action, close, product }) {
         <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-stretch justify-center text-center md:items-center md:px-2 lg:px-4">
             <Transition.Child
-              as={Fragment}
+              as="div"
+              className="contents"
               enter="ease-out duration-300"
               enterFrom="opacity-0 translate-y-4 md:translate-y-0 md:scale-95"
               enterTo="opacity-100 translate-y-0 md:scale-100"
@@ -239,7 +241,8 @@ export default function ProductOverview({ action, close, product }) {
       <Transition.Root show={imagePreviewOpen} as={Fragment}>
         <Dialog as="div" className="relative z-20" onClose={setImagePreviewOpen}>
           <Transition.Child
-            as={Fragment}
+            as="div"
+            className="contents"
             enter="ease-out duration-200"
             enterFrom="opacity-0"
             enterTo="opacity-100"
@@ -251,7 +254,8 @@ export default function ProductOverview({ action, close, product }) {
           </Transition.Child>
           <div className="fixed inset-0 z-20 flex items-center justify-center p-4">
             <Transition.Child
-              as={Fragment}
+              as="div"
+              className="contents"
               enter="ease-out duration-200"
               enterFrom="opacity-0 scale-95"
               enterTo="opacity-100 scale-100"
