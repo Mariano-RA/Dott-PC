@@ -141,10 +141,10 @@ export default function ProductOverview({ action, close, product }) {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4">
+                    <div className="flex flex-col items-center gap-3">
                       <button
                         type="button"
-                        className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-red-100 bg-white ${
+                        className={`relative h-36 w-36 shrink-0 overflow-hidden rounded-lg border border-red-100 bg-white ${
                           canPreviewImage ? "cursor-zoom-in" : "cursor-default"
                         }`}
                         onClick={() => {
@@ -159,8 +159,8 @@ export default function ProductOverview({ action, close, product }) {
                           src={imageSrc}
                           alt={product?.producto ? `Imagen de ${product.producto}` : "Imagen del producto"}
                           fill
-                          className="object-contain p-2"
-                          sizes="96px"
+                          className="object-contain p-3"
+                          sizes="144px"
                           onLoad={() => setImageLoading(false)}
                           onError={handleImageError}
                         />
@@ -170,9 +170,7 @@ export default function ProductOverview({ action, close, product }) {
                           </span>
                         ) : null}
                       </button>
-                      <div className="min-w-0 flex-1">
-                        {!canPreviewImage ? <p className="text-xs text-neutral-600">Sin imagen disponible.</p> : null}
-                      </div>
+                      {!canPreviewImage ? <p className="text-xs text-neutral-600">Sin imagen disponible.</p> : null}
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
