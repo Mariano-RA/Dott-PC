@@ -20,8 +20,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    # Generamos el Caddyfile dentro del contenedor para evitar bind-mount del host.
-    # El hostname se define vía variable de entorno (CADDY_HOST) para no hardcodear.
     command: >
       sh -c "echo \"$$CADDY_HOST {\" > /etc/caddy/Caddyfile
       && echo \"  reverse_proxy backend:3000\" >> /etc/caddy/Caddyfile
@@ -96,7 +94,7 @@ services:
       - dottpc_net
 
   backend:
-    image: ${DOCKERHUB_BACKEND_IMAGE:-marianora/dott-back:8c38574}
+    image: ${DOCKERHUB_BACKEND_IMAGE:-marianora/dott-back:f190f04}
     container_name: dottpc-back
     restart: unless-stopped
     expose:
@@ -133,10 +131,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    # categories_data viene de la imagen (diccionarios.json). Para override: montá
-    # tu carpeta, ej.: - ./python-api/data/categories:/app/categories_data
-    # volumes:
-    #   - dottpc_categories_data:/app/categories_data
     networks:
       - dottpc_net
 
@@ -215,4 +209,3 @@ volumes:
   dottpc_caddy_data:
   dottpc_caddy_config:
   dottpc_minio_data:
-  # dottpc_categories_data:  # opcional si querés persistir/override categories_data

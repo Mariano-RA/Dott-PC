@@ -1,3 +1,53 @@
-node_modules/
+# ---------------------------------------------------------------------------
+# Root .dockerignore
+# Este repo construye `back/Dockerfile` con context en la raíz (.) porque copia
+# `python-api/data/categories`. Por eso hay que ignorar artefactos pesados del
+# monorepo (front build, node_modules, git, etc.) para que el build no quede
+# colgado transfiriendo contexto.
+# ---------------------------------------------------------------------------
+
+# Node / JS
+**/node_modules
+**/npm-debug.log
+**/yarn-error.log
+**/pnpm-debug.log
+
+# Builds
+**/dist
+**/build
+**/coverage
+**/.next
+**/.turbo
+**/.cache
+
+# Git / IDE
+.git
+.git/
+.github/
+.vscode/
+.idea/
+
+# OS
+**/.DS_Store
+**/Thumbs.db
+
+# Env files (no van al build)
+.env
+.env.*
 .env.production
 .env.development
+**/*.local.*
+
+# Docker / docs (no necesarios en build)
+**/docker-compose*.yml
+**/Dockerfile*
+
+# Python caches
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Importante: NO ignorar `python-api/data/categories/**` (se copia en el runner)
