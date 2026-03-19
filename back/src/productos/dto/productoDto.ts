@@ -13,4 +13,6 @@ export class ProductoDto {
   precioEfectivo: number;
 
   precioCuotas: valorCuotaDto[];
+
+  codigo?: string;
 }

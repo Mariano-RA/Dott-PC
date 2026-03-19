@@ -19,6 +19,9 @@ import { CategoriesModule } from "./categories/categories.module";
 import { MasterCategory } from "./categories/entities/master-category.entity";
 import { CategoryProvider } from "./categories/entities/category-provider.entity";
 import { ProviderCategoryMapping } from "./categories/entities/provider-category-mapping.entity";
+import { ProductImage } from "./imagenes/entities/product-image.entity";
+import { ImagenesModule } from "./imagenes/imagenes.module";
+import { ScheduleModule } from "@nestjs/schedule";
 
 const dbPort = Number(process.env.DB_PORT || 3306);
 const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
@@ -53,6 +56,7 @@ const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
         Proveedor,
         CuotaPlan,
         Producto,
+        ProductImage,
         CalculatorSetting,
         MasterCategory,
         CategoryProvider,
@@ -62,11 +66,13 @@ const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
       // Keep schema sync opt-in for local development only.
       synchronize: dbSync,
     }),
+    ScheduleModule.forRoot(),
     CuotasModule,
     CalculatorSettingsModule,
     ProductosModule,
     ProveedorModule,
     CategoriesModule,
+    ImagenesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

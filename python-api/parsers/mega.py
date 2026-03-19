@@ -38,6 +38,7 @@ def _parse_mega_csv(archivo_bytesio) -> List[dict]:
             partes = line.strip().split(";")
             if len(partes) < 5:
                 continue
+            codigo = str(partes[0]).strip().replace('"', "")
             producto = partes[1].strip().replace('"', "")
             try:
                 precio_ars = float(partes[2].replace("U$s", "").strip())
@@ -50,13 +51,20 @@ def _parse_mega_csv(archivo_bytesio) -> List[dict]:
             cat_raw = main_category if main_category else ""
             if sub_category:
                 cat_raw = f"{cat_raw} > {sub_category}" if cat_raw else sub_category
+            imagen_url = (
+                f"https://www.mega-com.com.ar/images2.php?imagen={codigo}.jpg&t=g"
+                if codigo
+                else ""
+            )
             registros.append(
                 {
                     "proveedor": "mega",
+                    "codigo": codigo,
                     "producto": producto,
                     "categoriaRaw": cat_raw,
                     "categoria": cat_raw,
                     "precio": precio_final,
+                    "imagenUrl": imagen_url or None,
                 }
             )
     return registros

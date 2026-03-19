@@ -24,13 +24,19 @@ def parse(archivo_bytesio) -> List[dict]:
         next(csv_reader)
         for row in csv_reader:
             if all(x != "0" for x in row[5:9]):
+                codigo = str(row[0]).strip() if len(row) > 0 else ""
                 cat_raw = str(row[10]).strip() if len(row) > 10 else ""
+                imagen_url = (
+                    f"http://air-intra.com/imgart/{codigo}.jpeg" if codigo else None
+                )
                 registro = {
                     "proveedor": "air",
+                    "codigo": codigo,
                     "producto": row[1],
                     "categoriaRaw": cat_raw,
                     "categoria": cat_raw,
                     "precio": calcular_precio(row[2], row[4]),
+                    "imagenUrl": imagen_url,
                 }
                 data.append(registro)
         return data

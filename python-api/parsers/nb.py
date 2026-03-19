@@ -21,13 +21,17 @@ def parse(archivo_bytesio) -> List[dict]:
         for row in rows:
             if len(row) < 11:
                 continue
+            codigo = str(row[0]).strip() if len(row) > 0 else ""
             cat_raw = str(row[2]).strip() if len(row) > 2 else ""
+            imagen_url = str(row[4]).strip() if len(row) > 4 else ""
             registro = {
                 "proveedor": "nb",
+                "codigo": codigo,
                 "producto": row[3],
                 "categoriaRaw": cat_raw,
                 "categoria": cat_raw,
                 "precio": calcular_precio(row[10]),
+                "imagenUrl": imagen_url or None,
             }
             data.append(registro)
         return data

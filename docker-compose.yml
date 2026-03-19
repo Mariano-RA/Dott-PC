@@ -72,10 +72,17 @@ services:
       RABBITMQ_FETCH_PRICES_QUEUE: ${RABBITMQ_FETCH_PRICES_QUEUE:-fetch_prices}
       LOCAL_DEV_AUTH_BYPASS: ${LOCAL_DEV_AUTH_BYPASS:-}
       CATEGORIES_DATA_PATH: /app/categories_data
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-product-images}
     depends_on:
       dottpc-rabbit:
         condition: service_healthy
       mysql:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     volumes:
       # Montar carpeta del repo para que diccionarios.json esté disponible (dev y build local)
@@ -153,9 +160,31 @@ services:
     networks:
       - dottpc_net
 
+  minio:
+    image: minio/minio:latest
+    container_name: dottpc-minio
+    restart: unless-stopped
+    ports:
+      - "${MINIO_PORT_API:-9000}:9000"
+      - "${MINIO_PORT_CONSOLE:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: ["server", "/data", "--console-address", ":9001"]
+    volumes:
+      - dottpc_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dottpc_net
+
 networks:
   dottpc_net:
     driver: bridge
 
 volumes:
   dottpc_mysql_data:
+  dottpc_minio_data:

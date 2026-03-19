@@ -1,6 +1,7 @@
-"""Parser para proveedor ELIT (Excel o CSV con cabecera por nombre)."""
+"""Parser para proveedor ELIT (JSON, Excel o CSV con cabecera por nombre)."""
 import csv
 import io
+import json
 import logging
 from typing import List
 
@@ -17,31 +18,84 @@ def parse(archivo_bytesio) -> List[dict]:
     """Envía categoriaRaw para que el backend resuelva con el maestro."""
     try:
         raw = archivo_bytesio.read()
+
+        # Elit API devuelve JSON con lista de productos (codigo_producto, nombre, imagenes, etc.)
+        try:
+            raw_text = raw.decode("utf-8", errors="strict").lstrip()
+        except Exception:
+            raw_text = ""
+        if raw_text.startswith("{") or raw_text.startswith("["):
+            try:
+                payload = json.loads(raw_text)
+                productos = payload.get("productos") if isinstance(payload, dict) else payload
+                if not isinstance(productos, list):
+                    productos = []
+                data = []
+                for item in productos:
+                    if not isinstance(item, dict):
+                        continue
+                    codigo = str(
+                        item.get("codigo_producto") or item.get("codigo_alfa") or item.get("codigo") or ""
+                    ).strip()
+                    nombre = str(item.get("nombre") or item.get("producto") or "").strip()
+                    if not nombre:
+                        continue
+                    cat = str(item.get("sub_categoria") or item.get("categoria") or "").strip()
+                    precio_ars = item.get("pvp_ars") or item.get("precio") or item.get("pvp")
+                    if precio_ars is None:
+                        continue
+                    imagenes = item.get("imagenes")
+                    if isinstance(imagenes, list):
+                        imagenes = [str(x).strip() for x in imagenes if str(x).strip()]
+                    else:
+                        imagenes = None
+                    imagen_url = imagenes[0] if imagenes else None
+                    registro = {
+                        "proveedor": "elit",
+                        "codigo": codigo,
+                        "producto": nombre,
+                        "categoriaRaw": cat,
+                        "categoria": cat,
+                        "precio": calcular_precio(precio_ars),
+                        "imagenUrl": imagen_url,
+                        "imagenes": imagenes,
+                    }
+                    data.append(registro)
+                if data:
+                    return data
+            except Exception:
+                pass
+
         if is_excel_binary(raw):
             df = pd.read_excel(io.BytesIO(raw))
             data = []
             for _, row in df.iterrows():
+                codigo = str(row[0]).strip() if len(row) > 0 else ""
                 cat_raw = str(row[5]).strip() if len(row) > 5 else ""
+                imagen_url = str(row[11]).strip() if len(row) > 11 else ""
                 registro = {
                     "proveedor": "elit",
+                    "codigo": codigo,
                     "producto": row[1],
                     "categoriaRaw": cat_raw,
                     "categoria": cat_raw,
                     "precio": calcular_precio(row[8], float(row[9]) + float(row[10])),
+                    "imagenUrl": imagen_url or None,
                 }
                 data.append(registro)
             return data
 
-        # CSV: mapeo por nombres de columnas
-        text = raw.decode("utf-8", errors="replace")
+        # CSV Elit: id,codigo_alfa,codigo_producto,nombre,categoria,sub_categoria,...,pvp_ars,...,imagen,miniatura,...
+        text = raw.decode("utf-8-sig", errors="replace").strip()
         sample = "\n".join([ln for ln in text.splitlines() if ln.strip()][:20])
         try:
-            dialect = csv.Sniffer().sniff(sample, delimiters=";,|\t")
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;|\t")
             delimiter = dialect.delimiter
         except Exception:
-            delimiter = ";"
+            delimiter = ","
 
-        reader = csv.reader(text.splitlines(), delimiter=delimiter)
+        f = io.StringIO(text, newline="")
+        reader = csv.reader(f, delimiter=delimiter)
         rows = [r for r in reader if r and any(str(c).strip() for c in r)]
         if not rows:
             return []
@@ -55,6 +109,10 @@ def parse(archivo_bytesio) -> List[dict]:
                     return idx[n]
             return None
 
+        codigo_i = _first_idx(
+            "codigo_producto", "codigo_alfa", "código_producto", "código_alfa",
+            "codigo", "código", "sku", "id",
+        )
         producto_i = _first_idx(
             "producto", "nombre", "descripcion", "descripción", "articulo", "artículo"
         )
@@ -65,6 +123,7 @@ def parse(archivo_bytesio) -> List[dict]:
         )
         iva_i = _first_idx("iva", "iva_porcentaje", "alicuota_iva", "alícuota_iva")
         imp_i = _first_idx("impuesto_interno", "imp_interno", "interno")
+        imagen_i = _first_idx("imagen", "imagen_url", "url_imagen", "imagenes", "miniatura")
 
         def _to_float(v):
             if v is None:
@@ -83,22 +142,18 @@ def parse(archivo_bytesio) -> List[dict]:
             except Exception:
                 return None
 
+        def _cell(r, i):
+            if i is None or i >= len(r):
+                return ""
+            return str(r[i]).strip()
+
         data = []
         for r in rows[1:]:
             try:
-                producto = (
-                    str(r[producto_i]).strip()
-                    if producto_i is not None and producto_i < len(r)
-                    else ""
-                )
+                producto = _cell(r, producto_i)
                 if not producto:
                     continue
-                cat = ""
-                #if cat_i is not None and cat_i < len(r):
-                #    cat = str(r[cat_i]).strip()
-                #if not cat and sub_i is not None and sub_i < len(r):
-                #    cat = str(r[sub_i]).strip()
-                cat = str(r[sub_i]).strip()
+                cat = _cell(r, sub_i) or _cell(r, cat_i)
 
                 precio = (
                     _to_float(r[precio_i])
@@ -119,12 +174,32 @@ def parse(archivo_bytesio) -> List[dict]:
                 )
                 iva_total = float(iva or 0) + float(imp or 0)
 
+                codigo = _cell(r, codigo_i)
+                imagen_raw = _cell(r, imagen_i)
+                imagenes = None
+                imagen_url = None
+                if imagen_raw:
+                    if imagen_raw.startswith("[") and imagen_raw.endswith("]"):
+                        inner = imagen_raw[1:-1].strip()
+                        parts = [p.strip().strip('"').strip("'") for p in inner.split(",") if p.strip()]
+                        imagenes = [p for p in parts if p]
+                        imagen_url = imagenes[0] if imagenes else None
+                    elif "," in imagen_raw:
+                        parts = [p.strip() for p in imagen_raw.split(",") if p.strip()]
+                        imagenes = parts if parts else None
+                        imagen_url = imagenes[0] if imagenes else None
+                    else:
+                        imagen_url = imagen_raw
+
                 registro = {
                     "proveedor": "elit",
+                    "codigo": codigo,
                     "producto": producto,
                     "categoriaRaw": cat,
                     "categoria": cat,
                     "precio": calcular_precio(precio, iva_total),
+                    "imagenUrl": imagen_url,
+                    "imagenes": imagenes,
                 }
                 data.append(registro)
             except Exception:

@@ -16,9 +16,15 @@ export class Producto {
   @Column("text")
   producto: string;
 
-  @Column("text")
+  @Column("text", { nullable: true })
   categoria: string;
 
   @Column("int")
   precio: number;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  codigo: string | null;
+
+  @Column("text", { nullable: true })
+  imagenUrl: string | null;
 }

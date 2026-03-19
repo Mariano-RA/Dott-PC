@@ -1,5 +1,6 @@
 "use client";
 import { Fragment, useContext, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "@/contexts/global.context";
@@ -25,6 +26,20 @@ export default function ProductOverview({ action, close, product }) {
   const cuotaDesde = useMemo(() => {
     return getCuotaDesdeText(cuotas, { emptyText: "Sin cuotas disponibles" });
   }, [cuotas]);
+
+  const imageSrc = useMemo(() => {
+    const fallback = "/img/product-placeholder.svg";
+    const prov =
+      typeof product?.proveedor === "string"
+        ? product.proveedor.trim().toLowerCase()
+        : "";
+    const codigo =
+      typeof product?.codigo === "string" ? product.codigo.trim() : "";
+    if (prov && codigo && ["elit", "nb", "eikon", "mega", "air"].includes(prov)) {
+      return `/api/nest/imagenes/${encodeURIComponent(prov)}/${encodeURIComponent(codigo)}`;
+    }
+    return fallback;
+  }, [product?.proveedor, product?.codigo]);
 
   useEffect(() => {
     const handleShow = () => {
@@ -104,6 +119,30 @@ export default function ProductOverview({ action, close, product }) {
                             Proveedor: {product?.proveedor?.toUpperCase() || "-"}
                           </span>
                         ) : null}
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-red-100 bg-white">
+                        <Image
+                          src={imageSrc}
+                          alt={product?.producto ? `Imagen de ${product.producto}` : "Imagen del producto"}
+                          fill
+                          className="object-contain p-2"
+                          sizes="96px"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        {usrRoles.includes("admin") && product?.codigo ? (
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="rounded-full border border-red-200 bg-white px-2 py-1 font-medium text-red-900">
+                              Código: {String(product.codigo)}
+                            </span>
+                          </div>
+                        ) : null}
+                        <p className="text-xs text-neutral-600">
+                          {product?.codigo ? "Imagen cacheada por Dott PC." : "Sin imagen disponible."}
+                        </p>
                       </div>
                     </div>
 

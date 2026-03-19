@@ -126,6 +126,8 @@ export class ProductosService {
             producto: item.producto,
             categoria: resolved,
             precio: item.precio,
+            codigo: item.codigo != null ? String(item.codigo).trim() || null : null,
+            imagenUrl: item.imagenUrl != null ? String(item.imagenUrl).trim() || null : null,
           };
         })
       );
@@ -241,6 +243,7 @@ export class ProductosService {
       dto.proveedor = prod.proveedor?.nombre ?? "Desconocido";
       dto.producto = prod.producto;
       dto.categoria = prod.categoria;
+      dto.codigo = (prod as any).codigo ?? undefined;
       const precioDolar = getPrecioDolarOrDefault(arrayDolar, prod.proveedorId);
       dto.precioEfectivo = obtenerPrecioEfectivo(
         prod.precio,
