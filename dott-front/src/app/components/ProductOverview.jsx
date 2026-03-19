@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
@@ -87,7 +87,7 @@ export default function ProductOverview({ action, close, product }) {
   }
 
   return (
-    <Transition.Root show={open} as={Fragment}>
+    <Transition.Root show={open} as="div" className="contents">
       <Dialog as="div" className="relative z-10" onClose={setOpen}>
         <Transition.Child
           as="div"
@@ -238,7 +238,7 @@ export default function ProductOverview({ action, close, product }) {
         </div>
       </Dialog>
 
-      <Transition.Root show={imagePreviewOpen} as={Fragment}>
+      <Transition.Root show={imagePreviewOpen} as="div" className="contents">
         <Dialog as="div" className="relative z-20" onClose={setImagePreviewOpen}>
           <Transition.Child
             as="div"

@@ -10,7 +10,6 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
-import { Fragment } from "react";
 
 const ProductCard = ({ product }) => {
   const [show, setShow] = useState(false);
@@ -142,7 +141,7 @@ const ProductCard = ({ product }) => {
         <ProductOverview action={show} close={close} product={productDetail} />
       ) : null}
 
-      <Transition.Root show={imagePreviewOpen} as={Fragment}>
+      <Transition.Root show={imagePreviewOpen} as="div" className="contents">
         <Dialog as="div" className="relative z-20" onClose={setImagePreviewOpen}>
           <Transition.Child
             as="div"
