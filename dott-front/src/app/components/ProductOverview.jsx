@@ -4,8 +4,7 @@ import Image from "next/image";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "@/contexts/global.context";
-import { useUser } from "@auth0/nextjs-auth0";
-import { canAccessAdmin } from "@/lib/auth0Roles";
+import { useCanAccessAdmin } from "@/hooks/useCanAccessAdmin";
 import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 
 export default function ProductOverview({ action, close, product }) {
@@ -13,9 +12,7 @@ export default function ProductOverview({ action, close, product }) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
   const { state, addCart, removeCart } = useContext(ContextGlobal);
-  const { user } = useUser();
-
-  const showAdminProductMeta = useMemo(() => canAccessAdmin(user), [user]);
+  const { canAccess: showAdminProductMeta } = useCanAccessAdmin();
   const isSelected = useMemo(
     () => state.productCart.some((prodCart) => prodCart.id === product?.id),
     [state.productCart, product?.id]

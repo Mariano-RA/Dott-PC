@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useUser } from "@auth0/nextjs-auth0";
 import { useRouter } from "next/navigation";
 import Alert from "../components/Alert";
 import { Badge, Button, Card, CardContent, Input } from "@/components/ui";
 import { useAdminDolar } from "./hooks/useAdminDolar";
-import { canAccessAdmin } from "@/lib/auth0Roles";
+import { useCanAccessAdmin } from "@/hooks/useCanAccessAdmin";
 import { api } from "@/constants/routes";
 
 const IS_LOCAL_AUTH_BYPASS = process.env.NEXT_PUBLIC_LOCAL_DEV_AUTH_BYPASS === "true";
@@ -52,9 +51,8 @@ function capitalizeLabel(s: string): string {
 }
 
 function AdminPage() {
-  const { user, error, isLoading: userLoading } = useUser();
+  const { canAccess, pending: authPending } = useCanAccessAdmin();
   const router = useRouter();
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   const [providerToUpload, setProviderToUpload] = useState("");
   const [providerToDelete, setProviderToDelete] = useState("");
@@ -248,33 +246,12 @@ function AdminPage() {
     setAlerta((prev) => ({ ...prev, show: false }));
   };
 
+  // Redirigir si no está autorizado (tras resolver perfil + access token)
   useEffect(() => {
-    if (IS_LOCAL_AUTH_BYPASS) {
-      setIsAuthorized(true);
-      return;
-    }
-
-    // Solo verificar autenticación cuando Auth0 ha terminado de cargar
-    if (!userLoading) {
-      if (user) {
-        if (canAccessAdmin(user)) {
-          setIsAuthorized(true);
-        } else {
-          setIsAuthorized(false);
-        }
-      } else {
-        // No hay usuario autenticado
-        setIsAuthorized(false);
-      }
-    }
-  }, [user, userLoading]);
-
-  // Redirigir si no está autorizado (pero solo después de que Auth0 haya cargado)
-  useEffect(() => {
-    if (!IS_LOCAL_AUTH_BYPASS && isAuthorized === false) {
+    if (!IS_LOCAL_AUTH_BYPASS && !authPending && !canAccess) {
       router.push("/");
     }
-  }, [isAuthorized, router]);
+  }, [authPending, canAccess, router]);
 
   useEffect(() => {
     fetchDolar();
@@ -749,8 +726,8 @@ function AdminPage() {
     }
   };
 
-  // Mientras Auth0 carga o mientras verificamos permisos, mostrar loader
-  if (!IS_LOCAL_AUTH_BYPASS && isAuthorized === null) {
+  // Mientras Auth0 carga o mientras verificamos permisos (access token), mostrar loader
+  if (!IS_LOCAL_AUTH_BYPASS && authPending) {
     return (
       <div className="container-page py-8 md:py-10">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -765,7 +742,7 @@ function AdminPage() {
   }
 
   // Si no está autorizado, no mostrar contenido (la redirección ocurrirá en el effect)
-  if (!IS_LOCAL_AUTH_BYPASS && isAuthorized === false) {
+  if (!IS_LOCAL_AUTH_BYPASS && !canAccess) {
     return null;
   }
 
