@@ -171,7 +171,7 @@ export class ImageCacheService {
     }
 
     const existingByCodigo = new Map<string, ProductImage>();
-    if (!force && productos.length > 0) {
+    if (productos.length > 0) {
       const codigos = [...new Set(productos.map((p) => normalizeCode((p as any).codigo)).filter(Boolean))];
       const chunkSize = 1000;
       for (let i = 0; i < codigos.length; i += chunkSize) {
@@ -193,6 +193,7 @@ export class ImageCacheService {
     const toProcess: WorkItem[] = [];
     let skipped = 0;
 
+    const seenCodes = new Set<string>();
     for (const prod of productos) {
       const codigo = normalizeCode((prod as any).codigo);
       const url = String((prod as any).imagenUrl ?? "").trim();
@@ -200,6 +201,11 @@ export class ImageCacheService {
         skipped++;
         continue;
       }
+      if (seenCodes.has(codigo)) {
+        skipped++;
+        continue;
+      }
+      seenCodes.add(codigo);
 
       const existing = existingByCodigo.get(codigo) ?? null;
       if (!force && existing?.lastFetchedAt) {
