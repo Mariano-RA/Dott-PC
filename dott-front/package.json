@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.16.0",
-    "@headlessui/react": "^1.7.17",
+    "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.0.18",
     "@radix-ui/react-slot": "^1.1.2",
     "@tailwindcss/aspect-ratio": "^0.4.2",
