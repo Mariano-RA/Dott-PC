@@ -1,5 +1,5 @@
 "use client";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
@@ -70,13 +70,19 @@ export default function ProductOverview({ action, close, product }) {
   }, [action]);
 
   useEffect(() => {
-    const handleClose = () => {
-      if (open == false) {
-        close(open);
-      }
-    };
-    handleClose();
+    if (!open) {
+      setImagePreviewOpen(false);
+    }
   }, [open]);
+
+  /** Solo avisar al padre al cerrar (true → false), no en el montaje con open inicial false. */
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (wasOpenRef.current && !open) {
+      close(false);
+    }
+    wasOpenRef.current = open;
+  }, [open, close]);
 
   function handleCart() {
     if (isSelected) {
@@ -87,7 +93,7 @@ export default function ProductOverview({ action, close, product }) {
   }
 
   return (
-    <Transition.Root show={open} as={Fragment}>
+    <Transition.Root show={open} as="div" className="contents">
       <Dialog as="div" className="relative z-50" onClose={setOpen}>
         <Transition.Child
           as="div"
@@ -237,7 +243,8 @@ export default function ProductOverview({ action, close, product }) {
       </Dialog>
 
       <Transition.Root show={imagePreviewOpen} as="div" className="contents">
-        <Dialog as="div" className="relative z-20" onClose={setImagePreviewOpen}>
+        {/* z-[70]: por encima del detalle (z-50) y de la navbar (z-30) */}
+        <Dialog as="div" className="relative z-[70]" onClose={setImagePreviewOpen}>
           <Transition.Child
             as="div"
             className="contents"
@@ -248,9 +255,9 @@ export default function ProductOverview({ action, close, product }) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-neutral-900/70" />
+            <div className="fixed inset-0 z-[70] bg-neutral-900/80" aria-hidden="true" />
           </Transition.Child>
-          <div className="fixed inset-0 z-20 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             <Transition.Child
               as="div"
               className="contents"

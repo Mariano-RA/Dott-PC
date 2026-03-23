@@ -15,7 +15,7 @@ const ProductCard = ({ product }) => {
   const [show, setShow] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
-  const [productDetail, setProductDetail] = useState({});
+  const [productDetail, setProductDetail] = useState(null);
   const { state, addCart, removeCart } = useContext(ContextGlobal);
 
   const fallback = "/img/product-placeholder.svg";
@@ -55,12 +55,21 @@ const ProductCard = ({ product }) => {
     return getCuotaDesdeText(product?.precioCuotas);
   }, [product?.precioCuotas]);
 
-  const handleProductOverview = (product) => {
-    setProductDetail(product);
+  const handleProductOverview = (p) => {
+    setProductDetail(p);
     setShow(true);
   };
   function close(action) {
     setShow(action);
+    if (!action) {
+      setProductDetail(null);
+    }
+  }
+
+  function openImagePreview() {
+    if (!canPreviewImage) return;
+    setImageLoading(true);
+    setImagePreviewOpen(true);
   }
 
   function handleCart() {
@@ -76,9 +85,21 @@ const ProductCard = ({ product }) => {
       <div className="flex items-start gap-3">
         <button
           type="button"
-          className="relative h-16 w-16 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border bg-white p-0 text-left transition hover:ring-2 hover:ring-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-          onClick={() => handleProductOverview(product)}
-          aria-label={`Ver detalle e imagen de ${product?.producto || "producto"}`}
+          className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-md border border-border bg-white p-0 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 ${
+            canPreviewImage
+              ? "cursor-zoom-in hover:ring-2 hover:ring-red-300"
+              : "cursor-default opacity-90"
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            openImagePreview();
+          }}
+          aria-label={
+            canPreviewImage
+              ? `Ampliar imagen de ${product?.producto || "producto"}`
+              : "Sin imagen para ampliar"
+          }
+          disabled={!canPreviewImage}
         >
           <Image
             src={imageSrc}
@@ -125,12 +146,12 @@ const ProductCard = ({ product }) => {
         </button>
       </div>
 
-      {productDetail ? (
+      {productDetail != null ? (
         <ProductOverview action={show} close={close} product={productDetail} />
       ) : null}
 
       <Transition.Root show={imagePreviewOpen} as="div" className="contents">
-        <Dialog as="div" className="relative z-20" onClose={setImagePreviewOpen}>
+        <Dialog as="div" className="relative z-[70]" onClose={setImagePreviewOpen}>
           <Transition.Child
             as="div"
             className="contents"
@@ -141,9 +162,9 @@ const ProductCard = ({ product }) => {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-neutral-900/70" />
+            <div className="fixed inset-0 z-[70] bg-neutral-900/80" aria-hidden="true" />
           </Transition.Child>
-          <div className="fixed inset-0 z-20 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             <Transition.Child
               as="div"
               className="contents"
