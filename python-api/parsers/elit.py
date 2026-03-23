@@ -14,6 +14,16 @@ from .base import is_excel_binary
 logger = logging.getLogger(__name__)
 
 
+def _iva_a_porcentaje_para_calcular(iva) -> float:
+    """Elit envía IVA como tasa decimal (0,10 / 0,21); calcular_precio usa % (10 / 21)."""
+    if iva is None:
+        return 0.0
+    v = float(str(iva).replace(",", ".")) if isinstance(iva, str) else float(iva)
+    if 0 < v < 1:
+        return v * 100.0
+    return v
+
+
 def parse(archivo_bytesio) -> List[dict]:
     """Envía categoriaRaw para que el backend resuelva con el maestro."""
     try:
@@ -41,9 +51,11 @@ def parse(archivo_bytesio) -> List[dict]:
                     if not nombre:
                         continue
                     cat = str(item.get("sub_categoria") or item.get("categoria") or "").strip()
-                    precio_ars = item.get("pvp_ars") or item.get("precio") or item.get("pvp")
-                    if precio_ars is None:
+                    precio = item.get("precio") or item.get("pvp")
+                    if precio is None:
                         continue
+                    iva_raw = item.get("iva") or item.get("alicuota_iva") or item.get("iva_porcentaje")
+                    iva_pct = _iva_a_porcentaje_para_calcular(iva_raw)
                     imagenes = item.get("imagenes")
                     if isinstance(imagenes, list):
                         imagenes = [str(x).strip() for x in imagenes if str(x).strip()]
@@ -56,7 +68,7 @@ def parse(archivo_bytesio) -> List[dict]:
                         "producto": nombre,
                         "categoriaRaw": cat,
                         "categoria": cat,
-                        "precio": calcular_precio(precio_ars),
+                        "precio": calcular_precio(precio, iva_pct),
                         "imagenUrl": imagen_url,
                         "imagenes": imagenes,
                     }
@@ -79,7 +91,11 @@ def parse(archivo_bytesio) -> List[dict]:
                     "producto": row[1],
                     "categoriaRaw": cat_raw,
                     "categoria": cat_raw,
-                    "precio": calcular_precio(row[8], float(row[9]) + float(row[10])),
+                    "precio": calcular_precio(
+                        row[8],
+                        _iva_a_porcentaje_para_calcular(row[9])
+                        + _iva_a_porcentaje_para_calcular(row[10]),
+                    ),
                     "imagenUrl": imagen_url or None,
                 }
                 data.append(registro)
@@ -119,7 +135,7 @@ def parse(archivo_bytesio) -> List[dict]:
         cat_i = _first_idx("categoria", "categoría", "rubro", "linea", "línea")
         sub_i = _first_idx("subcategoria", "subcategoría", "sub_rubro", "subrubro")
         precio_i = _first_idx(
-            "pvp_ars", "pvp", "precio", "precio_ars", "importe", "valor"
+            "precio", "pvp", "pvp_ars", "precio_ars", "importe", "valor"
         )
         iva_i = _first_idx("iva", "iva_porcentaje", "alicuota_iva", "alícuota_iva")
         imp_i = _first_idx("impuesto_interno", "imp_interno", "interno")
@@ -172,7 +188,7 @@ def parse(archivo_bytesio) -> List[dict]:
                     if imp_i is not None and imp_i < len(r)
                     else 0.0
                 )
-                iva_total = float(iva or 0) + float(imp or 0)
+                iva_total = _iva_a_porcentaje_para_calcular(iva) + _iva_a_porcentaje_para_calcular(imp)
 
                 codigo = _cell(r, codigo_i)
                 imagen_raw = _cell(r, imagen_i)

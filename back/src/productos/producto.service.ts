@@ -286,15 +286,12 @@ export class ProductosService {
     } else if (o === "nombreDesc") {
       qb.orderBy("p.producto", "DESC").addOrderBy("p.id", "DESC");
     } else if (o === "mayor") {
-      qb.orderBy(sqlPrecioEfectivoSortExpr("p"), "DESC").addOrderBy(
-        "p.id",
-        "ASC"
-      );
+      // Select alias avoids TypeORM misparsing ROUND(...`p`.`precio`...) when using DISTINCT pagination with joins.
+      qb.addSelect(sqlPrecioEfectivoSortExpr("p"), "precioSort");
+      qb.orderBy("precioSort", "DESC").addOrderBy("p.id", "ASC");
     } else if (o === "menor") {
-      qb.orderBy(sqlPrecioEfectivoSortExpr("p"), "ASC").addOrderBy(
-        "p.id",
-        "ASC"
-      );
+      qb.addSelect(sqlPrecioEfectivoSortExpr("p"), "precioSort");
+      qb.orderBy("precioSort", "ASC").addOrderBy("p.id", "ASC");
     } else {
       qb.orderBy("p.id", "ASC");
     }
