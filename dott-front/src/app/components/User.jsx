@@ -4,7 +4,7 @@ import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { useUser } from "@auth0/nextjs-auth0";
 import Image from "next/image";
 import useSWR from "swr";
-import { getUserRoles } from "@/lib/auth0Roles";
+import { canAccessAdmin } from "@/lib/auth0Roles";
 import { api } from "@/constants/routes";
 
 function classNames(...classes) {
@@ -12,14 +12,11 @@ function classNames(...classes) {
 }
 
 export const User = () => {
-  const [usrRoles, setUsrRoles] = useState([]);
   const [imageError, setImageError] = useState(false);
   const { user } = useUser();
 
   useEffect(() => {
     if (user) {
-      const roles = getUserRoles(user);
-      setUsrRoles(roles);
       setImageError(false);
     }
   }, [user]);
@@ -65,7 +62,7 @@ export const User = () => {
         leaveTo="transform opacity-0 scale-95"
       >
         <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-          {usrRoles.includes("admin") ? (
+          {canAccessAdmin(user) ? (
             <Menu.Item>
               {({ active }) => (
                 <a

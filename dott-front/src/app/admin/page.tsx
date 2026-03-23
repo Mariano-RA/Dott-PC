@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Alert from "../components/Alert";
 import { Badge, Button, Card, CardContent, Input } from "@/components/ui";
 import { useAdminDolar } from "./hooks/useAdminDolar";
-import { getUserRoles } from "@/lib/auth0Roles";
+import { canAccessAdmin } from "@/lib/auth0Roles";
 import { api } from "@/constants/routes";
 
 const IS_LOCAL_AUTH_BYPASS = process.env.NEXT_PUBLIC_LOCAL_DEV_AUTH_BYPASS === "true";
@@ -52,7 +52,6 @@ function capitalizeLabel(s: string): string {
 }
 
 function AdminPage() {
-  const [usrRoles, setUsrRoles] = useState<string[]>([]);
   const { user, error, isLoading: userLoading } = useUser();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
@@ -258,11 +257,7 @@ function AdminPage() {
     // Solo verificar autenticación cuando Auth0 ha terminado de cargar
     if (!userLoading) {
       if (user) {
-        const roles = getUserRoles(user);
-        setUsrRoles(roles);
-        
-        // Verificar si es admin
-        if (roles.includes("admin")) {
+        if (canAccessAdmin(user)) {
           setIsAuthorized(true);
         } else {
           setIsAuthorized(false);

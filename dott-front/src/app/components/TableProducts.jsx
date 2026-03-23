@@ -7,7 +7,7 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useUser } from "@auth0/nextjs-auth0";
-import { getUserRoles } from "@/lib/auth0Roles";
+import { canAccessAdmin } from "@/lib/auth0Roles";
 import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 
 const ProductTableRow = memo(function ProductTableRow({
@@ -54,8 +54,7 @@ const TableProducts = ({ products }) => {
   const [productDetail, setProductDetail] = useState({});
   const { state, addCart, removeCart } = useContext(ContextGlobal);
   const { user } = useUser();
-  const usrRoles = getUserRoles(user);
-  const isAdmin = usrRoles.includes("admin");
+  const isAdmin = canAccessAdmin(user);
   const selectedProductIds = useMemo(() => new Set(state.productCart.map((product) => product.id)), [state.productCart]);
 
   const handleProductOverview = (product) => {

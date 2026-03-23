@@ -5,7 +5,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { ContextGlobal } from "@/contexts/global.context";
 import { useUser } from "@auth0/nextjs-auth0";
-import { getUserRoles } from "@/lib/auth0Roles";
+import { canAccessAdmin } from "@/lib/auth0Roles";
 import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 
 export default function ProductOverview({ action, close, product }) {
@@ -15,7 +15,7 @@ export default function ProductOverview({ action, close, product }) {
   const { state, addCart, removeCart } = useContext(ContextGlobal);
   const { user } = useUser();
 
-  const usrRoles = useMemo(() => getUserRoles(user), [user]);
+  const showAdminProductMeta = useMemo(() => canAccessAdmin(user), [user]);
   const isSelected = useMemo(
     () => state.productCart.some((prodCart) => prodCart.id === product?.id),
     [state.productCart, product?.id]
@@ -139,7 +139,7 @@ export default function ProductOverview({ action, close, product }) {
                         <span className="rounded-full bg-red-100 px-2 py-1 font-medium text-red-900">
                           {product?.categoria || "Sin categoria"}
                         </span>
-                        {usrRoles.includes("admin") ? (
+                        {showAdminProductMeta ? (
                           <span className="rounded-full border border-red-200 bg-white px-2 py-1 font-medium text-red-900">
                             Proveedor: {product?.proveedor?.toUpperCase() || "-"}
                           </span>
