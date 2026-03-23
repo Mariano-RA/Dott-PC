@@ -75,7 +75,18 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     })
   );
-  app.enableCors();
+  const corsOrigins = (configService.get<string>("CLIENT_ORIGIN_URL") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  app.enableCors({
+    origin:
+      corsOrigins.length === 0
+        ? false
+        : corsOrigins.length === 1
+          ? corsOrigins[0]
+          : corsOrigins,
+  });
   app.use(bodyParser.json({ limit: APP.BODY_PARSER_LIMIT }));
   app.use(urlencoded({ extended: true, limit: APP.BODY_PARSER_LIMIT }));
   await app.listen(APP.DEFAULT_PORT);

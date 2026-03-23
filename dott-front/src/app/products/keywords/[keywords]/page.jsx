@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { use, useEffect, useMemo } from "react";
 import ProductCard from "@/app/components/ProductCard";
 import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
@@ -15,7 +15,10 @@ import ProductsErrorState from "@/app/products/shared/ProductsErrorState";
 import ProductsEmptyState from "@/app/products/shared/ProductsEmptyState";
 
 const Page = ({ params }) => {
-  const decodedKeywords = decodeURIComponent(params.keywords || "");
+  const { keywords: keywordsRaw } = use(
+    params instanceof Promise ? params : Promise.resolve(params)
+  );
+  const decodedKeywords = decodeURIComponent(keywordsRaw || "");
   const keywordsParam = useMemo(
     () => decodedKeywords.trim().split(/\s+/).filter(Boolean).join(" "),
     [decodedKeywords]

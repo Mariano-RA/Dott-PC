@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, OnModuleInit } from "@nestjs/common";
 import {
   CreateBucketCommand,
   GetObjectCommand,
@@ -8,9 +8,10 @@ import {
 } from "@aws-sdk/client-s3";
 
 @Injectable()
-export class MinioStorageService {
+export class MinioStorageService implements OnModuleInit {
   private readonly client: S3Client;
   private readonly bucket: string;
+  private bucketReady = false;
 
   constructor() {
     const endpoint = process.env.MINIO_ENDPOINT || "http://minio:9000";
@@ -27,14 +28,23 @@ export class MinioStorageService {
     });
   }
 
+  async onModuleInit() {
+    await this.ensureBucketExists();
+  }
+
   async ensureBucketExists() {
+    if (this.bucketReady) {
+      return;
+    }
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      this.bucketReady = true;
       return;
     } catch {
       // ignore
     }
     await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+    this.bucketReady = true;
   }
 
   async putObject(params: {

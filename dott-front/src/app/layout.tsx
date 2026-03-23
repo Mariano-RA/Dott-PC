@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { ContextProvider } from "@/contexts/global.context";
-import { UserProvider } from "@auth0/nextjs-auth0/client";
 
 export const metadata: Metadata = {
   title: {
@@ -31,13 +30,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="flex min-h-screen w-full flex-col">
-        <UserProvider>
-          <ContextProvider>
-            <Navbar />
-            <main className="flex-1 pt-16">{children}</main>
-            <Footer />
-          </ContextProvider>
-        </UserProvider>
+        <ContextProvider>
+          <Navbar />
+          <main className="flex-1 pt-16">{children}</main>
+          <Footer />
+        </ContextProvider>
       </body>
     </html>
   );

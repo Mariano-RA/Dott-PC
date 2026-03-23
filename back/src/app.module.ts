@@ -25,6 +25,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 
 const dbPort = Number(process.env.DB_PORT || 3306);
 const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
+const isProd = (process.env.NODE_ENV || "").toLowerCase() === "production";
 
 @Module({
   imports: [
@@ -33,12 +34,16 @@ const dbSync = (process.env.DB_SYNC || "false").toLowerCase() === "true";
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        transport: {
-          target: "pino-pretty",
-          options: {
-            messageKey: "message",
-          },
-        },
+        ...(isProd
+          ? {}
+          : {
+              transport: {
+                target: "pino-pretty",
+                options: {
+                  messageKey: "message",
+                },
+              },
+            }),
         messageKey: "message",
         autoLogging: false,
       },

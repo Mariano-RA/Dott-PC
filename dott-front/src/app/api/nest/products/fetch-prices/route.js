@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiUrl } from "../../utils/utils";
 import {
+  finalizeResponse,
   getAccessTokenForWrite,
   getUpstreamErrorMessage,
   isLocalAuthBypassEnabled,
@@ -9,11 +10,17 @@ import {
 
 /** POST: dispara la descarga automática del listado desde la web del proveedor. Body opcional: { proveedor?: string }. */
 export async function POST(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     let body = {};
@@ -26,16 +33,16 @@ export async function POST(request) {
 
     const data = await proxyPost(`${apiUrl}/productos/fetch-prices`, body, { accessToken });
 
-    return NextResponse.json({ response: data }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response: data }, { status: 200 }));
   } catch (error) {
     const upstreamStatus = error?.response?.status;
     const upstreamData = error?.response?.data;
     const message = getUpstreamErrorMessage(error, error?.message || "Error al solicitar descarga de listados");
 
     console.error("Error en POST /productos/fetch-prices:", upstreamData || error);
-    return NextResponse.json(
-      { error: message },
-      { status: upstreamStatus || 500 }
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: message }, { status: upstreamStatus || 500 })
     );
   }
 }

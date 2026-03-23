@@ -23,21 +23,23 @@ En Windows PowerShell:
 Copy-Item .env.local.example .env.local
 ```
 
-2. Completar en `.env.local` los datos de Auth0 (`AUTH0_*`) y URLs de APIs.
+2. Completar en `.env.local` los datos de Auth0 y URLs de APIs (ver `.env.local.example`). Auth0 SDK v4 usa `APP_BASE_URL`, `AUTH0_DOMAIN` (sin `https://`), `AUTH0_SECRET`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`. Opcional: `AUTH0_AUDIENCE` o `NEXT_PUBLIC_AUDIENCE` para el token al backend.
 
-3. Valores recomendados para desarrollo local:
+3. En el dashboard de Auth0, configurar **Allowed Callback URLs** y **Allowed Logout URLs** con `http://localhost:8090/auth/callback` y `http://localhost:8090` (o tu dominio de producción con el mismo patrón `/auth/callback`).
 
-- `AUTH0_BASE_URL=http://localhost:8090`
+4. Valores recomendados para desarrollo local:
+
+- `APP_BASE_URL=http://localhost:8090`
 - `NEXT_PUBLIC_APP_API_SERVER_URL=http://localhost:3000` (Nest local)
 - `NEXT_PUBLIC_PYTHON_API_SERVER_URL=http://localhost:5000` (Python local por docker-compose)
 
-4. Opcional: bypass de Auth0 solo para desarrollo local (pantalla Admin sin login/roles)
+5. Opcional: bypass de Auth0 solo para desarrollo local (pantalla Admin sin login/roles)
 
 - `NEXT_PUBLIC_LOCAL_DEV_AUTH_BYPASS=true`
 - `LOCAL_DEV_AUTH_BYPASS=true`
-- `LOCAL_DEV_AUTH_BEARER_TOKEN=` (si tu backend exige JWT incluso en local, pegalo aca)
+- `LOCAL_DEV_BEARER_TOKEN=` (si tu backend exige JWT incluso en local, pegalo aca)
 
-5. Iniciar el proyecto:
+6. Iniciar el proyecto:
 
 ```bash
 npm install

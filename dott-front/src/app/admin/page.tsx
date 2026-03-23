@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useUser } from "@auth0/nextjs-auth0/client";
+import { useUser } from "@auth0/nextjs-auth0";
 import { useRouter } from "next/navigation";
 import Alert from "../components/Alert";
 import { Badge, Button, Card, CardContent, Input } from "@/components/ui";

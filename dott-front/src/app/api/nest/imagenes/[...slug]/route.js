@@ -3,7 +3,8 @@ import { apiUrl } from "../../utils/utils";
 
 export async function GET(req, context) {
   try {
-    const slug = context?.params?.slug ?? [];
+    const params = await context.params;
+    const slug = params?.slug ?? [];
     if (!Array.isArray(slug) || slug.length < 2) {
       return NextResponse.json({ error: "Ruta inválida" }, { status: 400 });
     }

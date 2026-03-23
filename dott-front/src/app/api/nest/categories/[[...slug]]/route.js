@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { apiUrl } from "../../utils/utils";
 import {
+  finalizeResponse,
   getAccessTokenForWrite,
   getUpstreamErrorMessage,
   isLocalAuthBypassEnabled,
@@ -11,9 +12,17 @@ import {
   proxyPost,
 } from "../../_shared/upstream";
 
+async function resolveSlug(context) {
+  const params = await context.params;
+  const raw = params?.slug;
+  if (Array.isArray(raw)) return raw;
+  if (raw != null && raw !== "") return [raw];
+  return [];
+}
+
 /** Proxy a /categories/new, /categories/dictionary o /categories/sql/master según el segmento. */
 export async function GET(request, context) {
-  const slug = context.params?.slug || [];
+  const slug = await resolveSlug(context);
   const segment = slug[0]; // "new" | "dictionary" | "sql"
 
   if (segment === "new") {
@@ -93,34 +102,46 @@ export async function GET(request, context) {
 }
 
 export async function POST(request, context) {
-  const slug = context.params?.slug || [];
+  const slug = await resolveSlug(context);
   if (slug[0] !== "dictionary") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
     const body = await request.json();
     const data = await proxyPost(`${apiUrl}/categories/dictionary`, body, { accessToken });
-    return NextResponse.json(data);
+    return finalizeResponse(cookieJar, NextResponse.json(data));
   } catch (error) {
     const status = error?.response?.status || 500;
     const message = getUpstreamErrorMessage(error, "Error al agregar mapeo");
-    return NextResponse.json({ error: message }, { status });
+    return finalizeResponse(cookieJar, NextResponse.json({ error: message }, { status }));
   }
 }
 
 export async function DELETE(request, context) {
-  const slug = context.params?.slug || [];
+  const slug = await resolveSlug(context);
   if (slug[0] !== "new") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
     const { searchParams } = new URL(request.url);
     const proveedor = searchParams.get("proveedor") || "";
@@ -129,10 +150,10 @@ export async function DELETE(request, context) {
       accessToken,
       params: { proveedor, categoriaRaw },
     });
-    return NextResponse.json(data);
+    return finalizeResponse(cookieJar, NextResponse.json(data));
   } catch (error) {
     const status = error?.response?.status || 500;
     const message = getUpstreamErrorMessage(error, "Error al descartar");
-    return NextResponse.json({ error: message }, { status });
+    return finalizeResponse(cookieJar, NextResponse.json({ error: message }, { status }));
   }
 }

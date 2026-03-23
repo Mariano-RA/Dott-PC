@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiUrl } from "../../utils/utils";
 import {
+  finalizeResponse,
   getAccessTokenForWrite,
   getUpstreamErrorMessage,
   isLocalAuthBypassEnabled,
@@ -41,56 +42,71 @@ export async function GET(req) {
 }
 
 export async function POST(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const datoRequest = await request.json();
     const data = await proxyPost(`${apiUrl}/productos`, datoRequest, { accessToken });
 
-    return NextResponse.json({ response: data }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response: data }, { status: 200 }));
   } catch (error) {
     const upstreamStatus = error?.response?.status;
     const upstreamData = error?.response?.data;
     const message = getUpstreamErrorMessage(error, "Error al crear el producto");
 
     console.error("Error en la solicitud POST:", upstreamData || error);
-    return NextResponse.json(
-      { error: message },
-      { status: upstreamStatus || 500 }
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: message }, { status: upstreamStatus || 500 })
     );
   }
 }
 
 export async function DELETE(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const { proveedor } = await request.json();
 
     if (!proveedor) {
-      return NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 })
+      );
     }
 
     const data = await proxyDelete(`${apiUrl}/productos/${encodeURIComponent(proveedor)}`, {
       accessToken,
     });
 
-    return NextResponse.json({ response: data }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response: data }, { status: 200 }));
   } catch (error) {
     console.error("Error en la solicitud DELETE:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
     const message = getUpstreamErrorMessage(error, "Error al eliminar el producto");
-    return NextResponse.json(
-      { error: message },
-      { status: upstreamStatus }
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: message }, { status: upstreamStatus })
     );
   }
 }

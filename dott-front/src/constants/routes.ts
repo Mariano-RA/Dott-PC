@@ -13,6 +13,8 @@
  * Variable de entorno opcional: NEXT_PUBLIC_API_BASE_URL
  * - Por defecto: "" (mismo origen).
  * - Si se define: el navegador llama a esa URL base (ej. "http://localhost:8090").
+ *
+ * Auth0 v4: URL pública de la app en APP_BASE_URL; rutas de login en /auth/*.
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -45,10 +47,10 @@ export const api = {
       masterFlat: path("/api/nest/categories/sql/master-flat"),
     },
   },
-  /** Rutas de Auth0 (Next.js API routes) */
+  /** Rutas de Auth0 (SDK v4, montadas por middleware; sin prefijo /api) */
   auth: {
-    login: path("/api/auth/login"),
-    logout: path("/api/auth/logout"),
+    login: path("/auth/login"),
+    logout: path("/auth/logout"),
   },
 } as const;
 

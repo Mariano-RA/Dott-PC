@@ -1,6 +1,7 @@
 import { apiUrl } from "../utils/utils";
 import { NextResponse } from "next/server";
 import {
+  finalizeResponse,
   getAccessTokenForWrite,
   getUpstreamErrorMessage,
   isLocalAuthBypassEnabled,
@@ -45,11 +46,17 @@ function getBackendErrorMessage(error, fallback) {
 }
 
 export async function POST(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     let body = {};
@@ -61,69 +68,99 @@ export async function POST(request) {
     const payload = normalizeProveedorBody(body);
 
     if (!payload) {
-      return NextResponse.json({ error: "Nombre es requerido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Nombre es requerido" }, { status: 400 })
+      );
     }
 
     const response = await proxyPost(`${apiUrl}/proveedores`, payload, { accessToken });
 
-    return NextResponse.json({ response }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response }, { status: 200 }));
   } catch (error) {
     console.error("Error en POST /proveedores:", error?.response?.data || error.message);
     const errorMessage = getBackendErrorMessage(error, "Error al crear proveedor");
-    return NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 });
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 })
+    );
   }
 }
 
 export async function PUT(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const body = await request.json();
     const id = body?.id;
 
     if (!id) {
-      return NextResponse.json({ error: "ID es requerido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "ID es requerido" }, { status: 400 })
+      );
     }
 
     const response = await proxyPut(`${apiUrl}/proveedores/${encodeURIComponent(id)}`, body, {
       accessToken,
     });
 
-    return NextResponse.json({ response }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response }, { status: 200 }));
   } catch (error) {
     console.error("Error en PUT /proveedores:", error?.response?.data || error.message);
     const errorMessage = getBackendErrorMessage(error, "Error al actualizar proveedor");
-    return NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 });
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 })
+    );
   }
 }
 
 export async function DELETE(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const body = await request.json();
     const id = body?.id;
 
     if (!id) {
-      return NextResponse.json({ error: "ID es requerido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "ID es requerido" }, { status: 400 })
+      );
     }
 
     const response = await proxyDelete(`${apiUrl}/proveedores/${encodeURIComponent(id)}`, {
       accessToken,
     });
 
-    return NextResponse.json({ response }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response }, { status: 200 }));
   } catch (error) {
     console.error("Error en DELETE /proveedores:", error?.response?.data || error.message);
     const errorMessage = getBackendErrorMessage(error, "Error al eliminar proveedor");
-    return NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 });
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 })
+    );
   }
 }

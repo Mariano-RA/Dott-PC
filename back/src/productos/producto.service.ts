@@ -2,11 +2,10 @@ import { Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DolaresService } from "src/dolar/dolar.service";
-import { Repository } from "typeorm";
+import { Repository, SelectQueryBuilder } from "typeorm";
 import { ProductoDto } from "./dto/productoDto";
 import { Producto } from "./entities/producto.entity";
 import { CuotasService } from "src/cuota/cuota.service";
-import { createProductoDto } from "../shared/createProductoDto";
 import { ListDto } from "./dto/list.dto";
 import {
   ClientProxy,
@@ -22,9 +21,8 @@ import {
   CATEGORIA_FALLBACK,
   obtenerPrecioEfectivo,
   calcularValorCuotas,
-  pagination,
-  handleOrder,
   getPrecioDolarOrDefault,
+  sqlPrecioEfectivoSortExpr,
 } from "./helpers/precio-cuota.helper";
 
 @Injectable()
@@ -106,31 +104,52 @@ export class ProductosService {
         .execute();
 
       const providerCode = proveedorNombre.toLowerCase();
-      const normalizedProducts = await Promise.all(
-        productDto.map(async (item: any) => {
-          const raw = item.categoriaRaw ?? item.categoria ?? "";
-          const resolved =
+      const categoryDict = await this.categoriesService.getDictionaryFromDb();
+      const providerMap = categoryDict[providerCode] ?? {};
+      const unmappedByKey = new Map<string, string>();
+
+      const normalizedProducts: Array<{
+        proveedorId: number;
+        producto: string;
+        categoria: string;
+        precio: number;
+        codigo: string | null;
+        imagenUrl: string | null;
+      }> = [];
+
+      for (const item of productDto) {
+        const rawField = item.categoriaRaw ?? item.categoria ?? "";
+        const rawTrim = String(rawField).trim();
+        let resolved = providerMap[rawField] ?? providerMap[rawTrim];
+        if (resolved === undefined) {
+          resolved =
             (await this.categoriesService.getMasterCategoryName(
               providerCode,
-              raw
+              rawField
             )) ?? CATEGORIA_FALLBACK;
-          if (resolved === CATEGORIA_FALLBACK && raw) {
-            await this.categoriesService.ensureUnmappedMapping(
-              providerCode,
-              raw,
-              item.producto
-            );
+        }
+        if (resolved === CATEGORIA_FALLBACK && rawTrim) {
+          if (!unmappedByKey.has(rawTrim)) {
+            unmappedByKey.set(rawTrim, String(item.producto ?? ""));
           }
-          return {
-            proveedorId: proveedor.id,
-            producto: item.producto,
-            categoria: resolved,
-            precio: item.precio,
-            codigo: item.codigo != null ? String(item.codigo).trim() || null : null,
-            imagenUrl: item.imagenUrl != null ? String(item.imagenUrl).trim() || null : null,
-          };
-        })
-      );
+        }
+        normalizedProducts.push({
+          proveedorId: proveedor.id,
+          producto: item.producto,
+          categoria: resolved,
+          precio: item.precio,
+          codigo: item.codigo != null ? String(item.codigo).trim() || null : null,
+          imagenUrl: item.imagenUrl != null ? String(item.imagenUrl).trim() || null : null,
+        });
+      }
+
+      for (const [rawKey, exampleProduct] of unmappedByKey) {
+        await this.categoriesService.ensureUnmappedMapping(
+          providerCode,
+          rawKey,
+          exampleProduct
+        );
+      }
 
       const arrProductos = this.productoRepository.create(normalizedProducts);
       await this.productoRepository.save(arrProductos);
@@ -182,6 +201,106 @@ export class ProductosService {
     }
   }
 
+  private normField(s: unknown): string {
+    return String(s ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  private normSql(alias: string, column: string): string {
+    return `LOWER(TRIM(REGEXP_REPLACE(\`${alias}\`.\`${column}\`, '[[:space:]]+', ' ')))`;
+  }
+
+  private async resolveCategoryFilter(category?: string): Promise<
+    | { mode: "none" }
+    | { mode: "in"; values: string[] }
+    | { mode: "fallback"; wantedNorm: string }
+  > {
+    if (!category?.trim()) return { mode: "none" };
+    const norm = (v: unknown) => this.normField(v);
+    const wanted = norm(category);
+    const tree = await this.categoriesService.getMasterCategoriesTree();
+    const parent = tree.find((c) => norm(c?.nombre) === wanted);
+    const subs = (parent?.subcategorias ?? [])
+      .map((s) => norm(s))
+      .filter(Boolean);
+    if (subs.length > 0) return { mode: "in", values: subs };
+    return { mode: "fallback", wantedNorm: wanted };
+  }
+
+  private applyProductListFilters(
+    qb: SelectQueryBuilder<Producto>,
+    options: {
+      proveedor?: string;
+      keywords?: string;
+      category?: string;
+    },
+    categoryFilter:
+      | { mode: "none" }
+      | { mode: "in"; values: string[] }
+      | { mode: "fallback"; wantedNorm: string }
+  ) {
+    if (options.proveedor) {
+      const p = this.normField(options.proveedor);
+      qb.andWhere(`${this.normSql("prov", "nombre")} LIKE :provPat`, {
+        provPat: `%${p}%`,
+      });
+    }
+    if (options.keywords) {
+      const words = options.keywords.split(" ").filter(Boolean);
+      words.forEach((word, i) => {
+        const w = this.normField(word);
+        qb.andWhere(`${this.normSql("p", "producto")} LIKE :kw${i}`, {
+          [`kw${i}`]: `%${w}%`,
+        });
+      });
+    }
+    if (categoryFilter.mode === "in") {
+      qb.andWhere(`${this.normSql("p", "categoria")} IN (:...catNorms)`, {
+        catNorms: categoryFilter.values,
+      });
+    } else if (categoryFilter.mode === "fallback") {
+      qb.andWhere(
+        `(${this.normSql("p", "categoria")} = :wanted OR ${this.normSql(
+          "p",
+          "categoria"
+        )} LIKE :wantedLike)`,
+        {
+          wanted: categoryFilter.wantedNorm,
+          wantedLike: `%${categoryFilter.wantedNorm}%`,
+        }
+      );
+    }
+  }
+
+  private applyProductListOrderAndPagination(
+    qb: SelectQueryBuilder<Producto>,
+    orderBy: string,
+    offset: number,
+    take: number
+  ) {
+    const o = orderBy || "";
+    if (o === "nombreAsc") {
+      qb.orderBy("p.producto", "ASC").addOrderBy("p.id", "ASC");
+    } else if (o === "nombreDesc") {
+      qb.orderBy("p.producto", "DESC").addOrderBy("p.id", "DESC");
+    } else if (o === "mayor") {
+      qb.orderBy(sqlPrecioEfectivoSortExpr("p"), "DESC").addOrderBy(
+        "p.id",
+        "ASC"
+      );
+    } else if (o === "menor") {
+      qb.orderBy(sqlPrecioEfectivoSortExpr("p"), "ASC").addOrderBy(
+        "p.id",
+        "ASC"
+      );
+    } else {
+      qb.orderBy("p.id", "ASC");
+    }
+    qb.skip(offset).take(take);
+  }
+
   private async buildProductList(options: {
     proveedor?: string;
     keywords?: string;
@@ -190,54 +309,35 @@ export class ProductosService {
     take: number;
     orderBy: string;
   }): Promise<ListDto> {
-    const [productos, arrayDolar, listadoCuotas] = await Promise.all([
-      this.productoRepository.find({ relations: ["proveedor"] }),
+    const safeTake =
+      Number.isFinite(options.take) && options.take > 0 ? options.take : 20;
+    const safeSkip =
+      Number.isFinite(options.skip) && options.skip > 0 ? options.skip : 1;
+    const offset = (safeSkip - 1) * safeTake;
+
+    const [arrayDolar, listadoCuotas, categoryFilter] = await Promise.all([
       this.dolaresService.findAll(),
       this.cuotasService.findPlans(true),
+      this.resolveCategoryFilter(options.category),
     ]);
 
-    const norm = (s: unknown) =>
-      String(s ?? "")
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, " ");
+    const qb = this.productoRepository
+      .createQueryBuilder("p")
+      .leftJoinAndSelect("p.proveedor", "prov");
 
-    let filtered = productos;
-    if (options.proveedor) {
-      const p = norm(options.proveedor);
-      filtered = filtered.filter((x) =>
-        norm(x.proveedor?.nombre).includes(p)
-      );
-    }
-    if (options.keywords) {
-      const words = options.keywords.split(" ").filter(Boolean);
-      filtered = filtered.filter((x) =>
-        words.every((word) =>
-          norm(x.producto).includes(norm(word))
-        )
-      );
-    }
-    if (options.category) {
-      const wanted = norm(options.category);
-      const tree = await this.categoriesService.getMasterCategoriesTree();
-      const parent = tree.find((c) => norm(c?.nombre) === wanted);
-      const allowed = new Set<string>(
-        (parent?.subcategorias ?? []).map((s) => norm(s)).filter(Boolean)
-      );
+    this.applyProductListFilters(qb, options, categoryFilter);
 
-      // Si es categoría padre con subcategorías, matcheamos por igualdad contra las hijas.
-      // Caso contrario, mantenemos un fallback "includes" para no romper búsquedas previas.
-      if (allowed.size > 0) {
-        filtered = filtered.filter((x) => allowed.has(norm(x.categoria)));
-      } else {
-        filtered = filtered.filter((x) => {
-          const current = norm(x.categoria);
-          return current === wanted || current.includes(wanted);
-        });
-      }
-    }
+    const total = await qb.clone().getCount();
 
-    const listadoProductos: ProductoDto[] = filtered.map((prod) => {
+    this.applyProductListOrderAndPagination(
+      qb,
+      options.orderBy,
+      offset,
+      safeTake
+    );
+    const productos = await qb.getMany();
+
+    const listadoProductos: ProductoDto[] = productos.map((prod) => {
       const dto = new ProductoDto();
       dto.id = prod.id;
       dto.proveedor = prod.proveedor?.nombre ?? "Desconocido";
@@ -255,15 +355,8 @@ export class ProductosService {
     });
 
     const listDto = new ListDto();
-    listDto.cantResultados = listadoProductos.length;
-    // `skip` en el frontend a veces viene como 0 (offset-style). Acá lo tratamos como página 1-based.
-    const safeTake = Number.isFinite(options.take) && options.take > 0 ? options.take : 20;
-    const safeSkip = Number.isFinite(options.skip) && options.skip > 0 ? options.skip : 1;
-    listDto.productos = pagination(
-      safeSkip,
-      safeTake,
-      handleOrder(options.orderBy, listadoProductos)
-    );
+    listDto.cantResultados = total;
+    listDto.productos = listadoProductos;
     return listDto;
   }
 
@@ -291,11 +384,17 @@ export class ProductosService {
 
   async findAllCategories(): Promise<string[]> {
     try {
-      const productos = await this.productoRepository.find();
-      const categoriasSet = new Set<string>();
-      productos.forEach((prod) => categoriasSet.add(prod.categoria));
+      const rows = await this.productoRepository
+        .createQueryBuilder("p")
+        .select("DISTINCT p.categoria", "categoria")
+        .where("p.categoria IS NOT NULL AND TRIM(p.categoria) != ''")
+        .orderBy("p.categoria", "ASC")
+        .getRawMany<{ categoria: string | null }>();
+      const categorias = rows
+        .map((r) => r.categoria)
+        .filter((c): c is string => typeof c === "string" && c.length > 0);
       this.logger.log("Se obtuvieron todas las categorías.");
-      return Array.from(categoriasSet).sort();
+      return categorias;
     } catch (error: any) {
       this.logger.error(
         { err: error.message },

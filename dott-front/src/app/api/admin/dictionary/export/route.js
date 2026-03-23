@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getSession } from "@auth0/nextjs-auth0";
 import axios from "axios";
 import https from "https";
+
+import { auth0 } from "@/lib/auth0";
 import { apiUrl } from "../../../nest/utils/utils";
 
 const agent = new https.Agent({ rejectUnauthorized: false });
@@ -15,7 +16,7 @@ const IS_LOCAL_AUTH_BYPASS =
 export async function GET(request) {
   if (!IS_LOCAL_AUTH_BYPASS) {
     try {
-      const session = await getSession(request);
+      const session = await auth0.getSession(request);
       if (!session?.user) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 });
       }

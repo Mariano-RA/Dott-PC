@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiUrl } from "../utils/utils";
 import {
+  finalizeResponse,
   getAccessTokenForWrite,
   getUpstreamErrorMessage,
   isLocalAuthBypassEnabled,
@@ -22,11 +23,17 @@ export async function GET() {
 }
 
 export async function PUT(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const body = await request.json();
@@ -44,12 +51,12 @@ export async function PUT(request) {
       accessToken,
     });
 
-    return NextResponse.json({ settings }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ settings }, { status: 200 }));
   } catch (error) {
     const message = getUpstreamErrorMessage(error, "Error al guardar configuración");
     const statusCode = error?.response?.status || 500;
 
     console.error("Error en PUT calculator-config:", error?.response?.data || error.message);
-    return NextResponse.json({ error: message }, { status: statusCode });
+    return finalizeResponse(cookieJar, NextResponse.json({ error: message }, { status: statusCode }));
   }
 }

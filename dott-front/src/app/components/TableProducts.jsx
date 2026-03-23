@@ -6,7 +6,7 @@ import {
   ShoppingBagIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
-import { useUser } from "@auth0/nextjs-auth0/client";
+import { useUser } from "@auth0/nextjs-auth0";
 import { getUserRoles } from "@/lib/auth0Roles";
 import { formatARS, getCuotaDesdeText } from "@/lib/formatters";
 

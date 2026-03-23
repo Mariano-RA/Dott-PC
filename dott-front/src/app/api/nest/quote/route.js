@@ -1,6 +1,7 @@
 import { apiUrl } from "../utils/utils";
 import { NextResponse } from "next/server";
 import {
+  finalizeResponse,
   getAccessTokenForWrite,
   getUpstreamErrorMessage,
   isLocalAuthBypassEnabled,
@@ -24,8 +25,11 @@ export async function GET() {
 }
 
 export async function PATCH(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
     const body = await request.json();
 
     const plans = await proxyGet(`${apiUrl}/cuota/plans`, {
@@ -33,10 +37,13 @@ export async function PATCH(request) {
       params: { active: body?.active ? "true" : undefined },
     });
 
-    return NextResponse.json({ plans }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ plans }, { status: 200 }));
   } catch (error) {
     console.error("Error en PATCH cuotas/plans:", error?.response?.data || error.message);
-    return NextResponse.json({ error: "Error al obtener planes" }, { status: 500 });
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: "Error al obtener planes" }, { status: 500 })
+    );
   }
 }
 
@@ -56,50 +63,65 @@ export async function POST(request) {
 }
 
 export async function PUT(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const body = await request.json();
 
     const data = await proxyPost(`${apiUrl}/cuota/plans`, body?.plans || [], { accessToken });
 
-    return NextResponse.json({ response: data }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response: data }, { status: 200 }));
   } catch (error) {
     console.error("Error en PUT cuotas/plans:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
     const message = getUpstreamErrorMessage(error, "Error al guardar planes");
-    return NextResponse.json({ error: message }, { status: upstreamStatus });
+    return finalizeResponse(cookieJar, NextResponse.json({ error: message }, { status: upstreamStatus }));
   }
 }
 
 export async function DELETE(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const body = await request.json();
     const planKey = String(body?.planKey || "").trim();
 
     if (!planKey) {
-      return NextResponse.json({ error: "planKey es requerido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "planKey es requerido" }, { status: 400 })
+      );
     }
 
     const data = await proxyDelete(`${apiUrl}/cuota/plans/${encodeURIComponent(planKey)}`, {
       accessToken,
     });
 
-    return NextResponse.json({ response: data }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response: data }, { status: 200 }));
   } catch (error) {
     console.error("Error en DELETE cuotas/plans:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
     const message = getUpstreamErrorMessage(error, "Error al borrar plan");
-    return NextResponse.json({ error: message }, { status: upstreamStatus });
+    return finalizeResponse(cookieJar, NextResponse.json({ error: message }, { status: upstreamStatus }));
   }
 }

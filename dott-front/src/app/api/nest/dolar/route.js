@@ -1,6 +1,7 @@
 import { apiUrl } from "../utils/utils";
 import { NextResponse } from "next/server";
 import {
+  finalizeResponse,
   getAccessTokenForWrite,
   getUpstreamErrorMessage,
   isLocalAuthBypassEnabled,
@@ -48,11 +49,17 @@ export async function PATCH(request) {
 }
 
 export async function POST(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const datosDolar = await request.json();
@@ -61,35 +68,47 @@ export async function POST(request) {
       accessToken,
     });
 
-    return NextResponse.json({ response }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response }, { status: 200 }));
   } catch (error) {
     console.error("Error en POST /dolar:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
     const message = getUpstreamErrorMessage(error, "Error en la solicitud POST");
-    return NextResponse.json(
-      { error: message },
-      { status: upstreamStatus }
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: message }, { status: upstreamStatus })
     );
   }
 }
 
 export async function PUT(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const body = await request.json();
     const proveedor = body?.proveedor;
 
     if (!proveedor) {
-      return NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 })
+      );
     }
 
     if (!body?.precioDolar || Number(body.precioDolar) <= 0) {
-      return NextResponse.json({ error: "Precio del dólar inválido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Precio del dólar inválido" }, { status: 400 })
+      );
     }
 
     const response = await proxyPost(
@@ -103,38 +122,50 @@ export async function PUT(request) {
       { accessToken }
     );
 
-    return NextResponse.json({ response }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response }, { status: 200 }));
   } catch (error) {
     console.error("Error en PUT /dolar:", error?.response?.data || error.message);
     const errorMessage = getUpstreamErrorMessage(error, error?.message || "Error al guardar proveedor");
-    return NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 });
+    return finalizeResponse(
+      cookieJar,
+      NextResponse.json({ error: errorMessage }, { status: error?.response?.status || 500 })
+    );
   }
 }
 
 export async function DELETE(request) {
+  let cookieJar = null;
   try {
-    const accessToken = await getAccessTokenForWrite(request);
+    const auth = await getAccessTokenForWrite(request);
+    cookieJar = auth.cookieJar;
+    const { accessToken } = auth;
 
     if (!isLocalAuthBypassEnabled() && !accessToken) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+      );
     }
 
     const body = await request.json();
     const proveedor = String(body?.proveedor || "").trim();
 
     if (!proveedor) {
-      return NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 });
+      return finalizeResponse(
+        cookieJar,
+        NextResponse.json({ error: "Proveedor es requerido" }, { status: 400 })
+      );
     }
 
     const response = await proxyDelete(`${apiUrl}/dolar/${encodeURIComponent(proveedor)}`, {
       accessToken,
     });
 
-    return NextResponse.json({ response }, { status: 200 });
+    return finalizeResponse(cookieJar, NextResponse.json({ response }, { status: 200 }));
   } catch (error) {
     console.error("Error en DELETE /dolar:", error?.response?.data || error.message);
     const upstreamStatus = error?.response?.status || 500;
     const message = getUpstreamErrorMessage(error, "Error al borrar proveedor");
-    return NextResponse.json({ error: message }, { status: upstreamStatus });
+    return finalizeResponse(cookieJar, NextResponse.json({ error: message }, { status: upstreamStatus }));
   }
 }

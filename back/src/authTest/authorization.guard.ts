@@ -31,10 +31,6 @@ export class AuthorizationGuard implements CanActivate {
     const localBypassEnabled =
       this.configService.get<string>(EnvKeys.NODE_ENV) !== "production" &&
       this.configService.get<string>(EnvKeys.LOCAL_DEV_AUTH_BYPASS) === "true";
-    // #region agent log
-    const hasAuthHeader = !!(request.headers?.authorization?.length);
-    fetch('http://127.0.0.1:7901/ingest/a43c9f0d-9231-46cb-8160-6f5aa7d983c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'bcf522'},body:JSON.stringify({sessionId:'bcf522',location:'authorization.guard.ts:canActivate',message:'Nest guard auth state',data:{localBypassEnabled,hasAuthHeader},timestamp:Date.now(),hypothesisId:'H1-H3-H4-H5'})}).catch(()=>{});
-    // #endregion
 
     if (localBypassEnabled) {
       // Bypass solo para desarrollo explícito
@@ -56,10 +52,6 @@ export class AuthorizationGuard implements CanActivate {
       await this.authMiddleware(request, response, next);
       return true;
     } catch (error: any) {
-      // #region agent log
-      const errorType = error instanceof InvalidTokenError ? 'InvalidTokenError' : error instanceof UnauthorizedError ? 'UnauthorizedError' : 'other';
-      fetch('http://127.0.0.1:7901/ingest/a43c9f0d-9231-46cb-8160-6f5aa7d983c8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'bcf522'},body:JSON.stringify({sessionId:'bcf522',location:'authorization.guard.ts:catch',message:'Nest guard auth error',data:{errorType},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
       if (error instanceof InvalidTokenError) {
         throw new UnauthorizedException("Bad credentials");
       }

@@ -1,6 +1,14 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from "typeorm";
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from "typeorm";
 import { Proveedor } from "../../proveedor/entities/proveedor.entity";
 
+@Index("idx_productos_proveedorId", ["proveedorId"])
 @Entity({ name: "Productos" })
 export class Producto {
   @PrimaryGeneratedColumn()

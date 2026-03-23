@@ -2,6 +2,58 @@ import { valorCuotaDto } from "../dto/valorCuotaDto";
 
 export const CATEGORIA_FALLBACK = "Varios";
 
+/**
+ * Expresión SQL (MySQL) alineada con `obtenerMargenPorCategoria` para ordenar por precio efectivo
+ * sin cargar todo el catálogo en memoria.
+ */
+export function sqlMargenCaseExpr(categoriaColumnRef: string): string {
+  const c = `LOWER(TRIM(${categoriaColumnRef}))`;
+  return `(CASE ${c}
+    WHEN 'placas de video' THEN 0.12
+    WHEN 'procesadores' THEN 0.12
+    WHEN 'motherboards' THEN 0.12
+    WHEN 'memorias ram' THEN 0.12
+    WHEN 'discos' THEN 0.12
+    WHEN 'notebooks' THEN 0.12
+    WHEN 'computadoras' THEN 0.12
+    WHEN 'tablets' THEN 0.12
+    WHEN 'telefonia' THEN 0.12
+    WHEN 'monitores' THEN 0.12
+    WHEN 'fuentes' THEN 0.2
+    WHEN 'gabinetes' THEN 0.2
+    WHEN 'impresoras e insumos' THEN 0.2
+    WHEN 'refrigeracion' THEN 0.2
+    WHEN 'estabilizadores y ups' THEN 0.2
+    WHEN 'sillas' THEN 0.2
+    WHEN 'electro' THEN 0.2
+    WHEN 'accesorios' THEN 0.35
+    WHEN 'auriculares' THEN 0.35
+    WHEN 'mouses' THEN 0.35
+    WHEN 'teclados' THEN 0.35
+    WHEN 'parlantes' THEN 0.35
+    WHEN 'microfonos' THEN 0.35
+    WHEN 'webcams' THEN 0.35
+    WHEN 'smartwatch' THEN 0.35
+    WHEN 'conectividad' THEN 0.35
+    WHEN 'cables y adaptadores' THEN 0.35
+    WHEN 'soportes' THEN 0.35
+    WHEN 'almacenamiento portatil' THEN 0.35
+    WHEN 'software' THEN 0.35
+    ELSE 0.15 END)`;
+}
+
+/** Columna `p` = alias de Productos en QueryBuilder. */
+export function sqlPrecioEfectivoSortExpr(productAlias: string): string {
+  const p = `\`${productAlias}\``;
+  const margen = sqlMargenCaseExpr(`${p}.\`categoria\``);
+  return `ROUND(
+    ${p}.\`precio\` * COALESCE(
+      (SELECT \`d\`.\`precioDolar\` FROM \`Dolares\` \`d\` WHERE \`d\`.\`proveedorId\` = ${p}.\`proveedorId\` LIMIT 1),
+      1
+    ) * (1 + ${margen})
+  )`;
+}
+
 export function obtenerMargenPorCategoria(categoria: string): number {
   switch (categoria.trim().toLowerCase()) {
     case "placas de video":

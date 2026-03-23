@@ -67,7 +67,12 @@ const ProductCard = ({ product }) => {
   return (
     <article className="flex h-full min-h-44 w-full flex-col justify-between rounded-lg border border-border p-4 shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border border-border bg-white">
+        <button
+          type="button"
+          className="relative h-16 w-16 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border bg-white p-0 text-left transition hover:ring-2 hover:ring-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+          onClick={() => handleProductOverview(product)}
+          aria-label={`Ver detalle e imagen de ${product?.producto || "producto"}`}
+        >
           <Image
             src={imageSrc}
             alt={product?.producto ? `Imagen de ${product.producto}` : "Imagen del producto"}
@@ -76,7 +81,7 @@ const ProductCard = ({ product }) => {
             sizes="64px"
             onError={handleImageError}
           />
-        </div>
+        </button>
 
         <div className="space-y-2">
           <p className="line-clamp-3 text-sm font-semibold text-foreground">

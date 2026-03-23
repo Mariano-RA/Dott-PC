@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { use, useEffect } from "react";
 import ProductCard from "@/app/components/ProductCard";
 import Pagination from "@/app/components/Pagination";
 import CategoryColumn from "@/app/components/CategoryColumn";
@@ -15,7 +15,10 @@ import ProductsErrorState from "@/app/products/shared/ProductsErrorState";
 import ProductsEmptyState from "@/app/products/shared/ProductsEmptyState";
 
 const Page = ({ params }) => {
-  const categoryName = decodeURIComponent(params.id || "");
+  const { id: categoryParam } = use(
+    params instanceof Promise ? params : Promise.resolve(params)
+  );
+  const categoryName = decodeURIComponent(categoryParam || "");
 
   const {
     products,
@@ -35,13 +38,13 @@ const Page = ({ params }) => {
     handleRetry,
   } = useProductsListing({
     endpoint: api.nest.products.category,
-    extraParams: { category: params.id },
+    extraParams: { category: categoryParam },
     errorMessage: "No pudimos cargar esta categoria. Intenta nuevamente.",
   });
 
   useEffect(() => {
     setPage(1);
-  }, [params.id, setPage]);
+  }, [categoryParam, setPage]);
 
   const renderProducts = () => {
     if (showTypeGrid) {
