@@ -17,6 +17,8 @@ import { ProveedorService } from "src/proveedor/proveedor.service";
 import { CategoriesService } from "src/categories/categories.service";
 import { EnvKeys } from "../shared/config";
 import { Logger } from "nestjs-pino";
+import { ImportStatusService } from "./import-status.service";
+import { EventLogService } from "src/shared/event-log.service";
 import {
   CATEGORIA_FALLBACK,
   obtenerPrecioEfectivo,
@@ -31,6 +33,10 @@ export class ProductosService {
   @Inject(CuotasService) private readonly cuotasService: CuotasService;
   @Inject(ProveedorService) private readonly proveedorService: ProveedorService;
   @Inject(CategoriesService) private readonly categoriesService: CategoriesService;
+  @Inject(ImportStatusService)
+  private readonly importStatusService: ImportStatusService;
+  @Inject(EventLogService)
+  private readonly eventLogService: EventLogService;
   private client: ClientProxy;
 
   constructor(
@@ -58,6 +64,16 @@ export class ProductosService {
     fileName?: string;
     contentType?: string | null;
   }) {
+    const prov = String(newMessageDto.nombreProveedor ?? "").trim().toLowerCase();
+    if (prov) this.importStatusService.markQueued(prov);
+    if (prov) {
+      await this.eventLogService.info(
+        "productos",
+        "import_queued",
+        `Importación encolada para proveedor "${prov}".`,
+        { proveedor: prov, fileName: newMessageDto.fileName, contentType: newMessageDto.contentType }
+      );
+    }
     const msg = {
       nombreProveedor: newMessageDto.nombreProveedor,
       base64: newMessageDto.base64,
@@ -77,6 +93,21 @@ export class ProductosService {
       : (data as any)?.data?.resultado;
 
     try {
+      const provFromEnvelope =
+        (data as any)?.proveedor_actualizado ??
+        (data as any)?.data?.proveedor_actualizado ??
+        "";
+      const provNorm = String(provFromEnvelope ?? "").trim().toLowerCase();
+      if (provNorm) this.importStatusService.markProcessing(provNorm);
+      if (provNorm) {
+        await this.eventLogService.info(
+          "productos",
+          "import_processing",
+          `Importación en proceso para proveedor "${provNorm}".`,
+          { proveedor: provNorm, pattern: "carga_tabla" }
+        );
+      }
+
       if (!Array.isArray(productDto) || productDto.length === 0) {
         const prov =
           (data as any)?.proveedor_actualizado ??
@@ -86,6 +117,15 @@ export class ProductosService {
           { proveedor_actualizado: prov, pattern: "carga_tabla" },
           "No se recibieron productos para procesar"
         );
+        if (provNorm) this.importStatusService.markEmpty(provNorm);
+        if (provNorm) {
+          await this.eventLogService.warn(
+            "productos",
+            "import_empty",
+            `Importación finalizada sin productos para proveedor "${provNorm}".`,
+            { proveedor: provNorm }
+          );
+        }
         return "No se recibieron productos para procesar";
       }
 
@@ -157,6 +197,13 @@ export class ProductosService {
         { proveedor: proveedor.nombre, count: normalizedProducts.length },
         "Tabla de productos actualizada"
       );
+      this.importStatusService.markSuccess(proveedor.nombre, normalizedProducts.length);
+      await this.eventLogService.info(
+        "productos",
+        "import_success",
+        `Importación OK para proveedor "${proveedor.nombre}" (${normalizedProducts.length} productos).`,
+        { proveedor: proveedor.nombre, count: normalizedProducts.length }
+      );
       return "OK";
     } catch (error: any) {
       this.logger.error(
@@ -168,6 +215,21 @@ export class ProductosService {
         },
         "Error al actualizar la tabla"
       );
+      const prov =
+        (data as any)?.proveedor_actualizado ??
+        (data as any)?.data?.proveedor_actualizado ??
+        (Array.isArray(productDto) && productDto[0]?.proveedor) ??
+        "";
+      const provNorm = String(prov ?? "").trim().toLowerCase();
+      if (provNorm) this.importStatusService.markError(provNorm, error?.message || String(error));
+      if (provNorm) {
+        await this.eventLogService.error(
+          "productos",
+          "import_error",
+          `Importación fallida para proveedor "${provNorm}".`,
+          { proveedor: provNorm, error: error?.message || String(error) }
+        );
+      }
       throw error;
     }
   }
@@ -354,6 +416,20 @@ export class ProductosService {
     const listDto = new ListDto();
     listDto.cantResultados = total;
     listDto.productos = listadoProductos;
+    if (total === 0) {
+      const prov = String(options.proveedor ?? "").trim().toLowerCase();
+      if (prov) {
+        listDto.warnings = [
+          {
+            code: "PROVIDER_EMPTY",
+            proveedor: prov,
+            message: `No hay productos cargados para el proveedor "${prov}".`,
+          },
+        ];
+      } else {
+        listDto.warnings = [{ code: "NO_RESULTS", message: "No se encontraron resultados." }];
+      }
+    }
     return listDto;
   }
 

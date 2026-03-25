@@ -18,6 +18,7 @@ const Page = () => {
   const {
     products,
     totalResults,
+    warnings,
     page,
     sortType,
     filterProveedor,
@@ -72,7 +73,11 @@ const Page = () => {
             {!loading && !error && products.length === 0 ? (
               <ProductsEmptyState
                 title="No hay productos para mostrar"
-                description="Prueba con otro proveedor u orden de resultados."
+                description={
+                  warnings?.some((w) => w?.code === "PROVIDER_EMPTY")
+                    ? "Este proveedor no tiene productos cargados (o la importación falló / todavía no terminó)."
+                    : "Prueba con otro proveedor u orden de resultados."
+                }
               />
             ) : null}
 

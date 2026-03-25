@@ -27,6 +27,7 @@ const Page = ({ params }) => {
   const {
     products,
     totalResults,
+    warnings,
     page,
     setPage,
     sortType,
@@ -90,7 +91,11 @@ const Page = ({ params }) => {
             {!loading && !error && products.length === 0 ? (
               <ProductsEmptyState
                 title="No hay resultados para tu busqueda"
-                description="Prueba con otros terminos o vuelve al listado completo."
+                description={
+                  warnings?.some((w) => w?.code === "PROVIDER_EMPTY")
+                    ? "Este proveedor no tiene productos cargados (o la importación falló / todavía no terminó)."
+                    : "Prueba con otros terminos o vuelve al listado completo."
+                }
               />
             ) : null}
 

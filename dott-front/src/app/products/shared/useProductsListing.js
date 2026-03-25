@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LISTING_TAKE } from "./listingData";
 import { fetchProductsListing } from "./listingApi";
+import { isApiError } from "@/lib/http/fetchJson";
 
 const DEFAULT_ERROR_MESSAGE = "No pudimos cargar el listado. Intenta nuevamente.";
 
@@ -14,6 +15,7 @@ const DEFAULT_ERROR_MESSAGE = "No pudimos cargar el listado. Intenta nuevamente.
 export function useProductsListing({ endpoint, extraParams = {}, errorMessage = DEFAULT_ERROR_MESSAGE } = {}) {
   const [products, setProducts] = useState([]);
   const [totalResults, setTotalResults] = useState(0);
+  const [warnings, setWarnings] = useState([]);
   const [sortType, setSortType] = useState("nombreAsc");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,7 @@ export function useProductsListing({ endpoint, extraParams = {}, errorMessage = 
     async function load() {
       setLoading(true);
       setError("");
+      setWarnings([]);
       try {
         const response = await fetchProductsListing({
           endpoint,
@@ -86,11 +89,20 @@ export function useProductsListing({ endpoint, extraParams = {}, errorMessage = 
         });
         setProducts(response.products);
         setTotalResults(response.totalResults);
+        setWarnings(Array.isArray(response.warnings) ? response.warnings : []);
       } catch (err) {
         if (err?.name === "AbortError") return;
         setProducts([]);
         setTotalResults(0);
-        setError(errorMessage);
+        if (isApiError(err)) {
+          if (err.status === 0) setError("No pudimos conectarnos con el backend. Revisá tu conexión o el servidor.");
+          else if (err.status === 401) setError("Necesitás iniciar sesión para ver este contenido.");
+          else if (err.status === 403) setError("No tenés permisos para ver este contenido.");
+          else if (err.status >= 500) setError("El backend tuvo un problema al responder. Intentá nuevamente.");
+          else setError(err.message || errorMessage);
+        } else {
+          setError(errorMessage);
+        }
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -105,6 +117,7 @@ export function useProductsListing({ endpoint, extraParams = {}, errorMessage = 
   return {
     products,
     totalResults,
+    warnings,
     page,
     setPage,
     sortType,

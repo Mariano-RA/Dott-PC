@@ -7,6 +7,7 @@ import { Badge, Button, Card, CardContent, Input } from "@/components/ui";
 import { useAdminDolar } from "./hooks/useAdminDolar";
 import { useCanAccessAdmin } from "@/hooks/useCanAccessAdmin";
 import { api } from "@/constants/routes";
+import { fetchJson, isApiError } from "@/lib/http/fetchJson";
 
 const IS_LOCAL_AUTH_BYPASS = process.env.NEXT_PUBLIC_LOCAL_DEV_AUTH_BYPASS === "true";
 
@@ -213,7 +214,7 @@ function AdminPage() {
   /** Proveedores de carga manual (CSV/Excel). Solo estos en el select "Carga CSV de proveedor". */
   const manualUploadProviderOptions = useMemo(() => ["eikon", "hdc"].sort((a, b) => a.localeCompare(b)), []);
 
-  const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar" | "categorias">("proveedores");
+  const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar" | "categorias" | "logs">("proveedores");
   const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<"tacataca" | "payway" | "mercadopago">("tacataca");
 
   /** Categorías nuevas (sin mapear en DB) agrupadas por proveedor. */
@@ -232,6 +233,22 @@ function AdminPage() {
   const [addingBulk, setAddingBulk] = useState(false);
   const [discardingBulk, setDiscardingBulk] = useState(false);
   const [dictionaryExportLoading, setDictionaryExportLoading] = useState(false);
+
+  type LogEntry = {
+    id: string;
+    ts: string;
+    level: "info" | "warn" | "error";
+    source: string;
+    action: string;
+    message: string;
+    meta?: Record<string, unknown>;
+  };
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsLevel, setLogsLevel] = useState<"" | "info" | "warn" | "error">("");
+  const [logsSource, setLogsSource] = useState("");
+  const [logsQuery, setLogsQuery] = useState("");
+  const [logsLimit, setLogsLimit] = useState("200");
 
   const OTHER_OPTION_VALUE = "__otra__";
   const masterCategoryNames = useMemo(() => masterCategories.map((m) => m.name), [masterCategories]);
@@ -299,6 +316,34 @@ function AdminPage() {
       fetchMasterCategories();
     }
   }, [activeTab]);
+
+  const fetchLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (logsLevel) params.set("level", logsLevel);
+      if (logsSource.trim()) params.set("source", logsSource.trim());
+      if (logsQuery.trim()) params.set("q", logsQuery.trim());
+      if (logsLimit.trim()) params.set("limit", logsLimit.trim());
+      const url = `${api.nest.admin.logs}?${params.toString()}`;
+      const json = await fetchJson(url, { timeoutMs: 15_000 });
+      const rows = json?.response;
+      setLogs(Array.isArray(rows) ? (rows as LogEntry[]) : []);
+    } catch (err) {
+      const msg =
+        isApiError(err) && err.status === 401
+          ? "No autorizado para ver logs (401)."
+          : isApiError(err) && err.status === 403
+            ? "Sin permisos para ver logs (403)."
+            : isApiError(err)
+              ? err.message
+              : "Error de red al cargar logs.";
+      setAlerta({ show: true, type: "error", message: msg });
+      setLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
 
   const handleAddMapping = async (
     proveedor: string,
@@ -770,6 +815,7 @@ function AdminPage() {
                 { id: "calculadora" as const, label: "Calculadora" },
                 { id: "dolar" as const, label: "Dólar" },
                 { id: "categorias" as const, label: "Categorías nuevas" },
+                { id: "logs" as const, label: "Logs" },
               ] as const
             ).map((tab) => (
               <button
@@ -1340,6 +1386,100 @@ function AdminPage() {
                   })}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "logs" && (
+          <Card>
+            <CardContent className="space-y-4 px-4 py-5 md:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3>Logs del backend</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Eventos recientes (buffer en memoria): productos, dólar, descargas.
+                  </p>
+                </div>
+                <Button type="button" variant="secondary" onClick={fetchLogs} loading={logsLoading}>
+                  Actualizar
+                </Button>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-4">
+                <select
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                  value={logsLevel}
+                  onChange={(e) => setLogsLevel(e.target.value as any)}
+                >
+                  <option value="">Nivel (todos)</option>
+                  <option value="info">info</option>
+                  <option value="warn">warn</option>
+                  <option value="error">error</option>
+                </select>
+                <Input
+                  label="Source"
+                  value={logsSource}
+                  onChange={(e) => setLogsSource(e.target.value)}
+                  placeholder='ej: "productos" o "dolar"'
+                />
+                <Input
+                  label="Buscar"
+                  value={logsQuery}
+                  onChange={(e) => setLogsQuery(e.target.value)}
+                  placeholder="proveedor, acción, mensaje..."
+                />
+                <Input
+                  label="Límite"
+                  value={logsLimit}
+                  onChange={(e) => setLogsLimit(e.target.value)}
+                  placeholder="200"
+                  type="number"
+                  min="1"
+                  max="500"
+                />
+              </div>
+
+              {logsLoading ? <p className="text-sm text-muted-foreground">Cargando...</p> : null}
+
+              {!logsLoading && logs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay logs para mostrar. Probá “Actualizar”.</p>
+              ) : null}
+
+              {!logsLoading && logs.length > 0 ? (
+                <div className="space-y-2">
+                  {logs.map((item) => (
+                    <div key={item.id} className="rounded-md border border-border p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {new Date(item.ts).toLocaleString()}
+                          </span>
+                          <span
+                            className={
+                              item.level === "error"
+                                ? "text-red-700 font-semibold"
+                                : item.level === "warn"
+                                  ? "text-amber-700 font-semibold"
+                                  : "text-foreground font-semibold"
+                            }
+                          >
+                            {item.level}
+                          </span>
+                          <span className="text-muted-foreground">{item.source}</span>
+                          <span className="text-muted-foreground">/</span>
+                          <span className="text-muted-foreground">{item.action}</span>
+                        </div>
+                      </div>
+                      <p className="mt-1 text-foreground">{item.message}</p>
+                      {item.meta && Object.keys(item.meta).length > 0 ? (
+                        <pre className="mt-2 max-h-44 overflow-auto rounded bg-muted/40 p-2 text-xs">
+                          {JSON.stringify(item.meta, null, 2)}
+                        </pre>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         )}

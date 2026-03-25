@@ -23,6 +23,7 @@ const Page = ({ params }) => {
   const {
     products,
     totalResults,
+    warnings,
     page,
     setPage,
     sortType,
@@ -86,7 +87,11 @@ const Page = ({ params }) => {
             {!loading && !error && products.length === 0 ? (
               <ProductsEmptyState
                 title={`No hay resultados en ${categoryName}`}
-                description="Prueba explorando el catalogo completo."
+                description={
+                  warnings?.some((w) => w?.code === "PROVIDER_EMPTY")
+                    ? "Este proveedor no tiene productos cargados (o la importación falló / todavía no terminó)."
+                    : "Prueba explorando el catalogo completo."
+                }
               />
             ) : null}
 

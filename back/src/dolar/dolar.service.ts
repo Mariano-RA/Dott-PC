@@ -7,6 +7,7 @@ import { Dolar } from "./entities/dolar.entity";
 import { DolarHistory } from "./entities/dolar-history.entity";
 import { DolarHistoryQueryDto } from "./dto/dolarHistoryQuery.dto";
 import { ProveedorService } from "../proveedor/proveedor.service";
+import { EventLogService } from "src/shared/event-log.service";
 
 @Injectable()
 export class DolaresService {
@@ -16,6 +17,7 @@ export class DolaresService {
     @InjectRepository(DolarHistory)
     private readonly dolarHistoryRepository: Repository<DolarHistory>,
     private readonly proveedorService: ProveedorService,
+    private readonly eventLogService: EventLogService,
   ) {}
 
   async findAll() {
@@ -65,9 +67,21 @@ export class DolaresService {
       for(const valor of arrayDolar) {
         await this.upsertOne(valor);
       };
+      await this.eventLogService.info(
+        "dolar",
+        "bulk_upsert",
+        `Actualización masiva de dólar (${arrayDolar?.length ?? 0} items).`,
+        { count: arrayDolar?.length ?? 0 }
+      );
       return "Se actualizo el valor del dolar correctamente";
     } catch (error) {
       console.error("Error al crear o actualizar los valores del dólar:", error.message);
+      await this.eventLogService.error(
+        "dolar",
+        "bulk_upsert_error",
+        "Error en actualización masiva de dólar.",
+        { error: error?.message || String(error) }
+      );
       return error.message;
     }
   }
@@ -106,6 +120,12 @@ export class DolaresService {
       if (!existing) {
         await this.dolarRepository.save({ proveedorId, precioDolar });
         console.log(`Nuevo valor del dólar guardado para proveedorId ${proveedorId}`);
+        await this.eventLogService.info(
+          "dolar",
+          "upsert_create",
+          `Nuevo dólar guardado (proveedorId ${proveedorId}).`,
+          { proveedorId, precioDolar, usuario: input.usuario || null, motivo: input.motivo || null }
+        );
       } else {
         await this.dolarRepository
           .createQueryBuilder()
@@ -114,6 +134,12 @@ export class DolaresService {
           .where("proveedorId = :id", { id: proveedorId })
           .execute();
         console.log(`Valor del dólar actualizado para proveedorId ${proveedorId}`);
+        await this.eventLogService.info(
+          "dolar",
+          "upsert_update",
+          `Dólar actualizado (proveedorId ${proveedorId}).`,
+          { proveedorId, precioDolar, usuario: input.usuario || null, motivo: input.motivo || null }
+        );
       }
 
       // Guardar en historial
@@ -130,6 +156,12 @@ export class DolaresService {
       return this.getByProvider(proveedorId);
     } catch (error) {
       console.error("Error en upsertOne:", error.message);
+      await this.eventLogService.error(
+        "dolar",
+        "upsert_error",
+        "Error al guardar dólar por proveedor.",
+        { error: error?.message || String(error), proveedor: input?.proveedor, proveedorId: input?.proveedorId }
+      );
       throw new Error(`Error al guardar proveedor: ${error.message}`);
     }
   }
@@ -191,6 +223,12 @@ export class DolaresService {
     }
 
     await this.dolarRepository.delete({ proveedorId });
+    await this.eventLogService.warn(
+      "dolar",
+      "delete",
+      `Dólar eliminado para proveedor "${proveedorNombre}".`,
+      { proveedor: proveedorNombre, proveedorId }
+    );
     return {
       deleted: true,
       proveedor: proveedorNombre,

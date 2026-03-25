@@ -5,6 +5,7 @@ import { AddMappingDto } from "./dto/add-mapping.dto";
 import { CategoryProvider } from "./entities/category-provider.entity";
 import { MasterCategory } from "./entities/master-category.entity";
 import { ProviderCategoryMapping } from "./entities/provider-category-mapping.entity";
+import { EventLogService } from "src/shared/event-log.service";
 import {
   DictionaryFileService,
   Diccionarios,
@@ -28,6 +29,7 @@ export class CategoriesService {
 
   constructor(
     private readonly dictionaryFileService: DictionaryFileService,
+    private readonly eventLogService: EventLogService,
     @InjectRepository(MasterCategory)
     private readonly masterCategoryRepo: Repository<MasterCategory>,
     @InjectRepository(CategoryProvider)
@@ -64,6 +66,9 @@ export class CategoriesService {
       if (!result[code]) result[code] = {};
       result[code][m.providerCategoryKey] = name;
     }
+    await this.eventLogService.info("categorias", "dictionary_get", "Se consultó diccionario desde DB.", {
+      mappings: mappings.length,
+    });
     return result;
   }
 
@@ -74,6 +79,11 @@ export class CategoriesService {
     const catNorm = dto.categoriaNormalizada.trim();
     if (!proveedor || !catNorm) return { updated: false };
     await this.upsertSqlMapping(proveedor, catRaw, catNorm);
+    await this.eventLogService.info("categorias", "mapping_add", "Se agregó/actualizó un mapeo.", {
+      proveedor,
+      categoriaRaw: catRaw,
+      categoriaNormalizada: catNorm,
+    });
     return { updated: true };
   }
 
@@ -86,6 +96,9 @@ export class CategoriesService {
       await this.upsertSqlMapping(proveedor, dto.categoriaRaw.trim(), catNorm);
       updated++;
     }
+    await this.eventLogService.info("categorias", "mapping_bulk_add", "Se agregaron/actualizaron mapeos en lote.", {
+      updated,
+    });
     return { updated };
   }
 
@@ -98,6 +111,10 @@ export class CategoriesService {
       const result = await this.discardNew(proveedor, categoriaRaw);
       if (result.updated) deleted++;
     }
+    await this.eventLogService.info("categorias", "new_discard_bulk", "Se descartaron categorías nuevas en lote.", {
+      requested: items.length,
+      deleted,
+    });
     return { deleted };
   }
 
@@ -120,7 +137,14 @@ export class CategoriesService {
       .andWhere("providerCategoryKey = :key", { key })
       .andWhere("master_category_id IS NULL")
       .execute();
-    return { updated: (result.affected ?? 0) > 0 };
+    const updated = (result.affected ?? 0) > 0;
+    if (updated) {
+      await this.eventLogService.warn("categorias", "new_discard", "Se descartó una categoría nueva.", {
+        proveedor: code,
+        categoriaRaw: key,
+      });
+    }
+    return { updated };
   }
 
   /** Registra una categoría raw del proveedor como "vista pero no mapeada" y guarda un producto de ejemplo. */
@@ -155,6 +179,12 @@ export class CategoriesService {
     });
     try {
       await this.providerCategoryMappingRepo.save(mapping);
+      await this.eventLogService.warn(
+        "categorias",
+        "unmapped_detected",
+        `Se detectó categoría sin mapear para "${code}".`,
+        { proveedor: code, categoriaRaw: key, exampleProduct: example }
+      );
     } catch (err: any) {
       if (isDuplicateKeyError(err)) return;
       throw err;
@@ -452,6 +482,12 @@ export class CategoriesService {
     this.logger.log(
       `Import from JSON: ${providers} providers, ${categoryNames.size} categories, ${mappings} mappings.`,
     );
+    await this.eventLogService.info("categorias", "import_dictionary_json", "Import de diccionarios.json a SQL.", {
+      providers,
+      categories: categoryNames.size,
+      mappings,
+      skip: skipProviderCode || "",
+    });
     return { providers, categories: categoryNames.size, mappings };
   }
 
@@ -486,6 +522,11 @@ export class CategoriesService {
     }
 
     this.logger.log(`Import master from JSON: ${parents} parents, ${children} children.`);
+    await this.eventLogService.info("categorias", "import_master_json", "Import de maestro_categorias.json a SQL.", {
+      parents,
+      children,
+      total: parents + children,
+    });
     return { parents, children, total: parents + children };
   }
 
@@ -496,6 +537,11 @@ export class CategoriesService {
   }> {
     const master = await this.importMasterFromMaestroJson();
     const mappings = await this.importFromDictionaryJson(skipProviderCode);
+    await this.eventLogService.info("categorias", "bootstrap", "Bootstrap completo de categorías (maestro + diccionarios).", {
+      skip: skipProviderCode || "",
+      master,
+      mappings,
+    });
     return { master, mappings };
   }
 }

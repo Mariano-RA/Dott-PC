@@ -4,8 +4,9 @@ import useSWR from "swr";
 import { useUser } from "@auth0/nextjs-auth0";
 
 import { canAccessAdmin } from "@/lib/auth0Roles";
+import { fetchJson } from "@/lib/http/fetchJson";
 
-const fetcher = (url) => fetch(url).then((r) => r.json());
+const fetcher = (url) => fetchJson(url, { timeoutMs: 10_000 });
 
 /**
  * useUser() refleja sobre todo el ID token; los permisos RBAC de la API suelen ir en el access token.

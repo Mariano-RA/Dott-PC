@@ -15,6 +15,7 @@ import {
 } from "@nestjs/common";
 import { ProductosService } from "./producto.service";
 import { FetchPricesTriggerService } from "./fetch-prices-trigger.service";
+import { ImportStatusService } from "./import-status.service";
 import { AuthorizationGuard } from "src/authTest/authorization.guard";
 import { PermissionGuard } from "src/authTest/permission.guard";
 import {
@@ -32,6 +33,7 @@ export class ProductosController {
   constructor(
     private readonly productosService: ProductosService,
     private readonly fetchPricesTriggerService: FetchPricesTriggerService,
+    private readonly importStatusService: ImportStatusService,
   ) {}
 
   private safeDecodeURIComponent(value: string): string {
@@ -66,6 +68,11 @@ export class ProductosController {
   @Post()
   async updateTable(@Body() newMessageDto: newMessageDto) {
     return await this.productosService.sendMessageData(newMessageDto);
+  }
+
+  @Get("import-status")
+  importStatus(@Query("proveedor") proveedor?: string) {
+    return this.importStatusService.get(String(proveedor ?? ""));
   }
 
   @UseGuards(AuthorizationGuard, PermissionGuard)

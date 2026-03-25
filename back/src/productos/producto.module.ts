@@ -8,6 +8,7 @@ import { FetchPricesTriggerService } from "./fetch-prices-trigger.service";
 import { CuotasModule } from "src/cuota/cuota.module";
 import { ProveedorModule } from "src/proveedor/proveedor.module";
 import { CategoriesModule } from "src/categories/categories.module";
+import { ImportStatusService } from "./import-status.service";
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { CategoriesModule } from "src/categories/categories.module";
     TypeOrmModule.forFeature([Producto]),
   ],
   controllers: [ProductosController],
-  providers: [ProductosService, FetchPricesTriggerService],
+  providers: [ProductosService, FetchPricesTriggerService, ImportStatusService],
 })
 export class ProductosModule {}

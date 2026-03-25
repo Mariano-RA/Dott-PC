@@ -1,9 +1,12 @@
+import { fetchJson } from "@/lib/http/fetchJson";
+
 function normalizeProductsResponse(payload) {
   const response = payload?.response ?? payload ?? {};
 
   return {
     products: Array.isArray(response.productos) ? response.productos : [],
     totalResults: Number(response.cantResultados) || 0,
+    warnings: Array.isArray(response.warnings) ? response.warnings : [],
   };
 }
 
@@ -32,15 +35,10 @@ export async function fetchProductsListing({
     params.append("proveedor", proveedor);
   }
 
-  const response = await fetch(`${endpoint}?${params.toString()}`, {
+  const payload = await fetchJson(`${endpoint}?${params.toString()}`, {
     cache: "no-store",
     signal,
+    timeoutMs: 15_000,
   });
-
-  if (!response.ok) {
-    throw new Error("No se pudieron cargar los productos.");
-  }
-
-  const payload = await response.json();
   return normalizeProductsResponse(payload);
 }

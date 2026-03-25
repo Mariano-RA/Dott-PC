@@ -3,17 +3,12 @@
 import useSWR from "swr";
 
 import { api } from "@/constants/routes";
+import { fetchJson } from "@/lib/http/fetchJson";
 
 const PROVEEDORES_ENDPOINT = api.nest.proveedores;
 
 async function fetcher(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const err = new Error("Error al cargar proveedores");
-    err.status = res.status;
-    throw err;
-  }
-  const data = await res.json();
+  const data = await fetchJson(url, { timeoutMs: 10_000 });
   return data?.proveedores ?? [];
 }
 

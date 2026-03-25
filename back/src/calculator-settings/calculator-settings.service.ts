@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CalculatorSetting } from "./entities/calculator-setting.entity";
 import { CalculatorSettingDto } from "./dto/calculator-setting.dto";
+import { EventLogService } from "src/shared/event-log.service";
 
 const DEFAULT_SETTINGS: Pick<CalculatorSettingDto, "cardFee" | "advanceFee" | "vat"> = {
   cardFee: 1.8,
@@ -53,7 +54,8 @@ const DEFAULT_GATEWAYS: Record<string, unknown> = {
 export class CalculatorSettingsService {
   constructor(
     @InjectRepository(CalculatorSetting)
-    private readonly settingsRepository: Repository<CalculatorSetting>
+    private readonly settingsRepository: Repository<CalculatorSetting>,
+    private readonly eventLogService: EventLogService,
   ) {}
 
   private async ensureSettings(): Promise<CalculatorSetting> {
@@ -74,6 +76,7 @@ export class CalculatorSettingsService {
   async getSettings() {
     const row = await this.ensureSettings();
     const gateways = row.gateways && Object.keys(row.gateways).length > 0 ? row.gateways : DEFAULT_GATEWAYS;
+    await this.eventLogService.info("calculadora", "get_settings", "Se consultó configuración de calculadora.");
     return {
       cardFee: row.cardFee,
       advanceFee: row.advanceFee,
@@ -95,6 +98,10 @@ export class CalculatorSettingsService {
       toSave.gateways = input.gateways as Record<string, unknown>;
     }
 
-    return this.settingsRepository.save(this.settingsRepository.create(toSave));
+    const saved = await this.settingsRepository.save(this.settingsRepository.create(toSave));
+    await this.eventLogService.info("calculadora", "update_settings", "Se actualizó configuración de calculadora.", {
+      hasGateways: input.gateways != null,
+    });
+    return saved;
   }
 }

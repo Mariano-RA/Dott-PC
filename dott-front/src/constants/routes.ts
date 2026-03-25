@@ -36,6 +36,10 @@ export const api = {
       category: path("/api/nest/products/category"),
       keywords: path("/api/nest/products/keywords"),
       fetchPrices: path("/api/nest/products/fetch-prices"),
+      importStatus: path("/api/nest/products/import-status"),
+    },
+    admin: {
+      logs: path("/api/nest/admin/logs"),
     },
     categories: {
       new: path("/api/nest/categories/new"),
