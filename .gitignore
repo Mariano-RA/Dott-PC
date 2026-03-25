@@ -22,7 +22,7 @@ __pycache__/
 *.egg-info/
 venv/
 env/
-logs/
+/logs/
 
 # OS / editor
 Thumbs.db
