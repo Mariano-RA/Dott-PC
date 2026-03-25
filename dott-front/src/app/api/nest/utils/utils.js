@@ -3,5 +3,6 @@
 export const apiUrl =
   process.env.APP_API_SERVER_URL ||
   process.env.NEXT_PUBLIC_APP_API_SERVER_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://localhost:3000";
 export const apiPythonUrl = process.env.NEXT_PUBLIC_PYTHON_API_SERVER_URL || "http://localhost:8000";
