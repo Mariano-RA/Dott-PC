@@ -51,10 +51,10 @@ def parse(archivo_bytesio) -> List[dict]:
                     if not nombre:
                         continue
                     cat = str(item.get("sub_categoria") or item.get("categoria") or "").strip()
-                    precio = item.get("precio") or item.get("pvp")
+                    precio = item.get("precio")
                     if precio is None:
                         continue
-                    iva_raw = item.get("iva") or item.get("alicuota_iva") or item.get("iva_porcentaje")
+                    iva_raw = item.get("iva") + item.get("impuesto_interno")
                     iva_pct = _iva_a_porcentaje_para_calcular(iva_raw)
                     imagenes = item.get("imagenes")
                     if isinstance(imagenes, list):
