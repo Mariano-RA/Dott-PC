@@ -24,6 +24,26 @@ def _iva_a_porcentaje_para_calcular(iva) -> float:
     return v
 
 
+def _to_int(v, default: int = 0) -> int:
+    if v is None:
+        return default
+    if isinstance(v, bool):
+        return int(v)
+    if isinstance(v, (int, float)):
+        try:
+            return int(v)
+        except Exception:
+            return default
+    s = str(v).strip()
+    if not s:
+        return default
+    s = s.replace(".", "").replace(",", ".")
+    try:
+        return int(float(s))
+    except Exception:
+        return default
+
+
 def parse(archivo_bytesio) -> List[dict]:
     """Envía categoriaRaw para que el backend resuelva con el maestro."""
     try:
@@ -49,6 +69,15 @@ def parse(archivo_bytesio) -> List[dict]:
                     ).strip()
                     nombre = str(item.get("nombre") or item.get("producto") or "").strip()
                     if not nombre:
+                        continue
+
+                    stock_total = _to_int(item.get("stock_total"))
+                    stock_deposito_cliente = _to_int(item.get("stock_deposito_cliente"))
+                    stock_deposito_cd = _to_int(item.get("stock_deposito_cd"))
+                    if (stock_total == 0
+                        and stock_deposito_cliente == 0
+                        and stock_deposito_cd == 0
+                    ):
                         continue
                     cat = str(item.get("sub_categoria") or item.get("categoria") or "").strip()
                     precio = item.get("precio")
@@ -85,6 +114,21 @@ def parse(archivo_bytesio) -> List[dict]:
                 codigo = str(row[0]).strip() if len(row) > 0 else ""
                 cat_raw = str(row[5]).strip() if len(row) > 5 else ""
                 imagen_url = str(row[11]).strip() if len(row) > 11 else ""
+
+                stock_total = _to_int(row.get("stock_total") if hasattr(row, "get") else None)
+                stock_deposito_cliente = _to_int(
+                    row.get("stock_deposito_cliente") if hasattr(row, "get") else None
+                )
+                stock_deposito_cd = _to_int(
+                    row.get("stock_deposito_cd") if hasattr(row, "get") else None
+                )
+                if (
+                    hasattr(row, "get")
+                    and stock_total == 0
+                    and stock_deposito_cliente == 0
+                    and stock_deposito_cd == 0
+                ):
+                    continue
                 registro = {
                     "proveedor": "elit",
                     "codigo": codigo,
@@ -140,6 +184,9 @@ def parse(archivo_bytesio) -> List[dict]:
         iva_i = _first_idx("iva", "iva_porcentaje", "alicuota_iva", "alícuota_iva")
         imp_i = _first_idx("impuesto_interno", "imp_interno", "interno")
         imagen_i = _first_idx("imagen", "imagen_url", "url_imagen", "imagenes", "miniatura")
+        stock_total_i = _first_idx("stock_total", "stock", "stock total")
+        stock_dc_i = _first_idx("stock_deposito_cliente", "stock deposito cliente", "stock_dep_cliente")
+        stock_cd_i = _first_idx("stock_deposito_cd", "stock deposito cd", "stock_dep_cd", "stock_cd")
 
         def _to_float(v):
             if v is None:
@@ -169,6 +216,14 @@ def parse(archivo_bytesio) -> List[dict]:
                 producto = _cell(r, producto_i)
                 if not producto:
                     continue
+
+                # Si el archivo trae stocks y los 3 son 0, no cargamos el producto.
+                if stock_total_i is not None and stock_dc_i is not None and stock_cd_i is not None:
+                    stock_total = _to_int(_cell(r, stock_total_i))
+                    stock_deposito_cliente = _to_int(_cell(r, stock_dc_i))
+                    stock_deposito_cd = _to_int(_cell(r, stock_cd_i))
+                    if stock_total == 0 and stock_deposito_cliente == 0 and stock_deposito_cd == 0:
+                        continue
                 cat = _cell(r, sub_i) or _cell(r, cat_i)
 
                 precio = (
