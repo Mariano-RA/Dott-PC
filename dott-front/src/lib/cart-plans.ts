@@ -3,7 +3,7 @@
  * Misma ecuación que la calculadora: precio a cobrar = neto ÷ (1 − deducción con IVA).
  */
 
-import type { CalculatorConfig, GatewayConfigCalc } from "@/lib/api/calculator-types";
+import type { CalculatorConfig, GatewayConfigCalc, GatewayCost } from "@/lib/api/calculator-types";
 
 function toNum(x: unknown): number {
   if (typeof x === "number" && Number.isFinite(x)) return x;
@@ -38,21 +38,39 @@ export function buildPlansFromConfig(
   const vatRate = vat / 100;
   const costsArr = g.costs;
   const hasCostsArray = Array.isArray(costsArr) && costsArr.length > 0;
-  const sumCosts = hasCostsArray
-    ? costsArr.reduce((s, c) => s + c.value, 0) / 100
-    : 0;
-  const costsRate = hasCostsArray
-    ? sumCosts
-    : g.instantRate != null
-      ? g.instantRate / 100
-      : (g.cardFee ?? config.flat.cardFee) / 100 +
-        (g.advanceFee ?? config.flat.advanceFee) / 100 +
-        (g.cost24h ?? 0) / 100;
+
+  // Support per-item VAT
+  const hasPerItemVat = hasCostsArray && costsArr!.some((c: GatewayCost) => c.vat != null);
+
+  let costsRate: number;
+  let totalDeductionRateFn: ((planRate: number) => number);
+
+  if (hasPerItemVat) {
+    costsRate = costsArr!.reduce((s: number, c: GatewayCost) => s + c.value, 0) / 100;
+    totalDeductionRateFn = (planRate: number) => {
+      const costsDeduction = costsArr!.reduce(
+        (s: number, c: GatewayCost) => s + (c.value / 100) * (1 + ((c.vat ?? vat) / 100)),
+        0
+      );
+      return costsDeduction + planRate * (1 + vatRate);
+    };
+  } else {
+    const sumCosts = hasCostsArray
+      ? costsArr.reduce((s, c) => s + c.value, 0) / 100
+      : 0;
+    costsRate = hasCostsArray
+      ? sumCosts
+      : g.instantRate != null
+        ? g.instantRate / 100
+        : (g.cardFee ?? config.flat.cardFee) / 100 +
+          (g.advanceFee ?? config.flat.advanceFee) / 100 +
+          (g.cost24h ?? 0) / 100;
+    totalDeductionRateFn = (planRate: number) => (costsRate + planRate) * (1 + vatRate);
+  }
 
   return g.plans.map((plan) => {
     const planRate = plan.rate / 100;
-    const commissionRate = costsRate + planRate;
-    const totalDeductionRate = commissionRate * (1 + vatRate);
+    const totalDeductionRate = totalDeductionRateFn(planRate);
     if (totalDeductionRate >= 1)
       return {
         planKey: plan.planKey,

@@ -5,6 +5,7 @@ import { fetchCalculatorConfig } from "@/lib/api";
 import type {
   CalculatorConfig,
   GatewayConfigCalc,
+  GatewayCost,
   GatewayPlan,
   CalculatorRates,
 } from "@/lib/api/calculator-types";
@@ -13,6 +14,7 @@ export const GATEWAY_OPTIONS = [
   { key: "tacataca", label: "Taca-taca" },
   { key: "payway", label: "Payway" },
   { key: "mercadopago", label: "Mercadopago" },
+  { key: "getnet", label: "Getnet" },
 ] as const;
 
 export type GatewayKey = (typeof GATEWAY_OPTIONS)[number]["key"];
@@ -29,6 +31,17 @@ const DEFAULT_PLANS_MP: GatewayPlan[] = [
   { planKey: "6", label: "6 cuotas", rate: 14.96 },
   { planKey: "9", label: "9 cuotas", rate: 12 },
   { planKey: "12", label: "12 cuotas", rate: 15 },
+];
+
+const DEFAULT_PLANS_GETNET: GatewayPlan[] = [
+  { planKey: "1", label: "Credito/Debito 1 cuota", rate: 0 },
+  { planKey: "3-estandar", label: "3 cuotas Estandar", rate: 7.41 },
+  { planKey: "3-mipyme", label: "3 cuotas MiPyME", rate: 7.36 },
+  { planKey: "6-estandar", label: "6 cuotas Estandar", rate: 12.64 },
+  { planKey: "6-mipyme", label: "6 cuotas MiPyME", rate: 13.82 },
+  { planKey: "9", label: "9 cuotas Estandar", rate: 18.95 },
+  { planKey: "12", label: "12 cuotas Estandar", rate: 23.72 },
+  { planKey: "18", label: "18 cuotas Estandar", rate: 32.11 },
 ];
 
 function parseNumber(value: string): number {
@@ -54,7 +67,7 @@ export function formatPercent(value: number): string {
   })}%`;
 }
 
-type CostItem = { label: string; ratePct: number; amount: number };
+type CostItem = { label: string; ratePct: number; amount: number; vatPct?: number };
 export type CalculationBreakdown = {
   costsLabel: string;
   costsDetail: string;
@@ -65,6 +78,7 @@ export type CalculationBreakdown = {
   planLabel?: string;
   planRatePct?: number;
   planAmount?: number;
+  planVatPct?: number;
 };
 
 export type CalculationResult = {
@@ -115,7 +129,9 @@ export function useCalculatorLogic() {
         ? g!.plans!
         : selectedGateway === "mercadopago"
           ? DEFAULT_PLANS_MP
-          : DEFAULT_PLANS_STANDARD;
+          : selectedGateway === "getnet"
+            ? DEFAULT_PLANS_GETNET
+            : DEFAULT_PLANS_STANDARD;
     return plans.map((p) => ({ key: p.planKey, label: p.label }));
   }, [effectiveConfig.gateways, selectedGateway]);
 
@@ -147,37 +163,53 @@ export function useCalculatorLogic() {
   );
 
   const calculation: CalculationResult = useMemo(() => {
-    const vatRate = rates.vat / 100;
     const g = effectiveConfig.gateways[selectedGateway] as
       | GatewayConfigCalc
       | undefined;
     const costsArr = g?.costs;
     const hasCostsArray = Array.isArray(costsArr) && costsArr.length > 0;
-    const sumCosts = hasCostsArray
-      ? costsArr!.reduce((s, c) => s + c.value, 0) / 100
-      : 0;
+
+    const gatewayVat = g?.vat ?? rates.vat;
+    const gatewayVatRate = gatewayVat / 100;
 
     const plans =
       (g?.plans?.length ?? 0) > 0
         ? g!.plans!
         : selectedGateway === "mercadopago"
           ? DEFAULT_PLANS_MP
-          : DEFAULT_PLANS_STANDARD;
+          : selectedGateway === "getnet"
+            ? DEFAULT_PLANS_GETNET
+            : DEFAULT_PLANS_STANDARD;
     const plan = plans.find((p) => p.planKey === selectedPaymentOption);
     const planRate = (plan?.rate ?? 0) / 100;
 
-    const costsRate = hasCostsArray
-      ? sumCosts
-      : selectedGateway === "mercadopago"
-        ? (g?.instantRate ?? 6.6) / 100
-        : rates.cardFee / 100 + rates.advanceFee / 100 + rates.cost24h / 100;
+    // Calculate costs rate and deduction rate with per-item VAT support
+    const hasPerItemVat = hasCostsArray && costsArr!.some((c: GatewayCost) => c.vat != null);
 
-    const commissionRate = costsRate + planRate;
-    const totalDeductionRate = commissionRate * (1 + vatRate);
+    let costsRate: number;
+    let totalDeductionRate: number;
+
+    if (hasPerItemVat) {
+      // Per-item VAT: each cost has its own VAT, plan uses gateway VAT
+      costsRate = costsArr!.reduce((s: number, c: GatewayCost) => s + c.value, 0) / 100;
+      const totalCostsDeduction = costsArr!.reduce(
+        (s: number, c: GatewayCost) => s + (c.value / 100) * (1 + ((c.vat ?? gatewayVat) / 100)),
+        0
+      );
+      totalDeductionRate = totalCostsDeduction + planRate * (1 + gatewayVatRate);
+    } else {
+      // Legacy: unified VAT for everything
+      costsRate = hasCostsArray
+        ? costsArr!.reduce((s, c) => s + c.value, 0) / 100
+        : selectedGateway === "mercadopago"
+          ? (g?.instantRate ?? 6.6) / 100
+          : rates.cardFee / 100 + rates.advanceFee / 100 + rates.cost24h / 100;
+      totalDeductionRate = (costsRate + planRate) * (1 + gatewayVatRate);
+    }
 
     if (totalDeductionRate >= 1) {
       return {
-        commissionRate,
+        commissionRate: costsRate + planRate,
         totalDeductionRate,
         grossToCharge: 0,
         commissionAmount: 0,
@@ -190,8 +222,9 @@ export function useCalculatorLogic() {
 
     const grossToCharge =
       desiredNetAmount > 0 ? desiredNetAmount / (1 - totalDeductionRate) : 0;
+    const commissionRate = costsRate + planRate;
     const commissionAmount = grossToCharge * commissionRate;
-    const vatOnCommissionAmount = commissionAmount * vatRate;
+    const vatOnCommissionAmount = commissionAmount * gatewayVatRate;
     const totalDeductionAmount = commissionAmount + vatOnCommissionAmount;
     const netReceivedAmount = grossToCharge - totalDeductionAmount;
     const effectiveMarkupOverNet =
@@ -212,64 +245,83 @@ export function useCalculatorLogic() {
 
     if (grossToCharge <= 0) return base;
 
-    const costsAmount = grossToCharge * costsRate * (1 + vatRate);
-    const planAmount = grossToCharge * planRate * (1 + vatRate);
     const planLabel = plan?.label ?? `${selectedPaymentOption} cuotas`;
+    const planAmount = grossToCharge * planRate * (1 + gatewayVatRate);
 
-    const costsItems: CostItem[] =
-      hasCostsArray && costsArr!.length > 0
-        ? costsArr!.map((c) => ({
-            label: c.label || c.id,
-            ratePct: c.value,
-            amount:
-              grossToCharge * (c.value / 100) * (1 + vatRate),
-          }))
-        : selectedGateway === "mercadopago"
+    let costsAmount: number;
+    let costsItems: CostItem[];
+
+    if (hasPerItemVat) {
+      costsAmount = costsArr!.reduce(
+        (s: number, c: GatewayCost) =>
+          s + grossToCharge * (c.value / 100) * (1 + ((c.vat ?? gatewayVat) / 100)),
+        0
+      );
+      costsItems = costsArr!.map((c: GatewayCost) => ({
+        label: c.label || c.id,
+        ratePct: c.value,
+        vatPct: c.vat ?? gatewayVat,
+        amount:
+          grossToCharge * (c.value / 100) * (1 + ((c.vat ?? gatewayVat) / 100)),
+      }));
+    } else if (hasCostsArray && costsArr!.length > 0) {
+      costsAmount = grossToCharge * costsRate * (1 + gatewayVatRate);
+      costsItems = costsArr!.map((c: GatewayCost) => ({
+        label: c.label || c.id,
+        ratePct: c.value,
+        amount:
+          grossToCharge * (c.value / 100) * (1 + gatewayVatRate),
+      }));
+    } else if (selectedGateway === "mercadopago") {
+      costsAmount = grossToCharge * costsRate * (1 + gatewayVatRate);
+      costsItems = [
+        {
+          label: "Costo por cobro",
+          ratePct: costsRate * 100,
+          amount: costsAmount,
+        },
+      ];
+    } else {
+      costsAmount = grossToCharge * costsRate * (1 + gatewayVatRate);
+      costsItems = [
+        ...(rates.cardFee
           ? [
               {
-                label: "Costo por cobro",
-                ratePct: costsRate * 100,
-                amount: costsAmount,
+                label: "Uso de tarjeta",
+                ratePct: rates.cardFee,
+                amount:
+                  grossToCharge *
+                  (rates.cardFee / 100) *
+                  (1 + gatewayVatRate),
               },
             ]
-          : [
-              ...(rates.cardFee
-                ? [
-                    {
-                      label: "Uso de tarjeta",
-                      ratePct: rates.cardFee,
-                      amount:
-                        grossToCharge *
-                        (rates.cardFee / 100) *
-                        (1 + vatRate),
-                    },
-                  ]
-                : []),
-              ...(rates.advanceFee
-                ? [
-                    {
-                      label: "Anticipo",
-                      ratePct: rates.advanceFee,
-                      amount:
-                        grossToCharge *
-                        (rates.advanceFee / 100) *
-                        (1 + vatRate),
-                    },
-                  ]
-                : []),
-              ...(rates.cost24h
-                ? [
-                    {
-                      label: "Costo por cobro a 24hs",
-                      ratePct: rates.cost24h,
-                      amount:
-                        grossToCharge *
-                        (rates.cost24h / 100) *
-                        (1 + vatRate),
-                    },
-                  ]
-                : []),
-            ].filter((x) => x.ratePct > 0);
+          : []),
+        ...(rates.advanceFee
+          ? [
+              {
+                label: "Anticipo",
+                ratePct: rates.advanceFee,
+                amount:
+                  grossToCharge *
+                  (rates.advanceFee / 100) *
+                  (1 + gatewayVatRate),
+              },
+            ]
+          : []),
+        ...(rates.cost24h
+          ? [
+              {
+                label: "Costo por cobro a 24hs",
+                ratePct: rates.cost24h,
+                amount:
+                  grossToCharge *
+                  (rates.cost24h / 100) *
+                  (1 + gatewayVatRate),
+              },
+            ]
+          : []),
+      ].filter((x) => x.ratePct > 0);
+    }
 
     return {
       ...base,
@@ -283,6 +335,7 @@ export function useCalculatorLogic() {
         planLabel,
         planRatePct: planRate * 100,
         planAmount,
+        planVatPct: hasPerItemVat ? gatewayVat : undefined,
       },
     };
   }, [

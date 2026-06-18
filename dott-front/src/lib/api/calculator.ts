@@ -7,6 +7,7 @@ import { api } from "@/constants/routes";
 import type {
   CalculatorConfig,
   GatewayConfigCalc,
+  GatewayCost,
   GatewayPlan,
 } from "./calculator-types";
 
@@ -34,16 +35,17 @@ function parsePlans(arr: unknown): GatewayPlan[] {
     .filter((p) => p.planKey.trim());
 }
 
-function parseCosts(arr: unknown): { id: string; label: string; value: number }[] {
+function parseCosts(arr: unknown): GatewayCost[] {
   if (!Array.isArray(arr)) return [];
   return arr
     .filter((c) => c && typeof (c as { id?: unknown }).id === "string")
     .map((c) => {
-      const item = c as { id?: string; label?: string; value?: unknown };
+      const item = c as { id?: string; label?: string; value?: unknown; vat?: unknown };
       return {
         id: String(item.id),
         label: typeof item.label === "string" ? item.label : String(item.id ?? ""),
         value: toNum(item.value),
+        vat: item.vat != null ? toNum(item.vat) : undefined,
       };
     });
 }
@@ -60,6 +62,17 @@ const DEFAULT_PLANS_MP: GatewayPlan[] = [
   { planKey: "6", label: "6 cuotas", rate: 14.96 },
   { planKey: "9", label: "9 cuotas", rate: 12 },
   { planKey: "12", label: "12 cuotas", rate: 15 },
+];
+
+const DEFAULT_PLANS_GETNET: GatewayPlan[] = [
+  { planKey: "1", label: "Credito/Debito 1 cuota", rate: 0 },
+  { planKey: "3-estandar", label: "3 cuotas Estandar", rate: 7.41 },
+  { planKey: "3-mipyme", label: "3 cuotas MiPyME", rate: 7.36 },
+  { planKey: "6-estandar", label: "6 cuotas Estandar", rate: 12.64 },
+  { planKey: "6-mipyme", label: "6 cuotas MiPyME", rate: 13.82 },
+  { planKey: "9", label: "9 cuotas Estandar", rate: 18.95 },
+  { planKey: "12", label: "12 cuotas Estandar", rate: 23.72 },
+  { planKey: "18", label: "18 cuotas Estandar", rate: 32.11 },
 ];
 
 const DEFAULT_RATES = { cardFee: 1.8, advanceFee: 6, vat: 21 };
@@ -134,6 +147,7 @@ export async function fetchCalculatorConfig(): Promise<CalculatorConfig> {
             : DEFAULT_PLANS_MP;
       gateways.mercadopago = buildGateway(raw.mercadopago, flat.vat, plans);
     }
+    if (raw.getnet) gateways.getnet = buildGateway(raw.getnet, flat.vat, DEFAULT_PLANS_GETNET);
 
     return { flat, gateways };
   } catch {

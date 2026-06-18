@@ -54,7 +54,7 @@ export default function CalculadoraPage() {
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Pasarela de pago</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                 {GATEWAY_OPTIONS.map((option) => (
                   <Button
                     key={option.key}
@@ -131,7 +131,8 @@ export default function CalculadoraPage() {
                               {calculation.breakdown.costsItems.map((item, idx) => (
                                 <li key={idx} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-red-100 last:border-0 last:pb-0 dark:border-red-900/30">
                                   <span className="text-sm text-muted-foreground">
-                                    {item.label} {formatPercent(item.ratePct)} + IVA
+                                    {item.label} {formatPercent(item.ratePct)}
+                                    {item.vatPct != null ? ` + IVA ${formatPercent(item.vatPct)}` : " + IVA"}
                                   </span>
                                   <span className="font-semibold text-red-950 dark:text-red-100">
                                     + {formatCurrency(item.amount)}
@@ -163,7 +164,8 @@ export default function CalculadoraPage() {
                             </p>
                             <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
                               <p className="text-sm text-muted-foreground">
-                                {calculation.breakdown.planLabel} {formatPercent(calculation.breakdown.planRatePct ?? 0)} + IVA
+                                {calculation.breakdown.planLabel} {formatPercent(calculation.breakdown.planRatePct ?? 0)}
+                                {calculation.breakdown.planVatPct != null ? ` + IVA ${formatPercent(calculation.breakdown.planVatPct)}` : " + IVA"}
                               </p>
                               <p className="font-semibold text-red-950 dark:text-red-100">
                                 + {formatCurrency(calculation.breakdown.planAmount ?? 0)}

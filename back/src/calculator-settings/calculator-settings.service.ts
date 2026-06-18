@@ -48,6 +48,20 @@ const DEFAULT_GATEWAYS: Record<string, unknown> = {
       { planKey: "12", label: "12 cuotas", rate: 15 },
     ],
   },
+  getnet: {
+    costs: [{ id: "arancel", label: "Arancel", value: 2.0, vat: 21 }],
+    vat: 10.5,
+    plans: [
+      { planKey: "1", label: "Credito/Debito 1 cuota", rate: 0 },
+      { planKey: "3-estandar", label: "3 cuotas Estandar", rate: 7.41 },
+      { planKey: "3-mipyme", label: "3 cuotas MiPyME", rate: 7.36 },
+      { planKey: "6-estandar", label: "6 cuotas Estandar", rate: 12.64 },
+      { planKey: "6-mipyme", label: "6 cuotas MiPyME", rate: 13.82 },
+      { planKey: "9", label: "9 cuotas Estandar", rate: 18.95 },
+      { planKey: "12", label: "12 cuotas Estandar", rate: 23.72 },
+      { planKey: "18", label: "18 cuotas Estandar", rate: 32.11 },
+    ],
+  },
 };
 
 @Injectable()

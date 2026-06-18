@@ -61,10 +61,10 @@ function AdminPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [fetchPricesProveedor, setFetchPricesProveedor] = useState("");
   const [fetchPricesLoading, setFetchPricesLoading] = useState(false);
-  const GATEWAY_KEYS = ["tacataca", "payway", "mercadopago"] as const;
+  const GATEWAY_KEYS = ["tacataca", "payway", "mercadopago", "getnet"] as const;
 
   type GatewayPlan = { planKey: string; label: string; rate: string };
-  type GatewayCost = { id: string; label: string; value: string };
+  type GatewayCost = { id: string; label: string; value: string; vat?: string };
   type GatewayConfig = { costs: GatewayCost[]; vat: string; plans: GatewayPlan[] };
 
   const defaultPlansStandard: GatewayPlan[] = [
@@ -79,6 +79,16 @@ function AdminPage() {
     { planKey: "9", label: "9 cuotas", rate: "12" },
     { planKey: "12", label: "12 cuotas", rate: "15" },
   ];
+  const defaultPlansGetnet: GatewayPlan[] = [
+    { planKey: "1", label: "Credito/Debito 1 cuota", rate: "0" },
+    { planKey: "3-estandar", label: "3 cuotas Estandar", rate: "7.41" },
+    { planKey: "3-mipyme", label: "3 cuotas MiPyME", rate: "7.36" },
+    { planKey: "6-estandar", label: "6 cuotas Estandar", rate: "12.64" },
+    { planKey: "6-mipyme", label: "6 cuotas MiPyME", rate: "13.82" },
+    { planKey: "9", label: "9 cuotas Estandar", rate: "18.95" },
+    { planKey: "12", label: "12 cuotas Estandar", rate: "23.72" },
+    { planKey: "18", label: "18 cuotas Estandar", rate: "32.11" },
+  ];
 
   const defaultCostsTacataca: GatewayCost[] = [
     { id: "cardFee", label: "Uso de tarjeta", value: "1.8" },
@@ -90,6 +100,9 @@ function AdminPage() {
   ];
   const defaultCostsMercadopago: GatewayCost[] = [
     { id: "instantRate", label: "Costo por cobro en el momento", value: "6.6" },
+  ];
+  const defaultCostsGetnet: GatewayCost[] = [
+    { id: "arancel", label: "Arancel", value: "2.0", vat: "21" },
   ];
 
   const defaultGateway = (costs: GatewayCost[], plans: GatewayPlan[]): GatewayConfig => ({
@@ -117,6 +130,7 @@ function AdminPage() {
         id: String(c.id),
         label: typeof c.label === "string" ? c.label : String(c.id),
         value: String(typeof c.value === "number" ? c.value : c.value ?? "0"),
+        vat: c.vat != null ? String(c.vat) : undefined,
       }));
   };
 
@@ -178,6 +192,7 @@ function AdminPage() {
       tacataca: defaultGateway(defaultCostsTacataca, defaultPlansStandard),
       payway: defaultGateway(defaultCostsPayway, defaultPlansStandard),
       mercadopago: defaultGateway(defaultCostsMercadopago, defaultPlansMercadopago),
+      getnet: defaultGateway(defaultCostsGetnet, defaultPlansGetnet),
     },
   });
   const [savingCalculatorConfig, setSavingCalculatorConfig] = useState(false);
@@ -215,7 +230,7 @@ function AdminPage() {
   const manualUploadProviderOptions = useMemo(() => ["eikon", "hdc"].sort((a, b) => a.localeCompare(b)), []);
 
   const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar" | "categorias" | "logs">("proveedores");
-  const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<"tacataca" | "payway" | "mercadopago">("tacataca");
+  const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<"tacataca" | "payway" | "mercadopago" | "getnet">("tacataca");
 
   /** Categorías nuevas (sin mapear en DB) agrupadas por proveedor. */
   type NewCategoryGroup = { categoriaRaw: string; examples: string[] };
@@ -541,6 +556,7 @@ function AdminPage() {
           tacataca: buildGatewayFromRaw(raw?.tacataca, defaultCostsTacataca, defaultPlansStandard),
           payway: buildGatewayFromRaw(raw?.payway, defaultCostsPayway, defaultPlansStandard),
           mercadopago: buildGatewayFromRaw(raw?.mercadopago, defaultCostsMercadopago, defaultPlansMercadopago),
+          getnet: buildGatewayFromRaw(raw?.getnet, defaultCostsGetnet, defaultPlansGetnet),
         };
         setCalculatorConfig({ ...flat, gateways });
       } catch {
@@ -709,7 +725,17 @@ function AdminPage() {
       if (!g) continue;
       const costsPayload = (g.costs ?? [])
         .filter((c) => String(c.id).trim())
-        .map((c) => ({ id: c.id.trim(), label: (c.label || c.id).trim(), value: toNum(c.value) }));
+        .map((c) => {
+          const p: { id: string; label: string; value: number; vat?: number } = {
+            id: c.id.trim(),
+            label: (c.label || c.id).trim(),
+            value: toNum(c.value),
+          };
+          if (c.vat != null && c.vat !== "") {
+            p.vat = toNum(c.vat);
+          }
+          return p;
+        });
       const vat = toNum(g.vat);
       if (!Number.isFinite(vat)) {
         setAlerta({ show: true, type: "error", message: `Pasarela "${key}": IVA inválido.` });
@@ -761,6 +787,7 @@ function AdminPage() {
         tacataca: buildGatewayFromRaw(raw?.tacataca, defaultCostsTacataca, defaultPlansStandard),
         payway: buildGatewayFromRaw(raw?.payway, defaultCostsPayway, defaultPlansStandard),
         mercadopago: buildGatewayFromRaw(raw?.mercadopago, defaultCostsMercadopago, defaultPlansMercadopago),
+        getnet: buildGatewayFromRaw(raw?.getnet, defaultCostsGetnet, defaultPlansGetnet),
       };
       setCalculatorConfig({ ...flat, gateways });
       setAlerta({ show: true, type: "success", message: "Parámetros de calculadora (por pasarela) actualizados." });
@@ -959,6 +986,7 @@ function AdminPage() {
                     { id: "tacataca" as const, label: "Taca-taca" },
                     { id: "payway" as const, label: "Payway" },
                     { id: "mercadopago" as const, label: "Mercadopago" },
+                    { id: "getnet" as const, label: "Getnet" },
                   ] as const
                 ).map((tab) => (
                   <button
@@ -978,13 +1006,13 @@ function AdminPage() {
             </div>
             <div className="space-y-6 pt-2">
               {GATEWAY_KEYS.filter((k) => k === calculatorGatewayTab).map((gatewayKey) => {
-                const label = gatewayKey === "tacataca" ? "Taca-taca" : gatewayKey === "payway" ? "Payway" : "Mercadopago";
+                const label = gatewayKey === "tacataca" ? "Taca-taca" : gatewayKey === "payway" ? "Payway" : gatewayKey === "mercadopago" ? "Mercadopago" : "Getnet";
                 const gw = calculatorConfig.gateways[gatewayKey] ?? defaultGateway(
-                  gatewayKey === "mercadopago" ? defaultCostsMercadopago : gatewayKey === "payway" ? defaultCostsPayway : defaultCostsTacataca,
-                  gatewayKey === "mercadopago" ? defaultPlansMercadopago : defaultPlansStandard
+                  gatewayKey === "mercadopago" ? defaultCostsMercadopago : gatewayKey === "payway" ? defaultCostsPayway : gatewayKey === "getnet" ? defaultCostsGetnet : defaultCostsTacataca,
+                  gatewayKey === "mercadopago" ? defaultPlansMercadopago : gatewayKey === "getnet" ? defaultPlansGetnet : defaultPlansStandard
                 );
                 const costs = gw.costs ?? [];
-                const plans = gw.plans ?? (gatewayKey === "mercadopago" ? defaultPlansMercadopago : defaultPlansStandard);
+                const plans = gw.plans ?? (gatewayKey === "mercadopago" ? defaultPlansMercadopago : gatewayKey === "getnet" ? defaultPlansGetnet : defaultPlansStandard);
 
                 return (
                   <div key={gatewayKey} className="rounded-lg border border-border p-4">
@@ -996,7 +1024,7 @@ function AdminPage() {
                     <p className="text-xs font-medium text-foreground">Costos y comisiones (%)</p>
                     <div className="mt-2 space-y-2">
                       {costs.map((cost, idx) => (
-                        <div key={gatewayKey + "-cost-" + idx} className="grid gap-2 rounded border border-border p-2 sm:grid-cols-4">
+                        <div key={gatewayKey + "-cost-" + idx} className="grid gap-2 rounded border border-border p-2 sm:grid-cols-5">
                           <Input
                             placeholder="Id (ej: cardFee, cost24h)"
                             value={cost.id}
@@ -1031,6 +1059,20 @@ function AdminPage() {
                                 const prevGw = prev.gateways[gatewayKey] ?? gw;
                                 const next = [...(prevGw.costs ?? [])];
                                 if (next[idx]) next[idx] = { ...next[idx], value: event.target.value };
+                                return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, costs: next } } };
+                              })
+                            }
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="IVA % (opcional)"
+                            value={cost.vat ?? ""}
+                            onChange={(event) =>
+                              setCalculatorConfig((prev) => {
+                                const prevGw = prev.gateways[gatewayKey] ?? gw;
+                                const next = [...(prevGw.costs ?? [])];
+                                if (next[idx]) next[idx] = { ...next[idx], vat: event.target.value || undefined };
                                 return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, costs: next } } };
                               })
                             }

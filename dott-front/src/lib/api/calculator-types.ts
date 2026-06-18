@@ -5,6 +5,8 @@
 
 export type GatewayPlan = { planKey: string; label: string; rate: number };
 
+export type GatewayCost = { id: string; label: string; value: number; vat?: number };
+
 export type CalculatorRates = {
   cardFee: number;
   advanceFee: number;
@@ -14,7 +16,7 @@ export type CalculatorRates = {
 
 /** Config unificada: costos editables (array) + IVA + planes. También soporta forma legacy. */
 export type GatewayConfigCalc = {
-  costs?: { id: string; label: string; value: number }[];
+  costs?: GatewayCost[];
   vat: number;
   plans?: GatewayPlan[];
   cardFee?: number;
