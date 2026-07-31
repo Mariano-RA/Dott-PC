@@ -1,7 +1,12 @@
 """
-Consumer que escucha RABBITMQ_FETCH_PRICES_QUEUE: al recibir { "proveedor": "nb" } (o null para todos),
-ejecuta el fetcher, descarga el listado y publica en RABBITMQ_PYTHON_QUEUE (base64) para que el
-consumer de listas lo procese, o directamente carga_tabla si el fetcher devuelve lista de productos.
+Consumer que escucha RABBITMQ_FETCH_PRICES_QUEUE.
+
+Payloads:
+- { "proveedor": "nb" } — un proveedor
+- { "proveedores": ["air", "elit", ...] } — lista explícita (Nest filtra por Proveedores.activo)
+- sin lista / proveedor vacío — fallback a list_proveedores() del registry
+
+Ejecuta el fetcher, descarga el listado y publica en RABBITMQ_PYTHON_QUEUE (base64) o carga_tabla.
 """
 import base64
 import json
@@ -89,29 +94,58 @@ def run_fetch(proveedor: str) -> bool:
     return True
 
 
+def _normalize_proveedores_list(raw) -> list:
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        name = str(item or "").strip().lower()
+        if name and name not in out:
+            out.append(name)
+    return out
+
+
 def on_message(ch, method, properties, body):
     try:
         msg = json.loads(body.decode("utf-8"))
-        data = msg.get("data", msg)
-        proveedor = (
-            data.get("proveedor") if isinstance(data, dict) else msg.get("proveedor")
-        )
-        logger.info(
-            "Mensaje recibido en cola %s: proveedor=%s",
-            RABBIT_FETCH_PRICES_QUEUE,
-            proveedor if (proveedor and str(proveedor).strip()) else "todos",
-        )
-        if proveedor is None or proveedor == "":
+        data = msg.get("data", msg) if isinstance(msg, dict) else {}
+        if not isinstance(data, dict):
+            data = msg if isinstance(msg, dict) else {}
+
+        proveedor = data.get("proveedor")
+        has_proveedores_key = "proveedores" in data
+        proveedores_payload = _normalize_proveedores_list(data.get("proveedores"))
+
+        if has_proveedores_key:
+            proveedores = proveedores_payload
+            label = ",".join(proveedores) if proveedores else "(ninguno)"
+        elif proveedor is None or proveedor == "":
             proveedores = list_proveedores()
-            logger.info("Descarga para todos los proveedores: %s", proveedores)
-            ok = sum(1 for p in proveedores if run_fetch(p))
-            logger.info("Descarga completada: %d/%d proveedores ok.", ok, len(proveedores))
+            label = "todos(fallback)"
         else:
-            p = str(proveedor).strip().lower()
+            proveedores = [str(proveedor).strip().lower()]
+            label = proveedores[0]
+
+        logger.info(
+            "Mensaje recibido en cola %s: proveedor(es)=%s",
+            RABBIT_FETCH_PRICES_QUEUE,
+            label,
+        )
+
+        if not proveedores:
+            logger.info("Sin proveedores para descargar; nada que hacer.")
+        elif len(proveedores) == 1:
+            p = proveedores[0]
             if run_fetch(p):
                 logger.info("Descarga de %s completada correctamente.", p)
             else:
                 logger.warning("Descarga de %s falló o no devolvió datos.", p)
+        else:
+            logger.info("Descarga para proveedores: %s", proveedores)
+            ok = sum(1 for p in proveedores if run_fetch(p))
+            logger.info(
+                "Descarga completada: %d/%d proveedores ok.", ok, len(proveedores)
+            )
     except (json.JSONDecodeError, TypeError) as e:
         logger.exception("Mensaje inválido: %s", e)
     except Exception as e:

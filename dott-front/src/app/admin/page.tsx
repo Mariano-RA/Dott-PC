@@ -200,16 +200,19 @@ function AdminPage() {
   const {
     rows: dolarRows,
     history: dolarHistory,
+    proveedores: maestrosProveedores,
     loading: loadingDolar,
     statusByProveedor,
     historyFilter,
     setHistoryFilter,
+    togglingActivoId,
     fetchDolar,
     updateRow,
     saveRow,
     saveAll,
     createProvider,
     deleteProvider,
+    toggleProveedorActivo,
   } = useAdminDolar();
 
   const providerOptions = useMemo(
@@ -220,7 +223,7 @@ function AdminPage() {
     [dolarRows]
   );
 
-  /** Proveedores con descarga automática (fetcher). Solo estos en el select "Descargar listados". */
+  /** Proveedores con fetcher. El select permite forzar uno; “Todos” usa solo activos en Nest. */
   const fetchPricesProviderOptions = useMemo(
     () => ["air", "elit", "invid", "mega", "nb"].sort((a, b) => a.localeCompare(b)),
     []
@@ -659,6 +662,25 @@ function AdminPage() {
     setAlerta({ show: true, type: "success", message: `Proveedor ${proveedor} creado en maestro.` });
   };
 
+  const handleToggleProveedorActivo = async (id: number, nextActivo: boolean, nombre: string) => {
+    const result = await toggleProveedorActivo(id, nextActivo);
+    if (!result.ok) {
+      setAlerta({
+        show: true,
+        type: "error",
+        message: result.message || "No se pudo actualizar el proveedor.",
+      });
+      return;
+    }
+    setAlerta({
+      show: true,
+      type: "success",
+      message: nextActivo
+        ? `Proveedor ${nombre} reactivado.`
+        : `Proveedor ${nombre} desactivado (baja lógica).`,
+    });
+  };
+
   const handleDeleteProviderFromDolar = async () => {
     if (!providerToDelete) {
       setAlerta({ show: true, type: "error", message: "Seleccioná proveedor a borrar." });
@@ -884,9 +906,53 @@ function AdminPage() {
 
         <Card>
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
+            <h3>Estado de proveedores</h3>
+            <p className="text-sm text-muted-foreground">
+              Inactivos no entran en &quot;Todos&quot; al descargar listados, ni en filtros de productos/dólar. La descarga individual sigue disponible.
+            </p>
+            {maestrosProveedores.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {loadingDolar ? "Cargando…" : "No hay proveedores en el maestro."}
+              </p>
+            ) : (
+              <ul className="divide-y divide-border rounded-md border border-border">
+                {maestrosProveedores.map((item) => {
+                  const activo = item.activo !== false;
+                  const busy = togglingActivoId === item.id;
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium">{capitalizeLabel(item.nombre)}</span>
+                        <Badge variant={activo ? "success" : "neutral"}>
+                          {activo ? "Activo" : "Inactivo"}
+                        </Badge>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        loading={busy}
+                        onClick={() =>
+                          handleToggleProveedorActivo(item.id, !activo, String(item.nombre || ""))
+                        }
+                      >
+                        {activo ? "Desactivar" : "Activar"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <h3>Descargar listados desde la web del proveedor</h3>
             <p className="text-sm text-muted-foreground">
-              Dispara la descarga automática del listado de precios (requiere consumer Python activo). Elegí un proveedor o &quot;Todos&quot;.
+              Dispara la descarga del listado (requiere consumer Python activo). &quot;Todos&quot; solo incluye proveedores activos con fetcher.
             </p>
             <div className="grid gap-3 md:grid-cols-2">
               <select

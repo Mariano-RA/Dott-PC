@@ -8,6 +8,16 @@ import {
 import { Logger } from "nestjs-pino";
 import { EnvKeys } from "../shared/config";
 import { EventLogService } from "src/shared/event-log.service";
+import { ProveedorService } from "src/proveedor/proveedor.service";
+
+/** Proveedores con fetcher en python-api (capacidad de descarga automática). */
+export const PROVEEDORES_CON_FETCHER = [
+  "air",
+  "elit",
+  "invid",
+  "mega",
+  "nb",
+] as const;
 
 /**
  * Servicio dedicado a disparar la descarga de listados (fetch-prices).
@@ -21,6 +31,7 @@ export class FetchPricesTriggerService {
     private readonly configService: ConfigService,
     private readonly logger: Logger,
     private readonly eventLogService: EventLogService,
+    private readonly proveedorService: ProveedorService,
   ) {
     const rabbitmqUrl = this.configService.get<string>(EnvKeys.RABBIT_MQ_URI);
     const fetchPricesQueue =
@@ -36,21 +47,46 @@ export class FetchPricesTriggerService {
   }
 
   async triggerFetchPrices(proveedor?: string): Promise<string> {
-    const payload = proveedor
-      ? { proveedor: proveedor.trim().toLowerCase() }
-      : { proveedor: null };
+    const named = proveedor?.trim().toLowerCase();
+
+    if (named) {
+      const payload = { proveedor: named };
+      await this.fetchPricesClient.emit("fetch_prices", payload);
+      const msg = `Se envió la solicitud de descarga del listado para ${named}.`;
+      this.logger.log(msg, { proveedor: named, queue: "fetch_prices" });
+      await this.eventLogService.info(
+        "productos",
+        "fetch_prices_triggered",
+        `Se disparó fetch-prices para "${named}".`,
+        { proveedor: named, queue: "fetch_prices" },
+      );
+      return msg;
+    }
+
+    const activos = await this.proveedorService.findActivos();
+    const fetcherSet = new Set<string>(PROVEEDORES_CON_FETCHER);
+    const proveedores = activos
+      .map((p) => String(p.nombre || "").trim().toLowerCase())
+      .filter((n) => n && fetcherSet.has(n));
+
+    const payload = { proveedores };
     await this.fetchPricesClient.emit("fetch_prices", payload);
-    const msg = proveedor
-      ? `Se envió la solicitud de descarga del listado para ${proveedor}.`
-      : "Se envió la solicitud de descarga para todos los proveedores configurados.";
-    this.logger.log(msg, { proveedor: proveedor ?? "todos", queue: "fetch_prices" });
+    const msg =
+      proveedores.length > 0
+        ? `Se envió la solicitud de descarga para: ${proveedores.join(", ")}.`
+        : "No hay proveedores activos con descarga automática configurada.";
+    this.logger.log(msg, {
+      proveedor: "todos",
+      proveedores,
+      queue: "fetch_prices",
+    });
     await this.eventLogService.info(
       "productos",
       "fetch_prices_triggered",
-      proveedor
-        ? `Se disparó fetch-prices para "${proveedor.trim().toLowerCase()}".`
-        : "Se disparó fetch-prices para todos los proveedores.",
-      { proveedor: proveedor ? proveedor.trim().toLowerCase() : "todos", queue: "fetch_prices" }
+      proveedores.length > 0
+        ? `Se disparó fetch-prices para proveedores activos: ${proveedores.join(", ")}.`
+        : "Se disparó fetch-prices sin proveedores activos con fetcher.",
+      { proveedor: "todos", proveedores, queue: "fetch_prices" },
     );
     return msg;
   }

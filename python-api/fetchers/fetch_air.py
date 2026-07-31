@@ -4,8 +4,8 @@ Fetcher AIR: descarga CSV de precios desde descargas.php.
 La web usa una llamada a:
 https://www.air-intra.com/2025/consultas/descargas.php?type=csv&q={...}
 
-Aquí la modelamos como un POST con los mismos parámetros (`type`, `q`),
-para que el servidor PHP reciba el cuerpo de formulario estándar.
+Aquí la modelamos como un GET con los mismos parámetros (`type`, `q`)
+en la querystring.
 
 Config vía env (opcional):
 - SUPPLIER_AIR_URL: URL base de descargas (por defecto descargas.php indicada arriba).
@@ -39,13 +39,13 @@ def _default_query_payload() -> dict:
     return {
         "grupo": 0,
         "rubro": "",
-        "estado": "",
+        "estado": "T",
         "texto": "",
         "orden": "DA",
-        "stock": "F",
+        "stock": "D",
         "codiart": "",
         "canasto": 0,
-        "favoritos": 0,
+        "favoritos": "",
         "limit": 500,
     }
 

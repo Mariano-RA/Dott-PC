@@ -57,7 +57,16 @@ def parse(archivo_bytesio) -> List[dict]:
         if raw_text.startswith("{") or raw_text.startswith("["):
             try:
                 payload = json.loads(raw_text)
-                productos = payload.get("productos") if isinstance(payload, dict) else payload
+                if isinstance(payload, dict):
+                    productos = payload.get("resultado")
+                    if productos is None:
+                        productos = payload.get("productos")
+                    if productos is None:
+                        productos = payload.get("data")
+                    if productos is None:
+                        productos = []
+                else:
+                    productos = payload
                 if not isinstance(productos, list):
                     productos = []
                 data = []
@@ -82,9 +91,12 @@ def parse(archivo_bytesio) -> List[dict]:
                     cat = str(item.get("sub_categoria") or item.get("categoria") or "").strip()
                     precio = item.get("precio")
                     if precio is None:
+                        precio = item.get("pvp_ars") or item.get("pvp")
+                    if precio is None:
                         continue
-                    iva_raw = item.get("iva") + item.get("impuesto_interno")
-                    iva_pct = _iva_a_porcentaje_para_calcular(iva_raw)
+                    iva_pct = _iva_a_porcentaje_para_calcular(
+                        item.get("iva")
+                    ) + _iva_a_porcentaje_para_calcular(item.get("impuesto_interno"))
                     imagenes = item.get("imagenes")
                     if isinstance(imagenes, list):
                         imagenes = [str(x).strip() for x in imagenes if str(x).strip()]
@@ -160,6 +172,12 @@ def parse(archivo_bytesio) -> List[dict]:
         if not rows:
             return []
 
+        # Excel/CSV de Elit suele empezar con la directiva "sep=," — no es la cabecera.
+        if rows and str(rows[0][0]).strip().lower().startswith("sep="):
+            rows = rows[1:]
+        if not rows:
+            return []
+
         header = [str(c).strip().lower() for c in rows[0]]
         idx = {name: i for i, name in enumerate(header) if name}
 
@@ -177,7 +195,9 @@ def parse(archivo_bytesio) -> List[dict]:
             "producto", "nombre", "descripcion", "descripción", "articulo", "artículo"
         )
         cat_i = _first_idx("categoria", "categoría", "rubro", "linea", "línea")
-        sub_i = _first_idx("subcategoria", "subcategoría", "sub_rubro", "subrubro")
+        sub_i = _first_idx(
+            "sub_categoria", "subcategoria", "subcategoría", "sub_rubro", "subrubro"
+        )
         precio_i = _first_idx(
             "precio", "pvp", "pvp_ars", "precio_ars", "importe", "valor"
         )

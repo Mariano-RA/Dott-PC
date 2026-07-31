@@ -15,6 +15,13 @@ export class ProveedorService {
     return this.proveedorRepository.find({ order: { nombre: "ASC" } });
   }
 
+  async findActivos(): Promise<Proveedor[]> {
+    return this.proveedorRepository.find({
+      where: { activo: true },
+      order: { nombre: "ASC" },
+    });
+  }
+
   async findOne(id: number): Promise<Proveedor> {
     return this.proveedorRepository.findOneBy({ id });
   }

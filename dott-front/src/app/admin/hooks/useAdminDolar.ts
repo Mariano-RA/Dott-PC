@@ -9,7 +9,7 @@ export type DolarRow = {
   motivo?: string;
 };
 
-type ProveedorRow = {
+export type ProveedorRow = {
   id: number;
   nombre: string;
   activo?: boolean;
@@ -45,9 +45,11 @@ function normalizeProveedorName(p: unknown): string {
 export function useAdminDolar() {
   const [rows, setRows] = useState<DolarRow[]>([]);
   const [history, setHistory] = useState<DolarHistoryRow[]>([]);
+  const [proveedores, setProveedores] = useState<ProveedorRow[]>([]);
   const [statusByProveedor, setStatusByProveedor] = useState<Record<string, RowStatus>>({});
   const [loading, setLoading] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("");
+  const [togglingActivoId, setTogglingActivoId] = useState<number | null>(null);
 
   const fetchDolar = useCallback(async () => {
     setLoading(true);
@@ -73,9 +75,14 @@ export function useAdminDolar() {
         motivo: typeof row.motivo === "string" ? row.motivo : "",
       }));
 
-      const proveedores = (jsonProveedores?.proveedores || []) as ProveedorRow[];
+      const proveedoresList = (jsonProveedores?.proveedores || []) as ProveedorRow[];
+      setProveedores(
+        [...proveedoresList].sort((a, b) =>
+          String(a?.nombre || "").localeCompare(String(b?.nombre || ""))
+        )
+      );
 
-      const missingRows = proveedores
+      const missingRows = proveedoresList
         .filter((item) => item?.activo !== false)
         .filter(
           (item) =>
@@ -201,7 +208,6 @@ export function useAdminDolar() {
           return { ok: false, message: "Proveedor inválido." };
         }
 
-        // 1) Alta en maestro de proveedores
         const proveedorRes = await fetch(api.nest.proveedores, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -227,15 +233,14 @@ export function useAdminDolar() {
 
   const deleteProvider = useCallback(async (proveedor: string) => {
     try {
-      // Buscar el proveedor por nombre para obtener su id
       const listRes = await fetch(api.nest.proveedores);
       const listJson = await listRes.json();
       if (!listRes.ok) {
         return { ok: false, message: listJson?.error || "No se pudo consultar proveedores." };
       }
 
-      const proveedores = Array.isArray(listJson?.proveedores) ? listJson.proveedores : [];
-      const proveedorMatch = proveedores.find(
+      const list = Array.isArray(listJson?.proveedores) ? listJson.proveedores : [];
+      const proveedorMatch = list.find(
         (item: { id: number; nombre: string }) => String(item?.nombre || "").toLowerCase() === proveedor.toLowerCase()
       );
 
@@ -256,7 +261,6 @@ export function useAdminDolar() {
         };
       }
 
-      // Intentar limpiar tambien el valor de dolar si existiera
       await fetch(api.nest.dolar, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -270,6 +274,30 @@ export function useAdminDolar() {
     }
   }, [fetchDolar]);
 
+  const toggleProveedorActivo = useCallback(
+    async (id: number, activo: boolean) => {
+      setTogglingActivoId(id);
+      try {
+        const res = await fetch(api.nest.proveedores, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, activo }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          return { ok: false, message: json?.error || "No se pudo actualizar el proveedor." };
+        }
+        await fetchDolar();
+        return { ok: true };
+      } catch {
+        return { ok: false, message: "Error de red al actualizar proveedor." };
+      } finally {
+        setTogglingActivoId(null);
+      }
+    },
+    [fetchDolar]
+  );
+
   const filteredHistory = useMemo(() => {
     const term = historyFilter.trim().toLowerCase();
     if (!term) return history;
@@ -281,15 +309,18 @@ export function useAdminDolar() {
   return {
     rows,
     history: filteredHistory,
+    proveedores,
     loading,
     statusByProveedor,
     historyFilter,
     setHistoryFilter,
+    togglingActivoId,
     fetchDolar,
     updateRow,
     saveRow,
     saveAll,
     createProvider,
     deleteProvider,
+    toggleProveedorActivo,
   };
 }

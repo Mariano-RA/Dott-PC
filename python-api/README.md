@@ -44,9 +44,11 @@ python-api/
 
 ## Descarga automática
 
-En la descarga automática (mensaje sin `proveedor`) se usan: **air, elit, invid, nb**.  
-MEGA y HDC están soportados pero excluidos de la lista automática (se pueden invocar por nombre).
+Al disparar **“Todos”** desde el admin, Nest resuelve los proveedores con `activo = true` en la tabla `Proveedores` que además tienen fetcher (`air`, `elit`, `invid`, `mega`, `nb`) y emite `{ "proveedores": [...] }` a la cola `fetch_prices`.
 
+- Baja lógica: `UPDATE Proveedores SET activo = 0 WHERE nombre = 'mega'` (ver `back/scripts/deactivate-mega-proveedor.sql`).
+- Descarga individual por nombre sigue funcionando aunque el proveedor esté inactivo.
+- Si el mensaje no trae `proveedores` ni `proveedor`, el consumer Python usa el fallback `list_proveedores()` del registry.
 ## Categorías (flujo actual)
 
 La API de Python **solo procesa archivos y envía las categorías en formato raw** (`categoriaRaw`). El **backend** (NestJS) es el encargado de:
