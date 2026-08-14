@@ -11,6 +11,10 @@ import * as sharp from "sharp";
 const DEFAULT_TTL_HOURS = 24 * 7; // 7 días
 const DEFAULT_CONCURRENCY = 10;
 const BATCH_SIZE = 500; // productos por consulta cuando se cachea "todo"
+const AIR_MAS_INFO_URL = "https://www.air-intra.com/2025/ar/mas_info.php";
+const FETCH_TIMEOUT_MS = 20_000;
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36";
 
 /** Ejecuta tareas con un máximo de `concurrency` en paralelo. */
 async function runWithConcurrency<T, R>(
@@ -81,6 +85,47 @@ function guessExtensionFromMime(mime: string | null): string {
   if (m.includes("image/jpeg")) return "jpg";
   if (m.includes("image/gif")) return "gif";
   return "img";
+}
+
+function looksLikeHtml(text: string): boolean {
+  const head = (text || "").trimStart().slice(0, 256).toLowerCase();
+  return head.startsWith("<!") || head.startsWith("<html") || head.startsWith("<!--") || head.startsWith("<");
+}
+
+/** AIR usa nd.png cuando el producto no tiene foto. */
+function isAirPlaceholderImage(uri: string): boolean {
+  const path = uri.split("?")[0].toLowerCase();
+  return path.endsWith("/nd.png") || path.endsWith("nd.png");
+}
+
+async function resolveAirImageUrl(codigo: string): Promise<string | null> {
+  const url = `${AIR_MAS_INFO_URL}?codiart=${encodeURIComponent(codigo)}`;
+  const r = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "User-Agent": DEFAULT_USER_AGENT,
+    },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!r.ok) throw new Error(`mas_info HTTP ${r.status}`);
+
+  const text = await r.text();
+  if (looksLikeHtml(text)) throw new Error("mas_info devolvió HTML");
+
+  let payload: any;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error("mas_info JSON inválido");
+  }
+
+  const imgs = Array.isArray(payload?.imgs) ? payload.imgs : [];
+  for (const img of imgs) {
+    const uri = String(img?.uri ?? img?.url ?? "").trim();
+    if (uri && !isAirPlaceholderImage(uri)) return uri;
+  }
+  return null;
 }
 
 async function tryCompressToWebp(input: Buffer): Promise<Buffer | null> {
@@ -192,12 +237,13 @@ export class ImageCacheService {
 
     const toProcess: WorkItem[] = [];
     let skipped = 0;
+    const isAir = options.proveedor === "air";
 
     const seenCodes = new Set<string>();
     for (const prod of productos) {
       const codigo = normalizeCode((prod as any).codigo);
       const url = String((prod as any).imagenUrl ?? "").trim();
-      if (!codigo || !url) {
+      if (!codigo || (!isAir && !url)) {
         skipped++;
         continue;
       }
@@ -223,9 +269,22 @@ export class ImageCacheService {
     let errors = 0;
 
     await runWithConcurrency(toProcess, concurrency, async (item) => {
-      const { codigo, url, existing } = item;
+      const { prod, codigo, existing } = item;
+      let url = item.url;
       try {
-        const r = await fetch(url, { method: "GET" });
+        if (isAir) {
+          const resolved = await resolveAirImageUrl(codigo);
+          if (!resolved) {
+            skipped++;
+            return;
+          }
+          url = resolved;
+        }
+        const r = await fetch(url, {
+          method: "GET",
+          headers: { "User-Agent": DEFAULT_USER_AGENT },
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
 
         const contentType = r.headers.get("content-type");
@@ -270,6 +329,10 @@ export class ImageCacheService {
             });
 
         await this.productImageRepo.save(record);
+        if (isAir && url && prod.imagenUrl !== url) {
+          prod.imagenUrl = url;
+          await this.productoRepo.save(prod);
+        }
         cached++;
       } catch (e: any) {
         errors++;

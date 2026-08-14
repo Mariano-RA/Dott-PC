@@ -22,6 +22,7 @@ class TestAirParser(unittest.TestCase):
         self.assertEqual(data[0]["categoriaRaw"], "CategoriaRaw")
         self.assertEqual(data[0]["categoria"], "CategoriaRaw")
         self.assertEqual(data[0]["precio"], 121)
+        self.assertIsNone(data[0]["imagenUrl"])
 
 
 class TestNbParser(unittest.TestCase):
