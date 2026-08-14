@@ -28,10 +28,11 @@ export function buildPlansFromConfig(
   config: CalculatorConfig | null | undefined
 ): DisplayPlan[] {
   if (!config?.gateways || totalNeto <= 0) return [];
-  const g: GatewayConfigCalc | undefined =
-    config.gateways.tacataca ||
-    config.gateways.payway ||
-    config.gateways.mercadopago;
+  const keys = Object.keys(config.gateways);
+  const preferred = config.displayGatewayKey && config.gateways[config.displayGatewayKey]
+    ? config.displayGatewayKey
+    : keys[0];
+  const g: GatewayConfigCalc | undefined = preferred ? config.gateways[preferred] : undefined;
   if (!g || !g.plans?.length) return [];
 
   const vat = g.vat ?? config.flat.vat;

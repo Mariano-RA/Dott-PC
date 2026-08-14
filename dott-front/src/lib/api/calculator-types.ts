@@ -16,6 +16,7 @@ export type CalculatorRates = {
 
 /** Config unificada: costos editables (array) + IVA + planes. También soporta forma legacy. */
 export type GatewayConfigCalc = {
+  label?: string;
   costs?: GatewayCost[];
   vat: number;
   plans?: GatewayPlan[];
@@ -34,4 +35,5 @@ export type CalculatorConfigFlat = {
 export type CalculatorConfig = {
   flat: CalculatorConfigFlat;
   gateways: Record<string, GatewayConfigCalc>;
+  displayGatewayKey?: string | null;
 };

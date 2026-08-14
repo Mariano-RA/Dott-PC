@@ -6,6 +6,7 @@ import { ProductosController } from "./producto.controller";
 import { ProductosService } from "./producto.service";
 import { FetchPricesTriggerService } from "./fetch-prices-trigger.service";
 import { CuotasModule } from "src/cuota/cuota.module";
+import { CalculatorSettingsModule } from "src/calculator-settings/calculator-settings.module";
 import { ProveedorModule } from "src/proveedor/proveedor.module";
 import { CategoriesModule } from "src/categories/categories.module";
 import { ImportStatusService } from "./import-status.service";
@@ -14,6 +15,7 @@ import { ImagenesModule } from "src/imagenes/imagenes.module";
 @Module({
   imports: [
     CuotasModule,
+    CalculatorSettingsModule,
     DolaresModule,
     ProveedorModule,
     CategoriesModule,

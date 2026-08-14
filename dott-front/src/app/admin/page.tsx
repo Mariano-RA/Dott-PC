@@ -61,11 +61,31 @@ function AdminPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [fetchPricesProveedor, setFetchPricesProveedor] = useState("");
   const [fetchPricesLoading, setFetchPricesLoading] = useState(false);
-  const GATEWAY_KEYS = ["tacataca", "payway", "mercadopago", "getnet"] as const;
 
   type GatewayPlan = { planKey: string; label: string; rate: string };
   type GatewayCost = { id: string; label: string; value: string; vat?: string };
-  type GatewayConfig = { costs: GatewayCost[]; vat: string; plans: GatewayPlan[] };
+  type GatewayConfig = { label: string; costs: GatewayCost[]; vat: string; plans: GatewayPlan[] };
+
+  const knownGatewayLabel = (key: string, label?: string): string => {
+    const trimmed = String(label || "").trim();
+    if (trimmed) return trimmed;
+    const map: Record<string, string> = {
+      tacataca: "Taca-taca",
+      payway: "Payway",
+      mercadopago: "Mercadopago",
+      getnet: "Getnet",
+    };
+    return map[key] || key;
+  };
+
+  const slugifyGatewayKey = (name: string): string =>
+    String(name || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 63);
 
   const defaultPlansStandard: GatewayPlan[] = [
     { planKey: "3", label: "3 cuotas", rate: "7.78" },
@@ -105,7 +125,8 @@ function AdminPage() {
     { id: "arancel", label: "Arancel", value: "2.0", vat: "21" },
   ];
 
-  const defaultGateway = (costs: GatewayCost[], plans: GatewayPlan[]): GatewayConfig => ({
+  const defaultGateway = (costs: GatewayCost[], plans: GatewayPlan[], label = ""): GatewayConfig => ({
+    label,
     costs: [...costs],
     vat: "21",
     plans: [...plans],
@@ -136,21 +157,24 @@ function AdminPage() {
 
   const buildGatewayFromRaw = (
     g: unknown,
+    key: string,
     defaultCosts: GatewayCost[],
     defaultPlans: GatewayPlan[]
   ): GatewayConfig => {
-    if (!g || typeof g !== "object") return defaultGateway(defaultCosts, defaultPlans);
+    if (!g || typeof g !== "object") return defaultGateway(defaultCosts, defaultPlans, knownGatewayLabel(key));
     const obj = g as Record<string, unknown>;
     const costsFromApi = parseCostsForFetch(obj.costs);
     const plansFromApi = parsePlansForFetch(obj.plans);
     const vat = obj.vat != null ? String(obj.vat) : "21";
+    const label = knownGatewayLabel(key, typeof obj.label === "string" ? obj.label : undefined);
 
     if (costsFromApi.length > 0) {
-      return { costs: costsFromApi, vat, plans: plansFromApi.length > 0 ? plansFromApi : defaultPlans };
+      return { label, costs: costsFromApi, vat, plans: plansFromApi.length > 0 ? plansFromApi : defaultPlans };
     }
 
     if (obj.instantRate != null) {
       return {
+        label,
         costs: [{ id: "instantRate", label: "Costo por cobro en el momento", value: String(obj.instantRate) }],
         vat,
         plans: plansFromApi.length > 0 ? plansFromApi : defaultPlansMercadopago,
@@ -158,6 +182,7 @@ function AdminPage() {
     }
     if (obj.cost24h != null) {
       return {
+        label,
         costs: [
           { id: "cardFee", label: "Uso de tarjeta de crédito", value: String(obj.cardFee ?? "1.8") },
           { id: "cost24h", label: "Costo por cobro a 24hs", value: String(obj.cost24h) },
@@ -168,6 +193,7 @@ function AdminPage() {
     }
     if (obj.advanceFee != null || obj.cardFee != null) {
       return {
+        label,
         costs: [
           { id: "cardFee", label: "Uso de tarjeta", value: String(obj.cardFee ?? "1.8") },
           { id: "advanceFee", label: "Anticipo", value: String(obj.advanceFee ?? "6") },
@@ -176,26 +202,56 @@ function AdminPage() {
         plans: plansFromApi.length > 0 ? plansFromApi : defaultPlansStandard,
       };
     }
-    return defaultGateway(defaultCosts, defaultPlans);
+    return { ...defaultGateway(defaultCosts, defaultPlans, label), vat, plans: plansFromApi.length > 0 ? plansFromApi : defaultPlans };
+  };
+
+  const defaultsForKey = (key: string): { costs: GatewayCost[]; plans: GatewayPlan[] } => {
+    if (key === "mercadopago") return { costs: defaultCostsMercadopago, plans: defaultPlansMercadopago };
+    if (key === "payway") return { costs: defaultCostsPayway, plans: defaultPlansStandard };
+    if (key === "getnet") return { costs: defaultCostsGetnet, plans: defaultPlansGetnet };
+    if (key === "tacataca") return { costs: defaultCostsTacataca, plans: defaultPlansStandard };
+    return { costs: [], plans: [] };
+  };
+
+  const parseGatewaysFromRaw = (raw: unknown): Record<string, GatewayConfig> => {
+    const source =
+      raw && typeof raw === "object"
+        ? (raw as Record<string, unknown>)
+        : {
+            tacataca: undefined,
+            payway: undefined,
+            mercadopago: undefined,
+            getnet: undefined,
+          };
+    const gateways: Record<string, GatewayConfig> = {};
+    for (const key of Object.keys(source)) {
+      const defs = defaultsForKey(key);
+      gateways[key] = buildGatewayFromRaw(source[key], key, defs.costs, defs.plans);
+    }
+    return gateways;
   };
 
   const [calculatorConfig, setCalculatorConfig] = useState<{
     cardFee: string;
     advanceFee: string;
     vat: string;
+    displayGatewayKey: string;
     gateways: Record<string, GatewayConfig>;
   }>({
     cardFee: "1.8",
     advanceFee: "6",
     vat: "21",
+    displayGatewayKey: "tacataca",
     gateways: {
-      tacataca: defaultGateway(defaultCostsTacataca, defaultPlansStandard),
-      payway: defaultGateway(defaultCostsPayway, defaultPlansStandard),
-      mercadopago: defaultGateway(defaultCostsMercadopago, defaultPlansMercadopago),
-      getnet: defaultGateway(defaultCostsGetnet, defaultPlansGetnet),
+      tacataca: defaultGateway(defaultCostsTacataca, defaultPlansStandard, "Taca-taca"),
+      payway: defaultGateway(defaultCostsPayway, defaultPlansStandard, "Payway"),
+      mercadopago: defaultGateway(defaultCostsMercadopago, defaultPlansMercadopago, "Mercadopago"),
+      getnet: defaultGateway(defaultCostsGetnet, defaultPlansGetnet, "Getnet"),
     },
   });
   const [savingCalculatorConfig, setSavingCalculatorConfig] = useState(false);
+  const [newGatewayName, setNewGatewayName] = useState("");
+  const [mutatingGateway, setMutatingGateway] = useState(false);
 
   const {
     rows: dolarRows,
@@ -233,7 +289,7 @@ function AdminPage() {
   const manualUploadProviderOptions = useMemo(() => ["eikon", "hdc"].sort((a, b) => a.localeCompare(b)), []);
 
   const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar" | "categorias" | "logs">("proveedores");
-  const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<"tacataca" | "payway" | "mercadopago" | "getnet">("tacataca");
+  const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<string>("tacataca");
 
   /** Categorías nuevas (sin mapear en DB) agrupadas por proveedor. */
   type NewCategoryGroup = { categoriaRaw: string; examples: string[] };
@@ -555,13 +611,13 @@ function AdminPage() {
         };
         const raw = json?.settings?.gateways;
 
-        const gateways: Record<string, GatewayConfig> = {
-          tacataca: buildGatewayFromRaw(raw?.tacataca, defaultCostsTacataca, defaultPlansStandard),
-          payway: buildGatewayFromRaw(raw?.payway, defaultCostsPayway, defaultPlansStandard),
-          mercadopago: buildGatewayFromRaw(raw?.mercadopago, defaultCostsMercadopago, defaultPlansMercadopago),
-          getnet: buildGatewayFromRaw(raw?.getnet, defaultCostsGetnet, defaultPlansGetnet),
-        };
-        setCalculatorConfig({ ...flat, gateways });
+        const gateways = parseGatewaysFromRaw(raw);
+        const displayGatewayKey =
+          typeof json?.settings?.displayGatewayKey === "string" && gateways[json.settings.displayGatewayKey]
+            ? json.settings.displayGatewayKey
+            : Object.keys(gateways)[0] || "tacataca";
+        setCalculatorConfig({ ...flat, displayGatewayKey, gateways });
+        setCalculatorGatewayTab((prev) => (gateways[prev] ? prev : displayGatewayKey));
       } catch {
         // Keep defaults if API is unavailable.
       }
@@ -739,10 +795,29 @@ function AdminPage() {
     });
   };
 
+  const applyCalculatorSettings = (settings: Record<string, unknown>, fallbackGateways?: Record<string, GatewayConfig>) => {
+    const gateways = parseGatewaysFromRaw(settings.gateways ?? fallbackGateways);
+    const displayGatewayKey =
+      typeof settings.displayGatewayKey === "string" && gateways[settings.displayGatewayKey]
+        ? settings.displayGatewayKey
+        : Object.keys(gateways)[0] || "tacataca";
+    setCalculatorConfig({
+      cardFee: String(settings.cardFee ?? calculatorConfig.cardFee),
+      advanceFee: String(settings.advanceFee ?? calculatorConfig.advanceFee),
+      vat: String(settings.vat ?? calculatorConfig.vat),
+      displayGatewayKey,
+      gateways,
+    });
+    setCalculatorGatewayTab((prev) => (gateways[prev] ? prev : displayGatewayKey));
+  };
+
   const handleSaveCalculatorConfig = async () => {
     const toNum = (s: string) => Number(String(s).replace(",", "."));
-    const gatewaysPayload: Record<string, { costs: { id: string; label: string; value: number }[]; vat: number; plans: { planKey: string; label: string; rate: number }[] }> = {};
-    for (const key of GATEWAY_KEYS) {
+    const gatewaysPayload: Record<
+      string,
+      { label: string; costs: { id: string; label: string; value: number; vat?: number }[]; vat: number; plans: { planKey: string; label: string; rate: number }[] }
+    > = {};
+    for (const key of Object.keys(calculatorConfig.gateways)) {
       const g = calculatorConfig.gateways[key];
       if (!g) continue;
       const costsPayload = (g.costs ?? [])
@@ -773,14 +848,21 @@ function AdminPage() {
         setAlerta({ show: true, type: "error", message: `Pasarela "${key}": revisá que cada plan tenga una tasa numérica.` });
         return;
       }
-      gatewaysPayload[key] = { costs: costsPayload, vat, plans: plansPayload };
+      gatewaysPayload[key] = {
+        label: knownGatewayLabel(key, g.label),
+        costs: costsPayload,
+        vat,
+        plans: plansPayload,
+      };
     }
-    const tacataca = gatewaysPayload.tacataca;
-    const firstCost = tacataca?.costs?.[0]?.value;
+    const firstKey = Object.keys(gatewaysPayload)[0];
+    const firstGw = firstKey ? gatewaysPayload[firstKey] : undefined;
+    const firstCost = firstGw?.costs?.[0]?.value;
     const payload = {
       cardFee: firstCost ?? toNum(calculatorConfig.cardFee),
-      advanceFee: tacataca?.costs?.[1]?.value ?? toNum(calculatorConfig.advanceFee),
-      vat: tacataca?.vat ?? toNum(calculatorConfig.vat),
+      advanceFee: firstGw?.costs?.[1]?.value ?? toNum(calculatorConfig.advanceFee),
+      vat: firstGw?.vat ?? toNum(calculatorConfig.vat),
+      displayGatewayKey: calculatorConfig.displayGatewayKey,
       gateways: gatewaysPayload,
     };
 
@@ -798,25 +880,98 @@ function AdminPage() {
         return;
       }
 
-      const settings = json?.settings ?? {};
-      const flat = {
-        cardFee: String(settings.cardFee ?? payload.cardFee),
-        advanceFee: String(settings.advanceFee ?? payload.advanceFee),
-        vat: String(settings.vat ?? payload.vat),
-      };
-      const raw = settings.gateways ?? payload.gateways;
-      const gateways: Record<string, GatewayConfig> = {
-        tacataca: buildGatewayFromRaw(raw?.tacataca, defaultCostsTacataca, defaultPlansStandard),
-        payway: buildGatewayFromRaw(raw?.payway, defaultCostsPayway, defaultPlansStandard),
-        mercadopago: buildGatewayFromRaw(raw?.mercadopago, defaultCostsMercadopago, defaultPlansMercadopago),
-        getnet: buildGatewayFromRaw(raw?.getnet, defaultCostsGetnet, defaultPlansGetnet),
-      };
-      setCalculatorConfig({ ...flat, gateways });
+      applyCalculatorSettings(json?.settings ?? payload, payload.gateways as unknown as Record<string, GatewayConfig>);
       setAlerta({ show: true, type: "success", message: "Parámetros de calculadora (por pasarela) actualizados." });
     } catch {
       setAlerta({ show: true, type: "error", message: "Error de red al guardar parámetros de calculadora." });
     } finally {
       setSavingCalculatorConfig(false);
+    }
+  };
+
+  const handleCreateGateway = async () => {
+    const label = newGatewayName.trim();
+    const key = slugifyGatewayKey(label);
+    if (!key) {
+      setAlerta({ show: true, type: "error", message: "Ingresá un nombre para la pasarela." });
+      return;
+    }
+    if (calculatorConfig.gateways[key]) {
+      setAlerta({ show: true, type: "error", message: `Ya existe la pasarela "${key}".` });
+      return;
+    }
+    setMutatingGateway(true);
+    try {
+      const res = await fetch(api.nest.calculatorGateways, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, label, vat: 21, costs: [], plans: [] }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.error || "No se pudo crear la pasarela." });
+        return;
+      }
+      applyCalculatorSettings(json.settings || {});
+      setCalculatorGatewayTab(key);
+      setNewGatewayName("");
+      setAlerta({ show: true, type: "success", message: `Pasarela "${label}" creada.` });
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al crear la pasarela." });
+    } finally {
+      setMutatingGateway(false);
+    }
+  };
+
+  const handleDeleteGateway = async (key: string) => {
+    if (Object.keys(calculatorConfig.gateways).length <= 1) {
+      setAlerta({ show: true, type: "error", message: "Debe existir al menos una pasarela." });
+      return;
+    }
+    if (!window.confirm(`¿Eliminar la pasarela "${knownGatewayLabel(key, calculatorConfig.gateways[key]?.label)}"?`)) {
+      return;
+    }
+    setMutatingGateway(true);
+    try {
+      const res = await fetch(`${api.nest.calculatorGateways}/${encodeURIComponent(key)}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.error || "No se pudo eliminar la pasarela." });
+        return;
+      }
+      applyCalculatorSettings(json.settings || {});
+      setAlerta({ show: true, type: "success", message: `Pasarela "${key}" eliminada.` });
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al eliminar la pasarela." });
+    } finally {
+      setMutatingGateway(false);
+    }
+  };
+
+  const handleSetDisplayGateway = async (key: string) => {
+    setCalculatorConfig((prev) => ({ ...prev, displayGatewayKey: key }));
+    setMutatingGateway(true);
+    try {
+      const res = await fetch(api.nest.calculatorDisplayGateway, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAlerta({ show: true, type: "error", message: json?.error || "No se pudo elegir la pasarela de vitrina." });
+        return;
+      }
+      applyCalculatorSettings(json.settings || {});
+      setAlerta({
+        show: true,
+        type: "success",
+        message: `Las cuotas del catálogo y el carrito usarán ${knownGatewayLabel(key, calculatorConfig.gateways[key]?.label)}.`,
+      });
+    } catch {
+      setAlerta({ show: true, type: "error", message: "Error de red al elegir la pasarela de vitrina." });
+    } finally {
+      setMutatingGateway(false);
     }
   };
 
@@ -1043,46 +1198,93 @@ function AdminPage() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Costos y comisiones por pasarela. Impactan en <code>/calculadora</code>.
+              CRUD de pasarelas: costos, IVA e intereses de cada plan. La pasarela de vitrina define las cuotas del detalle de producto y del carrito (misma fórmula que la calculadora).
             </p>
+            <div className="grid gap-3 rounded-lg border border-border p-3 md:grid-cols-2">
+              <label className="space-y-1 text-sm">
+                <span className="font-medium text-foreground">Pasarela para precios en cuotas (catálogo y carrito)</span>
+                <select
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                  value={calculatorConfig.displayGatewayKey}
+                  disabled={mutatingGateway}
+                  onChange={(event) => handleSetDisplayGateway(event.target.value)}
+                >
+                  {Object.keys(calculatorConfig.gateways).map((key) => (
+                    <option key={key} value={key}>
+                      {knownGatewayLabel(key, calculatorConfig.gateways[key]?.label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-foreground">Nueva pasarela</span>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nombre (ej: Naranja X)"
+                    value={newGatewayName}
+                    onChange={(event) => setNewGatewayName(event.target.value)}
+                  />
+                  <Button type="button" variant="secondary" loading={mutatingGateway} onClick={handleCreateGateway}>
+                    Agregar
+                  </Button>
+                </div>
+              </div>
+            </div>
             <div className="border-b border-border">
-              <nav className="-mb-px flex gap-1" aria-label="Pasarela">
-                {(
-                  [
-                    { id: "tacataca" as const, label: "Taca-taca" },
-                    { id: "payway" as const, label: "Payway" },
-                    { id: "mercadopago" as const, label: "Mercadopago" },
-                    { id: "getnet" as const, label: "Getnet" },
-                  ] as const
-                ).map((tab) => (
+              <nav className="-mb-px flex flex-wrap gap-1" aria-label="Pasarela">
+                {Object.keys(calculatorConfig.gateways).map((tabId) => (
                   <button
-                    key={tab.id}
+                    key={tabId}
                     type="button"
-                    onClick={() => setCalculatorGatewayTab(tab.id)}
+                    onClick={() => setCalculatorGatewayTab(tabId)}
                     className={
-                      calculatorGatewayTab === tab.id
+                      calculatorGatewayTab === tabId
                         ? "border-b-2 border-red-950 px-3 py-2 text-sm font-medium text-red-950"
                         : "border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:border-red-200 hover:text-red-900"
                     }
                   >
-                    {tab.label}
+                    {knownGatewayLabel(tabId, calculatorConfig.gateways[tabId]?.label)}
+                    {calculatorConfig.displayGatewayKey === tabId ? " · vitrina" : ""}
                   </button>
                 ))}
               </nav>
             </div>
             <div className="space-y-6 pt-2">
-              {GATEWAY_KEYS.filter((k) => k === calculatorGatewayTab).map((gatewayKey) => {
-                const label = gatewayKey === "tacataca" ? "Taca-taca" : gatewayKey === "payway" ? "Payway" : gatewayKey === "mercadopago" ? "Mercadopago" : "Getnet";
-                const gw = calculatorConfig.gateways[gatewayKey] ?? defaultGateway(
-                  gatewayKey === "mercadopago" ? defaultCostsMercadopago : gatewayKey === "payway" ? defaultCostsPayway : gatewayKey === "getnet" ? defaultCostsGetnet : defaultCostsTacataca,
-                  gatewayKey === "mercadopago" ? defaultPlansMercadopago : gatewayKey === "getnet" ? defaultPlansGetnet : defaultPlansStandard
-                );
+              {Object.keys(calculatorConfig.gateways)
+                .filter((k) => k === calculatorGatewayTab)
+                .map((gatewayKey) => {
+                const defs = defaultsForKey(gatewayKey);
+                const gw = calculatorConfig.gateways[gatewayKey] ?? defaultGateway(defs.costs, defs.plans, knownGatewayLabel(gatewayKey));
+                const label = knownGatewayLabel(gatewayKey, gw.label);
                 const costs = gw.costs ?? [];
-                const plans = gw.plans ?? (gatewayKey === "mercadopago" ? defaultPlansMercadopago : gatewayKey === "getnet" ? defaultPlansGetnet : defaultPlansStandard);
+                const plans = gw.plans ?? defs.plans;
 
                 return (
                   <div key={gatewayKey} className="rounded-lg border border-border p-4">
-                    <h4 className="mb-3 text-sm font-semibold text-foreground">{label}</h4>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-sm font-semibold text-foreground">{label}</h4>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        loading={mutatingGateway}
+                        onClick={() => handleDeleteGateway(gatewayKey)}
+                      >
+                        Eliminar pasarela
+                      </Button>
+                    </div>
+                    <div className="mb-3">
+                      <Input
+                        label="Nombre visible"
+                        value={gw.label ?? ""}
+                        onChange={(event) =>
+                          setCalculatorConfig((prev) => {
+                            const prevGw = prev.gateways[gatewayKey] ?? gw;
+                            return { ...prev, gateways: { ...prev.gateways, [gatewayKey]: { ...prevGw, label: event.target.value } } };
+                          })
+                        }
+                      />
+                    </div>
                     <p className="mb-3 text-xs text-muted-foreground">
                       Costos y comisiones (podés agregar o quitar ítems). Las cuotas se configuran abajo.
                     </p>

@@ -1,48 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchCalculatorConfig } from "@/lib/api";
+import { fetchCalculatorConfig, gatewayDisplayLabel } from "@/lib/api";
 import type {
   CalculatorConfig,
   GatewayConfigCalc,
   GatewayCost,
-  GatewayPlan,
   CalculatorRates,
 } from "@/lib/api/calculator-types";
 
-export const GATEWAY_OPTIONS = [
-  { key: "tacataca", label: "Taca-taca" },
-  { key: "payway", label: "Payway" },
-  { key: "mercadopago", label: "Mercadopago" },
-  { key: "getnet", label: "Getnet" },
-] as const;
-
-export type GatewayKey = (typeof GATEWAY_OPTIONS)[number]["key"];
-
-const DEFAULT_PLANS_STANDARD: GatewayPlan[] = [
-  { planKey: "3", label: "3 cuotas", rate: 7.78 },
-  { planKey: "6", label: "6 cuotas", rate: 14.96 },
-  { planKey: "planZ", label: "Plan Z", rate: 13.4 },
-];
-
-const DEFAULT_PLANS_MP: GatewayPlan[] = [
-  { planKey: "2", label: "2 cuotas", rate: 6.1 },
-  { planKey: "3", label: "3 cuotas", rate: 7.78 },
-  { planKey: "6", label: "6 cuotas", rate: 14.96 },
-  { planKey: "9", label: "9 cuotas", rate: 12 },
-  { planKey: "12", label: "12 cuotas", rate: 15 },
-];
-
-const DEFAULT_PLANS_GETNET: GatewayPlan[] = [
-  { planKey: "1", label: "Credito/Debito 1 cuota", rate: 0 },
-  { planKey: "3-estandar", label: "3 cuotas Estandar", rate: 7.41 },
-  { planKey: "3-mipyme", label: "3 cuotas MiPyME", rate: 7.36 },
-  { planKey: "6-estandar", label: "6 cuotas Estandar", rate: 12.64 },
-  { planKey: "6-mipyme", label: "6 cuotas MiPyME", rate: 13.82 },
-  { planKey: "9", label: "9 cuotas Estandar", rate: 18.95 },
-  { planKey: "12", label: "12 cuotas Estandar", rate: 23.72 },
-  { planKey: "18", label: "18 cuotas Estandar", rate: 32.11 },
-];
+export type GatewayKey = string;
 
 function parseNumber(value: string): number {
   if (!value) return 0;
@@ -96,7 +63,7 @@ export type CalculationResult = {
 export function useCalculatorLogic() {
   const [netAmountInput, setNetAmountInput] = useState("100");
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<string>("3");
-  const [selectedGateway, setSelectedGateway] = useState<GatewayKey>("tacataca");
+  const [selectedGateway, setSelectedGateway] = useState<string>("tacataca");
   const [config, setConfig] = useState<CalculatorConfig | null>(null);
   const [loadingRates, setLoadingRates] = useState(true);
 
@@ -106,6 +73,12 @@ export function useCalculatorLogic() {
     fetchCalculatorConfig().then((data) => {
       if (!cancelled) {
         setConfig(data);
+        const keys = Object.keys(data.gateways);
+        const preferred =
+          (data.displayGatewayKey && data.gateways[data.displayGatewayKey]
+            ? data.displayGatewayKey
+            : keys[0]) || "tacataca";
+        setSelectedGateway((prev) => (data.gateways[prev] ? prev : preferred));
         setLoadingRates(false);
       }
     });
@@ -122,16 +95,18 @@ export function useCalculatorLogic() {
     };
   }, [config]);
 
+  const gatewayOptions = useMemo(
+    () =>
+      Object.entries(effectiveConfig.gateways).map(([key, g]) => ({
+        key,
+        label: gatewayDisplayLabel(key, g?.label),
+      })),
+    [effectiveConfig.gateways]
+  );
+
   const paymentOptions = useMemo(() => {
     const g = effectiveConfig.gateways[selectedGateway];
-    const plans =
-      (g?.plans?.length ?? 0) > 0
-        ? g!.plans!
-        : selectedGateway === "mercadopago"
-          ? DEFAULT_PLANS_MP
-          : selectedGateway === "getnet"
-            ? DEFAULT_PLANS_GETNET
-            : DEFAULT_PLANS_STANDARD;
+    const plans = g?.plans?.length ? g.plans : [];
     return plans.map((p) => ({ key: p.planKey, label: p.label }));
   }, [effectiveConfig.gateways, selectedGateway]);
 
@@ -172,14 +147,7 @@ export function useCalculatorLogic() {
     const gatewayVat = g?.vat ?? rates.vat;
     const gatewayVatRate = gatewayVat / 100;
 
-    const plans =
-      (g?.plans?.length ?? 0) > 0
-        ? g!.plans!
-        : selectedGateway === "mercadopago"
-          ? DEFAULT_PLANS_MP
-          : selectedGateway === "getnet"
-            ? DEFAULT_PLANS_GETNET
-            : DEFAULT_PLANS_STANDARD;
+    const plans = g?.plans?.length ? g.plans : [];
     const plan = plans.find((p) => p.planKey === selectedPaymentOption);
     const planRate = (plan?.rate ?? 0) / 100;
 
@@ -353,6 +321,7 @@ export function useCalculatorLogic() {
     setSelectedPaymentOption,
     selectedGateway,
     setSelectedGateway,
+    gatewayOptions,
     paymentOptions,
     calculation,
     loadingRates,

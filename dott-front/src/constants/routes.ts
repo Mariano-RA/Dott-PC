@@ -27,6 +27,8 @@ function path(segment: string): string {
 export const api = {
   nest: {
     calculatorConfig: path("/api/nest/calculator-config"),
+    calculatorGateways: path("/api/nest/calculator-config/gateways"),
+    calculatorDisplayGateway: path("/api/nest/calculator-config/display-gateway"),
     quote: path("/api/nest/quote"),
     dolar: path("/api/nest/dolar"),
     categorys: path("/api/nest/categorys"),

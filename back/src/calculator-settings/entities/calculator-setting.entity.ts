@@ -14,7 +14,11 @@ export class CalculatorSetting {
   @Column("float", { default: 21 })
   vat: number;
 
-  /** Configuración por pasarela. JSON: { [key]: { costs: [{ id, label, value }], vat, plans: [{ planKey, label, rate }] } } */
+  /** Pasarela usada para mostrar cuotas en catálogo, detalle y carrito. */
+  @Column("varchar", { length: 64, nullable: true })
+  displayGatewayKey: string | null;
+
+  /** Configuración por pasarela. JSON: { [key]: { label, costs, vat, plans } } */
   @Column("simple-json", { nullable: true })
   gateways: Record<string, unknown> | null;
 

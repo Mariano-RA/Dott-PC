@@ -3,7 +3,6 @@
 import { Badge, Button, Card, CardContent, CardHeader, Input } from "@/components/ui";
 import {
   useCalculatorLogic,
-  GATEWAY_OPTIONS,
   formatCurrency,
   formatPercent,
 } from "./hooks/useCalculatorLogic";
@@ -16,6 +15,7 @@ export default function CalculadoraPage() {
     setSelectedPaymentOption,
     selectedGateway,
     setSelectedGateway,
+    gatewayOptions,
     paymentOptions,
     calculation,
     loadingRates,
@@ -55,7 +55,7 @@ export default function CalculadoraPage() {
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Pasarela de pago</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                {GATEWAY_OPTIONS.map((option) => (
+                {gatewayOptions.map((option) => (
                   <Button
                     key={option.key}
                     type="button"

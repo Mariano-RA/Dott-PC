@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsNumber, IsOptional, IsObject, Max, Min } from "class-validator";
+import { IsNumber, IsOptional, IsObject, IsString, Max, MaxLength, Min } from "class-validator";
 
 export class CalculatorSettingDto {
   @Type(() => Number)
@@ -20,8 +20,14 @@ export class CalculatorSettingDto {
   @Max(1000)
   vat: number;
 
-  /** Por pasarela: { tacataca: { costs, vat, plans }, payway: {...}, mercadopago: {...} } */
+  /** Por pasarela: { [key]: { label, costs, vat, plans } } */
   @IsOptional()
   @IsObject()
   gateways?: Record<string, unknown>;
+
+  /** Pasarela usada para cuotas en catálogo, detalle de producto y carrito. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  displayGatewayKey?: string | null;
 }

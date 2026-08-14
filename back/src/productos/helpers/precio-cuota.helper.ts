@@ -136,6 +136,92 @@ export function calcularValorCuotas(
   });
 }
 
+export type GatewayCostLike = {
+  id?: string;
+  label?: string;
+  value?: number;
+  vat?: number;
+};
+
+export type GatewayPlanRateLike = {
+  planKey?: string;
+  label?: string;
+  rate?: number;
+};
+
+/** Config de pasarela (calculator-settings.gateways[key]). */
+export type GatewayConfigLike = {
+  label?: string;
+  costs?: GatewayCostLike[];
+  vat?: number;
+  plans?: GatewayPlanRateLike[];
+  cardFee?: number;
+  advanceFee?: number;
+  cost24h?: number;
+  instantRate?: number;
+};
+
+/**
+ * Cuotas de vitrina con la misma ecuación que la calculadora/carrito:
+ * bruto = neto / (1 − deducción con IVA).
+ */
+export function calcularValorCuotasDesdeGateway(
+  precio: number,
+  gateway: GatewayConfigLike | null | undefined,
+  fallbackVat = 21
+): valorCuotaDto[] {
+  const plans = Array.isArray(gateway?.plans) ? gateway.plans : [];
+  if (precio <= 0 || plans.length === 0) return [];
+
+  const vat = Number(gateway?.vat);
+  const gatewayVat = Number.isFinite(vat) ? vat : fallbackVat;
+  const vatRate = gatewayVat / 100;
+  const costsArr = Array.isArray(gateway?.costs) ? gateway.costs : [];
+  const hasCostsArray = costsArr.length > 0;
+  const hasPerItemVat = hasCostsArray && costsArr.some((c) => c?.vat != null);
+
+  const totalDeductionRateFn = (planRate: number): number => {
+    if (hasPerItemVat) {
+      const costsDeduction = costsArr.reduce((s, c) => {
+        const value = Number(c?.value) || 0;
+        const itemVat = c?.vat != null ? Number(c.vat) : gatewayVat;
+        return s + (value / 100) * (1 + itemVat / 100);
+      }, 0);
+      return costsDeduction + planRate * (1 + vatRate);
+    }
+    const costsRate = hasCostsArray
+      ? costsArr.reduce((s, c) => s + (Number(c?.value) || 0), 0) / 100
+      : gateway?.instantRate != null
+        ? Number(gateway.instantRate) / 100
+        : (Number(gateway?.cardFee) || 0) / 100 +
+          (Number(gateway?.advanceFee) || 0) / 100 +
+          (Number(gateway?.cost24h) || 0) / 100;
+    return (costsRate + planRate) * (1 + vatRate);
+  };
+
+  return plans.map((plan) => {
+    const planKey = String(plan?.planKey ?? "");
+    const planRate = (Number(plan?.rate) || 0) / 100;
+    const totalDeductionRate = totalDeductionRateFn(planRate);
+    const parsedInstallments = Number.parseInt(planKey, 10);
+    const installments =
+      Number.isFinite(parsedInstallments) && parsedInstallments > 0
+        ? parsedInstallments
+        : 0;
+    const total =
+      totalDeductionRate >= 1
+        ? 0
+        : Math.round(precio / (1 - totalDeductionRate));
+    const valorCuota = new valorCuotaDto();
+    valorCuota.planKey = planKey;
+    valorCuota.planLabel = String(plan?.label ?? planKey);
+    valorCuota.CantidadCuotas = installments;
+    valorCuota.Total = total;
+    valorCuota.Cuota = installments > 0 ? Math.round(total / installments) : total;
+    return valorCuota;
+  });
+}
+
 export function pagination<T>(skip: number, take: number, items: T[]): T[] {
   return items.slice((skip - 1) * take, skip * take);
 }

@@ -50,54 +50,48 @@ function parseCosts(arr: unknown): GatewayCost[] {
     });
 }
 
-const DEFAULT_PLANS_STANDARD: GatewayPlan[] = [
-  { planKey: "3", label: "3 cuotas", rate: 7.78 },
-  { planKey: "6", label: "6 cuotas", rate: 14.96 },
-  { planKey: "planZ", label: "Plan Z", rate: 13.4 },
-];
-
-const DEFAULT_PLANS_MP: GatewayPlan[] = [
-  { planKey: "2", label: "2 cuotas", rate: 6.1 },
-  { planKey: "3", label: "3 cuotas", rate: 7.78 },
-  { planKey: "6", label: "6 cuotas", rate: 14.96 },
-  { planKey: "9", label: "9 cuotas", rate: 12 },
-  { planKey: "12", label: "12 cuotas", rate: 15 },
-];
-
-const DEFAULT_PLANS_GETNET: GatewayPlan[] = [
-  { planKey: "1", label: "Credito/Debito 1 cuota", rate: 0 },
-  { planKey: "3-estandar", label: "3 cuotas Estandar", rate: 7.41 },
-  { planKey: "3-mipyme", label: "3 cuotas MiPyME", rate: 7.36 },
-  { planKey: "6-estandar", label: "6 cuotas Estandar", rate: 12.64 },
-  { planKey: "6-mipyme", label: "6 cuotas MiPyME", rate: 13.82 },
-  { planKey: "9", label: "9 cuotas Estandar", rate: 18.95 },
-  { planKey: "12", label: "12 cuotas Estandar", rate: 23.72 },
-  { planKey: "18", label: "18 cuotas Estandar", rate: 32.11 },
-];
-
 const DEFAULT_RATES = { cardFee: 1.8, advanceFee: 6, vat: 21 };
 
-function buildGateway(g: unknown, flatVat: number, defaultPlans: GatewayPlan[]): GatewayConfigCalc {
-  if (!g || typeof g !== "object") return { vat: flatVat, plans: defaultPlans };
+const KNOWN_LABELS: Record<string, string> = {
+  tacataca: "Taca-taca",
+  payway: "Payway",
+  mercadopago: "Mercadopago",
+  getnet: "Getnet",
+};
+
+export function gatewayDisplayLabel(key: string, label?: string): string {
+  const trimmed = String(label || "").trim();
+  if (trimmed) return trimmed;
+  return KNOWN_LABELS[key] || key;
+}
+
+function buildGateway(g: unknown, key: string, flatVat: number): GatewayConfigCalc {
+  if (!g || typeof g !== "object") return { label: gatewayDisplayLabel(key), vat: flatVat, plans: [] };
   const obj = g as Record<string, unknown>;
   const costs = parseCosts(obj.costs);
-  const plans = parsePlans(obj.plans).length ? parsePlans(obj.plans) : defaultPlans;
+  const plans = parsePlans(obj.plans);
   const vat = obj.vat != null ? toNum(obj.vat) : flatVat;
-  if (costs.length > 0) return { costs, vat, plans };
-  if (obj.instantRate != null) return { instantRate: toNum(obj.instantRate), vat, plans };
+  const label = gatewayDisplayLabel(key, typeof obj.label === "string" ? obj.label : undefined);
+  if (costs.length > 0) return { label, costs, vat, plans };
+  if (obj.instantRate != null) return { label, instantRate: toNum(obj.instantRate), vat, plans };
   if (obj.cost24h != null)
     return {
+      label,
       cardFee: toNum(obj.cardFee ?? DEFAULT_RATES.cardFee),
       cost24h: toNum(obj.cost24h),
       vat,
       plans,
     };
-  return {
-    cardFee: toNum(obj.cardFee ?? DEFAULT_RATES.cardFee),
-    advanceFee: toNum(obj.advanceFee ?? DEFAULT_RATES.advanceFee),
-    vat,
-    plans,
-  };
+  if (obj.advanceFee != null || obj.cardFee != null) {
+    return {
+      label,
+      cardFee: toNum(obj.cardFee ?? DEFAULT_RATES.cardFee),
+      advanceFee: toNum(obj.advanceFee ?? DEFAULT_RATES.advanceFee),
+      vat,
+      plans,
+    };
+  }
+  return { label, vat, plans };
 }
 
 /**
@@ -126,30 +120,20 @@ export async function fetchCalculatorConfig(): Promise<CalculatorConfig> {
 
     const raw =
       configJson?.settings?.gateways && typeof configJson.settings.gateways === "object"
-        ? configJson.settings.gateways
-        : ({} as Record<string, unknown>);
+        ? (configJson.settings.gateways as Record<string, unknown>)
+        : {};
 
     const gateways: Record<string, GatewayConfigCalc> = {};
-    if (raw.tacataca) gateways.tacataca = buildGateway(raw.tacataca, flat.vat, DEFAULT_PLANS_STANDARD);
-    if (raw.payway) gateways.payway = buildGateway(raw.payway, flat.vat, DEFAULT_PLANS_STANDARD);
-    if (raw.mercadopago) {
-      const mp = raw.mercadopago as { plans?: unknown; installmentRates?: Record<string, number> };
-      const plansFromApi = parsePlans(mp.plans);
-      const plans =
-        plansFromApi.length > 0
-          ? plansFromApi
-          : mp.installmentRates
-            ? Object.entries(mp.installmentRates).map(([k, v]) => ({
-                planKey: k,
-                label: k === "planZ" ? "Plan Z" : `${k} cuotas`,
-                rate: Number(v),
-              }))
-            : DEFAULT_PLANS_MP;
-      gateways.mercadopago = buildGateway(raw.mercadopago, flat.vat, plans);
+    for (const key of Object.keys(raw)) {
+      gateways[key] = buildGateway(raw[key], key, flat.vat);
     }
-    if (raw.getnet) gateways.getnet = buildGateway(raw.getnet, flat.vat, DEFAULT_PLANS_GETNET);
 
-    return { flat, gateways };
+    const displayGatewayKey =
+      typeof configJson?.settings?.displayGatewayKey === "string"
+        ? configJson.settings.displayGatewayKey
+        : Object.keys(gateways)[0] ?? null;
+
+    return { flat, gateways, displayGatewayKey };
   } catch {
     return {
       flat: {
@@ -158,6 +142,7 @@ export async function fetchCalculatorConfig(): Promise<CalculatorConfig> {
         vat: DEFAULT_RATES.vat,
       },
       gateways: {},
+      displayGatewayKey: null,
     };
   }
 }

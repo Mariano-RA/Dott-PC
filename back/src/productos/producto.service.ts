@@ -6,6 +6,7 @@ import { Repository, SelectQueryBuilder } from "typeorm";
 import { ProductoDto } from "./dto/productoDto";
 import { Producto } from "./entities/producto.entity";
 import { CuotasService } from "src/cuota/cuota.service";
+import { CalculatorSettingsService } from "src/calculator-settings/calculator-settings.service";
 import { ListDto } from "./dto/list.dto";
 import {
   ClientProxy,
@@ -25,6 +26,7 @@ import {
   CATEGORIA_FALLBACK,
   obtenerPrecioEfectivo,
   calcularValorCuotas,
+  calcularValorCuotasDesdeGateway,
   getPrecioDolarOrDefault,
   sqlPrecioEfectivoSortExpr,
 } from "./helpers/precio-cuota.helper";
@@ -33,6 +35,8 @@ import {
 export class ProductosService {
   @Inject(DolaresService) private readonly dolaresService: DolaresService;
   @Inject(CuotasService) private readonly cuotasService: CuotasService;
+  @Inject(CalculatorSettingsService)
+  private readonly calculatorSettingsService: CalculatorSettingsService;
   @Inject(ProveedorService) private readonly proveedorService: ProveedorService;
   @Inject(CategoriesService) private readonly categoriesService: CategoriesService;
   @Inject(ImportStatusService)
@@ -391,10 +395,11 @@ export class ProductosService {
       Number.isFinite(options.skip) && options.skip > 0 ? options.skip : 1;
     const offset = (safeSkip - 1) * safeTake;
 
-    const [arrayDolar, listadoCuotas, categoryFilter] = await Promise.all([
+    const [arrayDolar, listadoCuotas, categoryFilter, displayGateway] = await Promise.all([
       this.dolaresService.findAll(),
       this.cuotasService.findPlans(true),
       this.resolveCategoryFilter(options.category),
+      this.calculatorSettingsService.getDisplayGateway(),
     ]);
 
     const qb = this.productoRepository
@@ -426,7 +431,9 @@ export class ProductosService {
         precioDolar,
         prod.categoria
       );
-      dto.precioCuotas = calcularValorCuotas(dto.precioEfectivo, listadoCuotas);
+      dto.precioCuotas = displayGateway
+        ? calcularValorCuotasDesdeGateway(dto.precioEfectivo, displayGateway.gateway)
+        : calcularValorCuotas(dto.precioEfectivo, listadoCuotas);
       return dto;
     });
 

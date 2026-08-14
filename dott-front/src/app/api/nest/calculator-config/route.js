@@ -46,6 +46,9 @@ export async function PUT(request) {
     if (body?.gateways != null && typeof body.gateways === "object") {
       payload.gateways = body.gateways;
     }
+    if (body?.displayGatewayKey != null) {
+      payload.displayGatewayKey = body.displayGatewayKey;
+    }
 
     const settings = await proxyPost(`${apiUrl}/calculator-settings`, payload, {
       accessToken,

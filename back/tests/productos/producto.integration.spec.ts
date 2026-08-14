@@ -11,6 +11,8 @@ import { CuotaPlan } from "../../src/cuota/entities/cuota-plan.entity";
 import { Dolar } from "../../src/dolar/entities/dolar.entity";
 import { DolarHistory } from "../../src/dolar/entities/dolar-history.entity";
 import { Proveedor } from "../../src/proveedor/entities/proveedor.entity";
+import { CalculatorSettingsService } from "../../src/calculator-settings/calculator-settings.service";
+import { CalculatorSetting } from "../../src/calculator-settings/entities/calculator-setting.entity";
 
 describe("ProductosModule (integration)", () => {
   let service: ProductosService;
@@ -36,9 +38,16 @@ describe("ProductosModule (integration)", () => {
       .useValue(mockRepo())
       .overrideProvider(getRepositoryToken(Proveedor))
       .useValue(mockRepo())
+      .overrideProvider(getRepositoryToken(CalculatorSetting))
+      .useValue(mockRepo())
       .overrideProvider(ConfigService)
       .useValue({
         get: jest.fn((key: string) => (key === "RABBIT_MQ_URI" ? "amqp://localhost" : "test_queue")),
+      })
+      .overrideProvider(CalculatorSettingsService)
+      .useValue({
+        getDisplayGateway: jest.fn().mockResolvedValue(null),
+        getSettings: jest.fn().mockResolvedValue({ gateways: {} }),
       })
       .compile();
 
