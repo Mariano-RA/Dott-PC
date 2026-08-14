@@ -29,13 +29,14 @@ def parse(archivo_bytesio) -> List[dict]:
             ):
                 categoria_actual = str(row[1]).strip()
                 continue
-            if pd.notna(row[0]) and isinstance(row[8], (int, float)):
+            # Col 9 = Precio Final (incluye IVA e Imp. Int.).
+            if pd.notna(row[0]) and pd.notna(row[9]) and isinstance(row[9], (int, float)):
                 registro = {
                     "proveedor": "invid",
                     "producto": row[1],
                     "categoriaRaw": categoria_actual,
                     "categoria": categoria_actual,
-                    "precio": calcular_precio(row[8]),
+                    "precio": calcular_precio(row[9]),
                 }
                 data.append(registro)
         return data
