@@ -13,6 +13,9 @@ export type ProveedorRow = {
   id: number;
   nombre: string;
   activo?: boolean;
+  tieneFetcher?: boolean;
+  cargaManual?: boolean;
+  cacheImagenes?: boolean;
 };
 
 export type DolarHistoryRow = {
@@ -69,11 +72,6 @@ export function useAdminDolar() {
       const jsonProveedores = await resProveedores.json();
 
       const rawDolar = (jsonRows?.dolar || []) as Array<{ proveedor?: string | { nombre?: string }; precioDolar?: number; motivo?: string }>;
-      const dolarRows: DolarRow[] = rawDolar.map((row) => ({
-        proveedor: normalizeProveedorName(row.proveedor),
-        precioDolar: typeof row.precioDolar === "number" ? row.precioDolar : parseNumber(row.precioDolar ?? 0),
-        motivo: typeof row.motivo === "string" ? row.motivo : "",
-      }));
 
       const proveedoresList = (jsonProveedores?.proveedores || []) as ProveedorRow[];
       setProveedores(
@@ -81,6 +79,21 @@ export function useAdminDolar() {
           String(a?.nombre || "").localeCompare(String(b?.nombre || ""))
         )
       );
+
+      const activeNames = new Set(
+        proveedoresList
+          .filter((item) => item?.activo !== false)
+          .map((item) => String(item?.nombre || "").toLowerCase())
+          .filter(Boolean)
+      );
+
+      const dolarRows: DolarRow[] = rawDolar
+        .map((row) => ({
+          proveedor: normalizeProveedorName(row.proveedor),
+          precioDolar: typeof row.precioDolar === "number" ? row.precioDolar : parseNumber(row.precioDolar ?? 0),
+          motivo: typeof row.motivo === "string" ? row.motivo : "",
+        }))
+        .filter((row) => activeNames.has(row.proveedor));
 
       const missingRows = proveedoresList
         .filter((item) => item?.activo !== false)

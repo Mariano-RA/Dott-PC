@@ -24,6 +24,7 @@ export class DolaresService {
     try{
       const resDolar = await this.dolarRepository.find({
         relations: ['proveedor'],
+        where: { proveedor: { activo: true } },
       });
       console.log("Valores del dólar encontrados:", resDolar);
       return resDolar;

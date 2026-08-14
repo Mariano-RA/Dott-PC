@@ -406,6 +406,8 @@ export class ProductosService {
       .createQueryBuilder("p")
       .leftJoinAndSelect("p.proveedor", "prov");
 
+    qb.andWhere("prov.activo = :provActivo", { provActivo: true });
+
     this.applyProductListFilters(qb, options, categoryFilter);
 
     const total = await qb.clone().getCount();

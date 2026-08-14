@@ -6,7 +6,8 @@ import { Proveedor } from "../proveedor/entities/proveedor.entity";
 import { MinioStorageService } from "./minio-storage.service";
 import { ImageCacheService } from "./image-cache.service";
 import { ProductImage } from "./entities/product-image.entity";
-import { IMAGE_CACHE_PROVIDERS } from "./gallery.constants";
+import { IMAGE_CACHE_PROVIDERS, hasImageCache } from "./gallery.constants";
+import { ProveedorService } from "../proveedor/proveedor.service";
 
 function guessMimeTypeFromKey(key: string): string {
   const lower = String(key || "").toLowerCase();
@@ -59,12 +60,13 @@ export class ImagenesController {
     @InjectRepository(ProductImage)
     private readonly productImageRepo: Repository<ProductImage>,
     @InjectRepository(Proveedor)
-    private readonly proveedorRepo: Repository<Proveedor>
+    private readonly proveedorRepo: Repository<Proveedor>,
+    private readonly proveedorService: ProveedorService
   ) {}
 
-  /** Cachea imágenes de todos los proveedores. Ej: GET /imagenes/cache?all=true&concurrency=10 */
+  /** Cachea imágenes de proveedores activos con soporte de cache. */
   @Get("cache")
-  cacheAll(
+  async cacheAll(
     @Query("limit") limit?: string,
     @Query("force") force?: string,
     @Query("concurrency") concurrency?: string,
@@ -78,9 +80,13 @@ export class ImagenesController {
       concurrency: concurrency ? Number(concurrency) : undefined,
       processAll,
     };
+    const proveedores = await this.proveedorService.findNombresCacheImagenes();
     return Promise.all(
-      IMAGE_CACHE_PROVIDERS.map((proveedor) =>
-        this.imageCache.cacheProveedorImages({ ...opts, proveedor })
+      proveedores.map((proveedor) =>
+        this.imageCache.cacheProveedorImages({
+          ...opts,
+          proveedor: proveedor as (typeof IMAGE_CACHE_PROVIDERS)[number],
+        })
       )
     );
   }
@@ -94,8 +100,8 @@ export class ImagenesController {
     @Query("all") all?: string
   ) {
     const p = (proveedor || "").trim().toLowerCase();
-    if (!IMAGE_CACHE_PROVIDERS.includes(p as any)) {
-      return { ok: false, error: "Proveedor no soportado para cache (elit/nb/eikon/mega/air)." };
+    if (!hasImageCache(p)) {
+      return { ok: false, error: "Proveedor no soportado para cache de imágenes." };
     }
 
     const processAll = String(all || "").toLowerCase() === "true" || String(limit || "").toLowerCase() === "all";

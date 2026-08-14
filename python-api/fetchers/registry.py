@@ -13,9 +13,8 @@ from . import fetch_nb
 
 logger = logging.getLogger(__name__)
 
-# Proveedores incluidos en "descargar todos" (fallback si Nest no envía lista).
-# Nest filtra por Proveedores.activo ∩ PROVEEDORES_CON_FETCHER al disparar "Todos".
-# HDC y EIKON se cargan solo manualmente.
+# Nest es la fuente de verdad: envía solo Proveedores.activo con fetcher.
+# Este tuple es capacidad de código (hay fetcher) y fallback si el payload no trae lista.
 PROVEEDORES_DESCARGA_AUTOMATICA = ("air", "elit", "invid", "mega", "nb")
 
 _FETCHERS = {

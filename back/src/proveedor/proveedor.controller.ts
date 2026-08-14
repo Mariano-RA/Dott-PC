@@ -21,12 +21,13 @@ export class ProveedorController {
 
   @Get()
   async findAll() {
-    return this.proveedorService.findAll();
+    return this.proveedorService.findAllViews();
   }
 
   @Get(":id")
   async findOne(@Param("id") id: string) {
-    return this.proveedorService.findOne(Number(id));
+    const proveedor = await this.proveedorService.findOne(Number(id));
+    return proveedor ? this.proveedorService.toView(proveedor) : null;
   }
 
   @UseGuards(AuthorizationGuard, PermissionGuard)

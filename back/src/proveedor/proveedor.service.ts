@@ -3,6 +3,23 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Proveedor } from "./entities/proveedor.entity";
 import { ProveedorDto } from "./dto/proveedor.dto";
+import {
+  hasFetcher,
+  hasImageCache,
+  hasManualUpload,
+  normalizeProveedorNombre,
+} from "./proveedor.capabilities";
+
+export type ProveedorView = {
+  id: number;
+  nombre: string;
+  activo: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  tieneFetcher: boolean;
+  cargaManual: boolean;
+  cacheImagenes: boolean;
+};
 
 @Injectable()
 export class ProveedorService {
@@ -11,8 +28,27 @@ export class ProveedorService {
     private readonly proveedorRepository: Repository<Proveedor>
   ) {}
 
+  toView(proveedor: Proveedor): ProveedorView {
+    const nombre = normalizeProveedorNombre(proveedor.nombre);
+    return {
+      id: proveedor.id,
+      nombre,
+      activo: proveedor.activo !== false,
+      createdAt: proveedor.createdAt,
+      updatedAt: proveedor.updatedAt,
+      tieneFetcher: hasFetcher(nombre),
+      cargaManual: hasManualUpload(nombre),
+      cacheImagenes: hasImageCache(nombre),
+    };
+  }
+
   async findAll(): Promise<Proveedor[]> {
     return this.proveedorRepository.find({ order: { nombre: "ASC" } });
+  }
+
+  async findAllViews(): Promise<ProveedorView[]> {
+    const rows = await this.findAll();
+    return rows.map((row) => this.toView(row));
   }
 
   async findActivos(): Promise<Proveedor[]> {
@@ -20,6 +56,25 @@ export class ProveedorService {
       where: { activo: true },
       order: { nombre: "ASC" },
     });
+  }
+
+  async findNombresDescargaAutomatica(): Promise<string[]> {
+    const activos = await this.findActivos();
+    return activos
+      .map((p) => normalizeProveedorNombre(p.nombre))
+      .filter((n) => n && hasFetcher(n));
+  }
+
+  async findNombresCacheImagenes(): Promise<string[]> {
+    const activos = await this.findActivos();
+    return activos
+      .map((p) => normalizeProveedorNombre(p.nombre))
+      .filter((n) => n && hasImageCache(n));
+  }
+
+  async canDescargaAutomatica(nombre: string): Promise<boolean> {
+    const proveedor = await this.findByNombre(nombre);
+    return Boolean(proveedor?.activo && hasFetcher(proveedor.nombre));
   }
 
   async findOne(id: number): Promise<Proveedor> {

@@ -3,7 +3,8 @@ Consumer que escucha RABBITMQ_FETCH_PRICES_QUEUE.
 
 Payloads:
 - { "proveedor": "nb" } — un proveedor
-- { "proveedores": ["air", "elit", ...] } — lista explícita (Nest filtra por Proveedores.activo)
+- { "proveedores": ["air", "elit", ...] } — lista explícita (Nest: activos con fetcher)
+- sin lista / proveedor vacío — fallback a list_proveedores() del registry (capacidad de código)
 - sin lista / proveedor vacío — fallback a list_proveedores() del registry
 
 Ejecuta el fetcher, descarga el listado y publica en RABBITMQ_PYTHON_QUEUE (base64) o carga_tabla.

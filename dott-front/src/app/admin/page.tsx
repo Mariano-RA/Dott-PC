@@ -273,20 +273,46 @@ function AdminPage() {
 
   const providerOptions = useMemo(
     () =>
-      Array.from(new Set(dolarRows.map((row) => proveedorToName(row.proveedor))))
+      maestrosProveedores
+        .map((item) => String(item?.nombre || "").toLowerCase())
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b)),
-    [dolarRows]
+    [maestrosProveedores]
   );
 
-  /** Proveedores con fetcher. El select permite forzar uno; “Todos” usa solo activos en Nest. */
+  /** Activos con fetcher. “Todos” en Nest usa la misma regla. */
   const fetchPricesProviderOptions = useMemo(
-    () => ["air", "elit", "invid", "mega", "nb"].sort((a, b) => a.localeCompare(b)),
-    []
+    () =>
+      maestrosProveedores
+        .filter((item) => item.activo !== false && item.tieneFetcher)
+        .map((item) => String(item.nombre || "").toLowerCase())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [maestrosProveedores]
   );
 
-  /** Proveedores de carga manual (CSV/Excel). Solo estos en el select "Carga CSV de proveedor". */
-  const manualUploadProviderOptions = useMemo(() => ["eikon", "hdc"].sort((a, b) => a.localeCompare(b)), []);
+  /** Activos de carga manual (CSV/Excel). */
+  const manualUploadProviderOptions = useMemo(
+    () =>
+      maestrosProveedores
+        .filter((item) => item.activo !== false && item.cargaManual)
+        .map((item) => String(item.nombre || "").toLowerCase())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [maestrosProveedores]
+  );
+
+  useEffect(() => {
+    if (fetchPricesProveedor && !fetchPricesProviderOptions.includes(fetchPricesProveedor)) {
+      setFetchPricesProveedor("");
+    }
+  }, [fetchPricesProveedor, fetchPricesProviderOptions]);
+
+  useEffect(() => {
+    if (providerToUpload && !manualUploadProviderOptions.includes(providerToUpload)) {
+      setProviderToUpload("");
+    }
+  }, [providerToUpload, manualUploadProviderOptions]);
 
   const [activeTab, setActiveTab] = useState<"proveedores" | "calculadora" | "dolar" | "categorias" | "logs">("proveedores");
   const [calculatorGatewayTab, setCalculatorGatewayTab] = useState<string>("tacataca");
@@ -1063,7 +1089,8 @@ function AdminPage() {
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <h3>Estado de proveedores</h3>
             <p className="text-sm text-muted-foreground">
-              Inactivos no entran en &quot;Todos&quot; al descargar listados, ni en filtros de productos/dólar. La descarga individual sigue disponible.
+              El maestro de proveedores es la única fuente: inactivos no aparecen en catálogo, dólar,
+              descarga automática, carga CSV ni cache masivo de imágenes.
             </p>
             {maestrosProveedores.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -1084,6 +1111,12 @@ function AdminPage() {
                         <Badge variant={activo ? "success" : "neutral"}>
                           {activo ? "Activo" : "Inactivo"}
                         </Badge>
+                        {item.tieneFetcher ? (
+                          <Badge variant="neutral">Fetcher</Badge>
+                        ) : null}
+                        {item.cargaManual ? (
+                          <Badge variant="neutral">CSV</Badge>
+                        ) : null}
                       </div>
                       <Button
                         type="button"
@@ -1107,7 +1140,7 @@ function AdminPage() {
           <CardContent className="space-y-4 px-4 py-5 md:px-6">
             <h3>Descargar listados desde la web del proveedor</h3>
             <p className="text-sm text-muted-foreground">
-              Dispara la descarga del listado (requiere consumer Python activo). &quot;Todos&quot; solo incluye proveedores activos con fetcher.
+              Dispara la descarga del listado (requiere consumer Python activo). Solo proveedores activos con fetcher.
             </p>
             <div className="grid gap-3 md:grid-cols-2">
               <select

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   ClientProxy,
@@ -9,15 +9,6 @@ import { Logger } from "nestjs-pino";
 import { EnvKeys } from "../shared/config";
 import { EventLogService } from "src/shared/event-log.service";
 import { ProveedorService } from "src/proveedor/proveedor.service";
-
-/** Proveedores con fetcher en python-api (capacidad de descarga automática). */
-export const PROVEEDORES_CON_FETCHER = [
-  "air",
-  "elit",
-  "invid",
-  "mega",
-  "nb",
-] as const;
 
 /**
  * Servicio dedicado a disparar la descarga de listados (fetch-prices).
@@ -50,6 +41,12 @@ export class FetchPricesTriggerService {
     const named = proveedor?.trim().toLowerCase();
 
     if (named) {
+      const allowed = await this.proveedorService.canDescargaAutomatica(named);
+      if (!allowed) {
+        throw new BadRequestException(
+          `El proveedor "${named}" está inactivo o no tiene descarga automática.`,
+        );
+      }
       const payload = { proveedor: named };
       await this.fetchPricesClient.emit("fetch_prices", payload);
       const msg = `Se envió la solicitud de descarga del listado para ${named}.`;
@@ -63,11 +60,7 @@ export class FetchPricesTriggerService {
       return msg;
     }
 
-    const activos = await this.proveedorService.findActivos();
-    const fetcherSet = new Set<string>(PROVEEDORES_CON_FETCHER);
-    const proveedores = activos
-      .map((p) => String(p.nombre || "").trim().toLowerCase())
-      .filter((n) => n && fetcherSet.has(n));
+    const proveedores = await this.proveedorService.findNombresDescargaAutomatica();
 
     const payload = { proveedores };
     await this.fetchPricesClient.emit("fetch_prices", payload);

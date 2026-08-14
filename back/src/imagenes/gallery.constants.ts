@@ -1,8 +1,13 @@
+import {
+  IMAGE_CACHE_PROVIDERS,
+  hasImageCache,
+} from "../proveedor/proveedor.capabilities";
+
 export const GALLERY_PROVIDERS = new Set(["elit", "air"]);
 /** Proveedores que mandan el array de fotos en el listado (no AIR). */
 export const LISTING_GALLERY_PROVIDERS = new Set(["elit"]);
 export const MAX_GALLERY_IMAGES = 8;
-export const IMAGE_CACHE_PROVIDERS = ["elit", "nb", "eikon", "mega", "air"] as const;
+export { IMAGE_CACHE_PROVIDERS, hasImageCache };
 export type ImageCacheProveedor = (typeof IMAGE_CACHE_PROVIDERS)[number];
 
 export function supportsGallery(proveedor: string): boolean {

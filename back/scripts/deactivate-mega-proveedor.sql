@@ -1,5 +1,6 @@
--- Baja lógica de MEGA en descarga automática / catálogo (Proveedores.activo = false).
--- "Todos" en fetch-prices solo incluye proveedores activos con fetcher.
+-- Baja lógica de MEGA (Proveedores.activo = false).
+-- El maestro es la única fuente: inactivo queda fuera de catálogo, dólar,
+-- descarga automática, CSV y cache masivo de imágenes.
 -- Reactivar: UPDATE Proveedores SET activo = 1 WHERE nombre = 'mega';
 --
 -- From project root:

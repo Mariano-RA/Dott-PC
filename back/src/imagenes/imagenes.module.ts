@@ -7,9 +7,13 @@ import { ProductImageSource } from "./entities/product-image-source.entity";
 import { ImagenesController } from "./imagenes.controller";
 import { ImageCacheService } from "./image-cache.service";
 import { MinioStorageService } from "./minio-storage.service";
+import { ProveedorModule } from "../proveedor/proveedor.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Producto, Proveedor, ProductImage, ProductImageSource])],
+  imports: [
+    TypeOrmModule.forFeature([Producto, Proveedor, ProductImage, ProductImageSource]),
+    ProveedorModule,
+  ],
   controllers: [ImagenesController],
   providers: [ImageCacheService, MinioStorageService],
   exports: [ImageCacheService],
