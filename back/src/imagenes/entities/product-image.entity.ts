@@ -8,7 +8,10 @@ import {
 } from "typeorm";
 
 @Entity({ name: "ProductImages" })
-@Index(["proveedorId", "codigo"], { unique: true })
+@Index("IDX_product_images_prov_codigo_order", ["proveedorId", "codigo", "sortOrder"], {
+  unique: true,
+})
+@Index("IDX_product_images_prov_codigo", ["proveedorId", "codigo"])
 export class ProductImage {
   @PrimaryGeneratedColumn()
   id: number;
@@ -21,10 +24,16 @@ export class ProductImage {
 
   /**
    * Path/Key dentro del bucket en MinIO.
-   * Ej: "elit/18667/main.webp"
+   * Ej: "elit/18667/0.webp" (legacy: "elit/18667/main.webp")
    */
   @Column("varchar", { length: 512 })
   storageKey: string;
+
+  @Column("int", { default: 0 })
+  sortOrder: number;
+
+  @Column("boolean", { default: true })
+  isPrimary: boolean;
 
   @Column("varchar", { length: 1024, nullable: true })
   sourceUrl?: string | null;
@@ -47,4 +56,3 @@ export class ProductImage {
   @UpdateDateColumn({ type: "datetime" })
   updatedAt: Date;
 }
-

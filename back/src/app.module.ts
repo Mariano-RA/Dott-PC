@@ -20,6 +20,7 @@ import { MasterCategory } from "./categories/entities/master-category.entity";
 import { CategoryProvider } from "./categories/entities/category-provider.entity";
 import { ProviderCategoryMapping } from "./categories/entities/provider-category-mapping.entity";
 import { ProductImage } from "./imagenes/entities/product-image.entity";
+import { ProductImageSource } from "./imagenes/entities/product-image-source.entity";
 import { ImagenesModule } from "./imagenes/imagenes.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { SharedModule } from "./shared/shared.module";
@@ -66,6 +67,7 @@ const isProd = (process.env.NODE_ENV || "").toLowerCase() === "production";
         CuotaPlan,
         Producto,
         ProductImage,
+        ProductImageSource,
         CalculatorSetting,
         MasterCategory,
         CategoryProvider,

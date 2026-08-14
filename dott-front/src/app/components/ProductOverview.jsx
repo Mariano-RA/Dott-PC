@@ -27,8 +27,9 @@ export default function ProductOverview({ action, close, product }) {
   }, [cuotas]);
 
   const fallback = "/img/product-placeholder.svg";
+  const galleryProviders = ["elit", "air"];
 
-  const computedImageSrc = useMemo(() => {
+  const imageBase = useMemo(() => {
     const prov =
       typeof product?.proveedor === "string"
         ? product.proveedor.trim().toLowerCase()
@@ -36,17 +37,47 @@ export default function ProductOverview({ action, close, product }) {
     const codigo =
       typeof product?.codigo === "string" ? product.codigo.trim() : "";
     if (prov && codigo && ["elit", "nb", "eikon", "mega", "air"].includes(prov)) {
-      return `/api/nest/imagenes/${encodeURIComponent(prov)}/${encodeURIComponent(codigo)}`;
+      return {
+        prov,
+        codigo,
+        primary: `/api/nest/imagenes/${encodeURIComponent(prov)}/${encodeURIComponent(codigo)}`,
+        supportsGallery: galleryProviders.includes(prov),
+      };
     }
-    return fallback;
+    return { prov: "", codigo: "", primary: fallback, supportsGallery: false };
   }, [product?.proveedor, product?.codigo]);
 
+  const computedImageSrc = imageBase.primary;
   const [imageSrc, setImageSrc] = useState(computedImageSrc);
+  const [galleryUrls, setGalleryUrls] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
     setImageSrc(computedImageSrc);
     setImageLoading(true);
+    setGalleryUrls([]);
+    setSelectedIndex(0);
   }, [computedImageSrc]);
+
+  useEffect(() => {
+    if (!open || !imageBase.supportsGallery || !imageBase.prov || !imageBase.codigo) return;
+    const controller = new AbortController();
+    const metaUrl = `/api/nest/imagenes/${encodeURIComponent(imageBase.prov)}/${encodeURIComponent(imageBase.codigo)}/meta`;
+    fetch(metaUrl, { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const images = Array.isArray(data?.images) ? data.images : [];
+        const urls = images
+          .map((img) => {
+            const idx = Number(img?.index ?? 0);
+            return `/api/nest/imagenes/${encodeURIComponent(imageBase.prov)}/${encodeURIComponent(imageBase.codigo)}/${idx}`;
+          })
+          .filter(Boolean);
+        if (urls.length > 1) setGalleryUrls(urls);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [open, imageBase.supportsGallery, imageBase.prov, imageBase.codigo]);
 
   const handleImageError = () => {
     // Si falla el endpoint del proveedor, mostramos el placeholder local.
@@ -173,6 +204,35 @@ export default function ProductOverview({ action, close, product }) {
                           </span>
                         ) : null}
                       </button>
+                      {galleryUrls.length > 1 ? (
+                        <div className="flex max-w-full flex-wrap justify-center gap-2">
+                          {galleryUrls.map((url, idx) => (
+                            <button
+                              key={url}
+                              type="button"
+                              className={`relative h-12 w-12 overflow-hidden rounded-md border ${
+                                selectedIndex === idx
+                                  ? "border-red-700 ring-1 ring-red-700"
+                                  : "border-red-100"
+                              } bg-white`}
+                              onClick={() => {
+                                setSelectedIndex(idx);
+                                setImageSrc(url);
+                                setImageLoading(true);
+                              }}
+                              aria-label={`Ver imagen ${idx + 1}`}
+                            >
+                              <Image
+                                src={url}
+                                alt=""
+                                fill
+                                className="object-contain p-1"
+                                sizes="48px"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                       {!canPreviewImage ? <p className="text-xs text-neutral-600">Sin imagen disponible.</p> : null}
                     </div>
 

@@ -6,6 +6,7 @@ import { Proveedor } from "../proveedor/entities/proveedor.entity";
 import { MinioStorageService } from "./minio-storage.service";
 import { ImageCacheService } from "./image-cache.service";
 import { ProductImage } from "./entities/product-image.entity";
+import { IMAGE_CACHE_PROVIDERS } from "./gallery.constants";
 
 function guessMimeTypeFromKey(key: string): string {
   const lower = String(key || "").toLowerCase();
@@ -77,9 +78,8 @@ export class ImagenesController {
       concurrency: concurrency ? Number(concurrency) : undefined,
       processAll,
     };
-    const providers: Array<"elit" | "nb" | "eikon" | "mega" | "air"> = ["elit", "nb", "eikon", "mega", "air"];
     return Promise.all(
-      providers.map((proveedor) =>
+      IMAGE_CACHE_PROVIDERS.map((proveedor) =>
         this.imageCache.cacheProveedorImages({ ...opts, proveedor })
       )
     );
@@ -94,7 +94,7 @@ export class ImagenesController {
     @Query("all") all?: string
   ) {
     const p = (proveedor || "").trim().toLowerCase();
-    if (!["elit", "nb", "eikon", "mega", "air"].includes(p)) {
+    if (!IMAGE_CACHE_PROVIDERS.includes(p as any)) {
       return { ok: false, error: "Proveedor no soportado para cache (elit/nb/eikon/mega/air)." };
     }
 
@@ -102,12 +102,45 @@ export class ImagenesController {
     const limitNum = processAll ? undefined : (limit ? Number(limit) : undefined);
 
     return this.imageCache.cacheProveedorImages({
-      proveedor: p as "elit" | "nb" | "eikon" | "mega" | "air",
+      proveedor: p as (typeof IMAGE_CACHE_PROVIDERS)[number],
       limit: limitNum,
       force: String(force || "").toLowerCase() === "true",
       concurrency: concurrency ? Number(concurrency) : undefined,
       processAll,
     });
+  }
+
+  @Get(":proveedor/:codigo/meta")
+  async getImagenMeta(
+    @Param("proveedor") proveedor: string,
+    @Param("codigo") codigo: string
+  ) {
+    const resolved = await this.findRecords(proveedor, codigo);
+    if (!resolved) return { count: 0, images: [] };
+    const { proveedorNombre, records } = resolved;
+    return {
+      proveedor: proveedorNombre,
+      codigo: String(codigo || "").trim(),
+      count: records.length,
+      images: records.map((r) => ({
+        index: Number(r.sortOrder ?? 0),
+        url: `/imagenes/${encodeURIComponent(proveedorNombre)}/${encodeURIComponent(String(codigo).trim())}/${Number(r.sortOrder ?? 0)}`,
+      })),
+    };
+  }
+
+  @Get(":proveedor/:codigo/:index")
+  async getImagenByIndex(
+    @Param("proveedor") proveedor: string,
+    @Param("codigo") codigo: string,
+    @Param("index") index: string,
+    @Res() res: Response
+  ) {
+    const sortOrder = Number(index);
+    if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+      return res.status(400).json({ error: "Índice inválido" });
+    }
+    return this.sendImage(res, proveedor, codigo, sortOrder);
   }
 
   @Get(":proveedor/:codigo")
@@ -116,18 +149,34 @@ export class ImagenesController {
     @Param("codigo") codigo: string,
     @Res() res: Response
   ) {
+    return this.sendImage(res, proveedor, codigo, 0);
+  }
+
+  private async findRecords(proveedor: string, codigo: string) {
     const p = (proveedor || "").trim().toLowerCase();
     const code = String(codigo || "").trim();
-
-    if (!p || !code) return res.status(400).json({ error: "Parámetros inválidos" });
+    if (!p || !code) return null;
 
     const prov = await this.proveedorRepo.findOneBy({ nombre: p });
-    if (!prov) return res.status(404).end();
+    if (!prov) return null;
 
-    const record = await this.productImageRepo.findOneBy({
-      proveedorId: prov.id,
-      codigo: code,
+    const records = await this.productImageRepo.find({
+      where: { proveedorId: prov.id, codigo: code },
+      order: { sortOrder: "ASC" },
     });
+    if (!records.length) return null;
+    return { proveedorNombre: p, records };
+  }
+
+  private async sendImage(res: Response, proveedor: string, codigo: string, sortOrder: number) {
+    const resolved = await this.findRecords(proveedor, codigo);
+    if (!resolved) return res.status(404).end();
+
+    const record =
+      resolved.records.find((r) => Number(r.sortOrder ?? 0) === sortOrder) ||
+      (sortOrder === 0
+        ? resolved.records.find((r) => r.isPrimary) || resolved.records[0]
+        : null);
     if (!record) return res.status(404).end();
 
     const obj = await this.storage.getObject(record.storageKey);
@@ -147,4 +196,3 @@ export class ImagenesController {
     return res.send(bytes);
   }
 }
-

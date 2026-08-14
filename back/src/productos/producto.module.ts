@@ -9,6 +9,7 @@ import { CuotasModule } from "src/cuota/cuota.module";
 import { ProveedorModule } from "src/proveedor/proveedor.module";
 import { CategoriesModule } from "src/categories/categories.module";
 import { ImportStatusService } from "./import-status.service";
+import { ImagenesModule } from "src/imagenes/imagenes.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ImportStatusService } from "./import-status.service";
     DolaresModule,
     ProveedorModule,
     CategoriesModule,
+    ImagenesModule,
     TypeOrmModule.forFeature([Producto]),
   ],
   controllers: [ProductosController],

@@ -8,23 +8,29 @@ export async function GET(req, context) {
     if (!Array.isArray(slug) || slug.length < 2) {
       return NextResponse.json({ error: "Ruta inválida" }, { status: 400 });
     }
-    const [proveedor, codigo] = slug;
+    const [proveedor, codigo, ...rest] = slug;
+    const extra = rest.map((part) => encodeURIComponent(part)).join("/");
+    const upstreamPath = extra
+      ? `${apiUrl}/imagenes/${encodeURIComponent(proveedor)}/${encodeURIComponent(codigo)}/${extra}`
+      : `${apiUrl}/imagenes/${encodeURIComponent(proveedor)}/${encodeURIComponent(codigo)}`;
 
-    const upstreamPath = `${apiUrl}/imagenes/${encodeURIComponent(
-      proveedor
-    )}/${encodeURIComponent(codigo)}`;
-
+    const isMeta = rest[0] === "meta";
     const upstream = await fetch(upstreamPath, {
       method: "GET",
-      headers: { accept: "image/*" },
+      headers: { accept: isMeta ? "application/json" : "image/*" },
       cache: "no-store",
     });
 
     if (!upstream.ok) {
       return NextResponse.json(
-        { error: "No se pudo cargar la imagen" },
+        { error: isMeta ? "No se pudo cargar la galería" : "No se pudo cargar la imagen" },
         { status: upstream.status || 404 }
       );
+    }
+
+    if (isMeta) {
+      const payload = await upstream.json();
+      return NextResponse.json(payload, { status: 200 });
     }
 
     const contentType = upstream.headers.get("content-type") || "application/octet-stream";
@@ -46,4 +52,3 @@ export async function GET(req, context) {
     );
   }
 }
-

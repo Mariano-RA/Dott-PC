@@ -19,6 +19,8 @@ import { EnvKeys } from "../shared/config";
 import { Logger } from "nestjs-pino";
 import { ImportStatusService } from "./import-status.service";
 import { EventLogService } from "src/shared/event-log.service";
+import { ImageCacheService } from "src/imagenes/image-cache.service";
+import { MAX_GALLERY_IMAGES, normalizeImageUrls, LISTING_GALLERY_PROVIDERS } from "src/imagenes/gallery.constants";
 import {
   CATEGORIA_FALLBACK,
   obtenerPrecioEfectivo,
@@ -43,7 +45,8 @@ export class ProductosService {
     @InjectRepository(Producto)
     private readonly productoRepository: Repository<Producto>,
     private readonly configService: ConfigService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly imageCache: ImageCacheService
   ) {
     const rabbitmqUrl = this.configService.get<string>(EnvKeys.RABBIT_MQ_URI);
     const pythonQueue = this.configService.get<string>(
@@ -156,6 +159,8 @@ export class ProductosService {
         codigo: string | null;
         imagenUrl: string | null;
       }> = [];
+      const gallerySources: Array<{ codigo: string; urls: string[] }> = [];
+      const persistListingGallery = LISTING_GALLERY_PROVIDERS.has(providerCode);
 
       for (const item of productDto) {
         const rawField = item.categoriaRaw ?? item.categoria ?? "";
@@ -173,14 +178,23 @@ export class ProductosService {
             unmappedByKey.set(rawTrim, String(item.producto ?? ""));
           }
         }
+        const codigo = item.codigo != null ? String(item.codigo).trim() || null : null;
+        const imagenUrl = item.imagenUrl != null ? String(item.imagenUrl).trim() || null : null;
         normalizedProducts.push({
           proveedorId: proveedor.id,
           producto: item.producto,
           categoria: resolved,
           precio: item.precio,
-          codigo: item.codigo != null ? String(item.codigo).trim() || null : null,
-          imagenUrl: item.imagenUrl != null ? String(item.imagenUrl).trim() || null : null,
+          codigo,
+          imagenUrl,
         });
+        if (persistListingGallery && codigo) {
+          const fromList = normalizeImageUrls((item as any).imagenes);
+          const urls = fromList.length > 0 ? fromList : imagenUrl ? [imagenUrl] : [];
+          if (urls.length > 0) {
+            gallerySources.push({ codigo, urls: urls.slice(0, MAX_GALLERY_IMAGES) });
+          }
+        }
       }
 
       for (const [rawKey, exampleProduct] of unmappedByKey) {
@@ -193,6 +207,9 @@ export class ProductosService {
 
       const arrProductos = this.productoRepository.create(normalizedProducts);
       await this.productoRepository.save(arrProductos);
+      if (persistListingGallery) {
+        await this.imageCache.replaceGallerySources(proveedor.id, gallerySources);
+      }
       this.logger.log(
         { proveedor: proveedor.nombre, count: normalizedProducts.length },
         "Tabla de productos actualizada"

@@ -5,18 +5,24 @@ import { In, Repository } from "typeorm";
 import { Proveedor } from "../proveedor/entities/proveedor.entity";
 import { Producto } from "../productos/entities/producto.entity";
 import { ProductImage } from "./entities/product-image.entity";
+import { ProductImageSource } from "./entities/product-image-source.entity";
 import { MinioStorageService } from "./minio-storage.service";
+import {
+  ImageCacheProveedor,
+  MAX_GALLERY_IMAGES,
+  normalizeImageUrls,
+  supportsGallery,
+} from "./gallery.constants";
 import * as sharp from "sharp";
 
 const DEFAULT_TTL_HOURS = 24 * 7; // 7 días
 const DEFAULT_CONCURRENCY = 10;
-const BATCH_SIZE = 500; // productos por consulta cuando se cachea "todo"
+const BATCH_SIZE = 500;
 const AIR_MAS_INFO_URL = "https://www.air-intra.com/2025/ar/mas_info.php";
 const FETCH_TIMEOUT_MS = 20_000;
 const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36";
 
-/** Ejecuta tareas con un máximo de `concurrency` en paralelo. */
 async function runWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -37,22 +43,18 @@ function normalizeCode(value: unknown): string {
 
 function guessMimeTypeFromBytes(bytes: Buffer): string | null {
   if (!bytes || bytes.length < 12) return null;
-
-  // WEBP: RIFF....WEBP
   if (
-    bytes[0] === 0x52 && // R
-    bytes[1] === 0x49 && // I
-    bytes[2] === 0x46 && // F
-    bytes[3] === 0x46 && // F
-    bytes[8] === 0x57 && // W
-    bytes[9] === 0x45 && // E
-    bytes[10] === 0x42 && // B
-    bytes[11] === 0x50 // P
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
   ) {
     return "image/webp";
   }
-
-  // PNG signature: 89 50 4E 47 0D 0A 1A 0A
   if (
     bytes[0] === 0x89 &&
     bytes[1] === 0x50 &&
@@ -65,16 +67,11 @@ function guessMimeTypeFromBytes(bytes: Buffer): string | null {
   ) {
     return "image/png";
   }
-
-  // JPEG signature: FF D8 FF
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
     return "image/jpeg";
   }
-
-  // GIF: GIF87a / GIF89a
   const header = bytes.slice(0, 6).toString("ascii");
   if (header === "GIF87a" || header === "GIF89a") return "image/gif";
-
   return null;
 }
 
@@ -92,13 +89,12 @@ function looksLikeHtml(text: string): boolean {
   return head.startsWith("<!") || head.startsWith("<html") || head.startsWith("<!--") || head.startsWith("<");
 }
 
-/** AIR usa nd.png cuando el producto no tiene foto. */
 function isAirPlaceholderImage(uri: string): boolean {
   const path = uri.split("?")[0].toLowerCase();
   return path.endsWith("/nd.png") || path.endsWith("nd.png");
 }
 
-async function resolveAirImageUrl(codigo: string): Promise<string | null> {
+async function resolveAirImageUrls(codigo: string): Promise<string[]> {
   const url = `${AIR_MAS_INFO_URL}?codiart=${encodeURIComponent(codigo)}`;
   const r = await fetch(url, {
     method: "GET",
@@ -121,11 +117,16 @@ async function resolveAirImageUrl(codigo: string): Promise<string | null> {
   }
 
   const imgs = Array.isArray(payload?.imgs) ? payload.imgs : [];
+  const urls: string[] = [];
+  const seen = new Set<string>();
   for (const img of imgs) {
     const uri = String(img?.uri ?? img?.url ?? "").trim();
-    if (uri && !isAirPlaceholderImage(uri)) return uri;
+    if (!uri || isAirPlaceholderImage(uri) || seen.has(uri)) continue;
+    seen.add(uri);
+    urls.push(uri);
+    if (urls.length >= MAX_GALLERY_IMAGES) break;
   }
-  return null;
+  return urls;
 }
 
 async function tryCompressToWebp(input: Buffer): Promise<Buffer | null> {
@@ -141,6 +142,11 @@ async function tryCompressToWebp(input: Buffer): Promise<Buffer | null> {
   }
 }
 
+function pickPrimary(records: ProductImage[] | undefined): ProductImage | null {
+  if (!records?.length) return null;
+  return records.find((r) => r.isPrimary) || records.find((r) => r.sortOrder === 0) || records[0];
+}
+
 @Injectable()
 export class ImageCacheService {
   constructor(
@@ -150,6 +156,8 @@ export class ImageCacheService {
     private readonly proveedorRepo: Repository<Proveedor>,
     @InjectRepository(ProductImage)
     private readonly productImageRepo: Repository<ProductImage>,
+    @InjectRepository(ProductImageSource)
+    private readonly productImageSourceRepo: Repository<ProductImageSource>,
     private readonly storage: MinioStorageService,
     private readonly logger: Logger
   ) {}
@@ -159,8 +167,28 @@ export class ImageCacheService {
     return p?.id ?? null;
   }
 
+  async replaceGallerySources(
+    proveedorId: number,
+    items: Array<{ codigo: string; urls: string[] }>
+  ) {
+    await this.productImageSourceRepo.delete({ proveedorId });
+    const rows: Partial<ProductImageSource>[] = [];
+    for (const item of items) {
+      const codigo = normalizeCode(item.codigo);
+      const urls = normalizeImageUrls(item.urls);
+      if (!codigo || urls.length === 0) continue;
+      urls.forEach((sourceUrl, sortOrder) => {
+        rows.push({ proveedorId, codigo, sortOrder, sourceUrl });
+      });
+    }
+    const chunkSize = 500;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      await this.productImageSourceRepo.save(this.productImageSourceRepo.create(rows.slice(i, i + chunkSize)));
+    }
+  }
+
   async cacheProveedorImages(options: {
-    proveedor: "elit" | "nb" | "eikon" | "mega" | "air";
+    proveedor: ImageCacheProveedor;
     limit?: number;
     force?: boolean;
     ttlHours?: number;
@@ -188,6 +216,8 @@ export class ImageCacheService {
       ? Math.min((options.concurrency as number), 20)
       : DEFAULT_CONCURRENCY;
     const ttlMs = ttlHours * 60 * 60 * 1000;
+    const gallery = supportsGallery(options.proveedor);
+    const isAir = options.proveedor === "air";
 
     const startMs = Date.now();
     const productos: Producto[] = [];
@@ -215,7 +245,8 @@ export class ImageCacheService {
       productos.push(...page);
     }
 
-    const existingByCodigo = new Map<string, ProductImage>();
+    const existingByCodigo = new Map<string, ProductImage[]>();
+    const sourcesByCodigo = new Map<string, string[]>();
     if (productos.length > 0) {
       const codigos = [...new Set(productos.map((p) => normalizeCode((p as any).codigo)).filter(Boolean))];
       const chunkSize = 1000;
@@ -224,26 +255,40 @@ export class ImageCacheService {
         const existingList = await this.productImageRepo.find({
           where: { proveedorId, codigo: In(chunk) },
         });
-        existingList.forEach((e) => existingByCodigo.set(e.codigo, e));
+        existingList.forEach((e) => {
+          const list = existingByCodigo.get(e.codigo) ?? [];
+          list.push(e);
+          existingByCodigo.set(e.codigo, list);
+        });
+        if (gallery && !isAir) {
+          const sources = await this.productImageSourceRepo.find({
+            where: { proveedorId, codigo: In(chunk) },
+            order: { sortOrder: "ASC" },
+          });
+          sources.forEach((s) => {
+            const list = sourcesByCodigo.get(s.codigo) ?? [];
+            list.push(s.sourceUrl);
+            sourcesByCodigo.set(s.codigo, list);
+          });
+        }
       }
     }
 
     type WorkItem = {
       prod: Producto;
       codigo: string;
-      url: string;
-      existing: ProductImage | null;
+      urls: string[];
+      existing: ProductImage[];
     };
 
     const toProcess: WorkItem[] = [];
     let skipped = 0;
-    const isAir = options.proveedor === "air";
 
     const seenCodes = new Set<string>();
     for (const prod of productos) {
       const codigo = normalizeCode((prod as any).codigo);
-      const url = String((prod as any).imagenUrl ?? "").trim();
-      if (!codigo || (!isAir && !url)) {
+      const fallbackUrl = String((prod as any).imagenUrl ?? "").trim();
+      if (!codigo) {
         skipped++;
         continue;
       }
@@ -253,16 +298,26 @@ export class ImageCacheService {
       }
       seenCodes.add(codigo);
 
-      const existing = existingByCodigo.get(codigo) ?? null;
-      if (!force && existing?.lastFetchedAt) {
-        const age = Date.now() - new Date(existing.lastFetchedAt).getTime();
-        if (age >= 0 && age < ttlMs) {
+      const sourceUrls = sourcesByCodigo.get(codigo) ?? [];
+      const urls = sourceUrls.length > 0 ? sourceUrls : fallbackUrl ? [fallbackUrl] : [];
+      if (!isAir && urls.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      const existing = existingByCodigo.get(codigo) ?? [];
+      const primary = pickPrimary(existing);
+      const expectedCount = isAir ? null : urls.length;
+      if (!force && primary?.lastFetchedAt) {
+        const age = Date.now() - new Date(primary.lastFetchedAt).getTime();
+        const enough = expectedCount == null || existing.length >= expectedCount;
+        if (age >= 0 && age < ttlMs && enough) {
           skipped++;
           continue;
         }
       }
 
-      toProcess.push({ prod, codigo, url, existing });
+      toProcess.push({ prod, codigo, urls, existing });
     }
 
     let cached = 0;
@@ -270,70 +325,62 @@ export class ImageCacheService {
 
     await runWithConcurrency(toProcess, concurrency, async (item) => {
       const { prod, codigo, existing } = item;
-      let url = item.url;
+      let urls = item.urls;
       try {
         if (isAir) {
-          const resolved = await resolveAirImageUrl(codigo);
-          if (!resolved) {
+          urls = await resolveAirImageUrls(codigo);
+          if (urls.length === 0) {
             skipped++;
             return;
           }
-          url = resolved;
         }
-        const r = await fetch(url, {
-          method: "GET",
-          headers: { "User-Agent": DEFAULT_USER_AGENT },
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
 
-        const contentType = r.headers.get("content-type");
-        const etag = r.headers.get("etag");
-        const bufU8 = new Uint8Array(await r.arrayBuffer());
-        const buf = Buffer.from(bufU8);
+        const existingByOrder = new Map<number, ProductImage>();
+        existing.forEach((e) => existingByOrder.set(Number(e.sortOrder ?? 0), e));
 
-        const compressedWebp = await tryCompressToWebp(buf);
-        const mimeType =
-          compressedWebp
-            ? "image/webp"
-            : guessMimeTypeFromBytes(buf) || contentType || "application/octet-stream";
-        const ext = compressedWebp ? "webp" : guessExtensionFromMime(mimeType);
-
-        const key = `${options.proveedor}/${encodeURIComponent(codigo)}/main.${ext}`;
-        const bodyBytes = compressedWebp ? compressedWebp : buf;
-
-        await this.storage.putObject({
-          key,
-          body: new Uint8Array(bodyBytes),
-          contentType: mimeType.includes("image/") ? mimeType : null,
-        });
-
-        const record = existing
-          ? this.productImageRepo.merge(existing, {
-              storageKey: key,
-              sourceUrl: url,
-              mimeType,
-              sizeBytes: bodyBytes.byteLength,
-              etag,
-              lastFetchedAt: new Date(),
-            })
-          : this.productImageRepo.create({
+        let cachedAny = false;
+        let imageErrors = 0;
+        for (let sortOrder = 0; sortOrder < urls.length; sortOrder++) {
+          const url = urls[sortOrder];
+          const current = existingByOrder.get(sortOrder) ?? null;
+          try {
+            await this.cacheOneImage({
+              proveedor: options.proveedor,
               proveedorId,
               codigo,
-              storageKey: key,
-              sourceUrl: url,
-              mimeType,
-              sizeBytes: bodyBytes.byteLength,
-              etag,
-              lastFetchedAt: new Date(),
+              url,
+              sortOrder,
+              existing: current,
             });
+            cachedAny = true;
+          } catch (e: any) {
+            imageErrors++;
+            this.logger.warn(
+              {
+                proveedor: options.proveedor,
+                proveedorId,
+                codigo,
+                url,
+                sortOrder,
+                err: String(e?.message ?? e),
+              },
+              "No se pudo cachear imagen"
+            );
+          }
+        }
+        if (imageErrors > 0 && !cachedAny) {
+          errors++;
+          return;
+        }
 
-        await this.productImageRepo.save(record);
-        if (isAir && url && prod.imagenUrl !== url) {
-          prod.imagenUrl = url;
+        if (isAir && urls[0] && prod.imagenUrl !== urls[0]) {
+          prod.imagenUrl = urls[0];
           await this.productoRepo.save(prod);
         }
-        cached++;
+
+        await this.removeStaleImages(existing, urls.length);
+
+        if (cachedAny) cached++;
       } catch (e: any) {
         errors++;
         this.logger.warn(
@@ -341,7 +388,6 @@ export class ImageCacheService {
             proveedor: options.proveedor,
             proveedorId,
             codigo,
-            url,
             err: String(e?.message ?? e),
           },
           "No se pudo cachear imagen"
@@ -372,5 +418,83 @@ export class ImageCacheService {
       durationMs,
     };
   }
-}
 
+  private async cacheOneImage(params: {
+    proveedor: ImageCacheProveedor;
+    proveedorId: number;
+    codigo: string;
+    url: string;
+    sortOrder: number;
+    existing: ProductImage | null;
+  }): Promise<boolean> {
+    const { proveedor, proveedorId, codigo, url, sortOrder, existing } = params;
+    const r = await fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": DEFAULT_USER_AGENT },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status} (${url})`);
+
+    const contentType = r.headers.get("content-type");
+    const etag = r.headers.get("etag");
+    const bufU8 = new Uint8Array(await r.arrayBuffer());
+    const buf = Buffer.from(bufU8);
+
+    const compressedWebp = await tryCompressToWebp(buf);
+    const mimeType =
+      compressedWebp
+        ? "image/webp"
+        : guessMimeTypeFromBytes(buf) || contentType || "application/octet-stream";
+    const ext = compressedWebp ? "webp" : guessExtensionFromMime(mimeType);
+    const key = `${proveedor}/${encodeURIComponent(codigo)}/${sortOrder}.${ext}`;
+    const bodyBytes = compressedWebp ? compressedWebp : buf;
+
+    await this.storage.putObject({
+      key,
+      body: new Uint8Array(bodyBytes),
+      contentType: mimeType.includes("image/") ? mimeType : null,
+    });
+
+    const patch = {
+      storageKey: key,
+      sourceUrl: url,
+      mimeType,
+      sizeBytes: bodyBytes.byteLength,
+      etag,
+      lastFetchedAt: new Date(),
+      sortOrder,
+      isPrimary: sortOrder === 0,
+    };
+
+    const record = existing
+      ? this.productImageRepo.merge(existing, patch)
+      : this.productImageRepo.create({
+          proveedorId,
+          codigo,
+          ...patch,
+        });
+
+    await this.productImageRepo.save(record);
+
+    if (existing?.storageKey && existing.storageKey !== key) {
+      try {
+        await this.storage.deleteObject(existing.storageKey);
+      } catch {
+        // ignore leftover object
+      }
+    }
+    return true;
+  }
+
+  private async removeStaleImages(existing: ProductImage[], keepCount: number) {
+    const stale = existing.filter((e) => Number(e.sortOrder ?? 0) >= keepCount);
+    for (const img of stale) {
+      try {
+        if (img.storageKey) await this.storage.deleteObject(img.storageKey);
+      } catch {
+        // ignore
+      }
+      await this.productImageRepo.remove(img);
+    }
+  }
+}

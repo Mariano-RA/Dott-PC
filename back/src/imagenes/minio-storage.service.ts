@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
@@ -66,6 +67,16 @@ export class MinioStorageService implements OnModuleInit {
   async getObject(key: string) {
     return await this.client.send(
       new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      })
+    );
+  }
+
+  async deleteObject(key: string) {
+    await this.ensureBucketExists();
+    await this.client.send(
+      new DeleteObjectCommand({
         Bucket: this.bucket,
         Key: key,
       })
