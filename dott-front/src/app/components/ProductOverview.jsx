@@ -253,17 +253,17 @@ export default function ProductOverview({ action, close, product }) {
                         <p className="mt-2 text-sm text-neutral-600">Este producto no tiene planes de cuotas disponibles.</p>
                       ) : (
                         <ul role="list" className="mt-3 space-y-2">
-                          {cuotas.map((datoCuota) => {
+                          {cuotas.map((datoCuota, idx) => {
                             const cantidadCuotas = Number(datoCuota.CantidadCuotas) || 0;
                             const total = Number(datoCuota.Total) || 0;
                             const porCuota = cantidadCuotas > 0 ? Math.round(total / cantidadCuotas) : total;
-                            const planLabel = cantidadCuotas > 0
-                              ? `${cantidadCuotas} cuotas`
-                              : datoCuota.planLabel || "Plan";
+                            const planLabel =
+                              datoCuota.planLabel ||
+                              (cantidadCuotas > 0 ? `${cantidadCuotas} cuotas` : "Plan");
 
                             return (
                               <li
-                                key={datoCuota.planKey || datoCuota.CantidadCuotas}
+                                key={datoCuota.planKey || `${cantidadCuotas}-${idx}`}
                                 className="flex items-center justify-between rounded-md border border-red-100 px-3 py-2"
                               >
                                 <span className="text-sm font-medium text-neutral-800">{planLabel}</span>

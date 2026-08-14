@@ -52,33 +52,28 @@ const CartCard = ({ product, subTotalProduct, removeFromArr }) => {
   }, [cantidad]);
 
   return (
-    <div className="flex flex-1 flex-col gap-3">
-      <div className="space-y-1">
-        <h3 className="break-words text-sm font-semibold leading-5 text-gray-900">
-          {product?.producto}
-        </h3>
-      </div>
+    <div className="flex flex-col gap-2">
+      <h3 className="break-words text-sm font-semibold leading-5 text-gray-900">
+        {product?.producto}
+      </h3>
 
-      <div className="rounded-md border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white px-3 py-2">
-        <div className="flex items-center justify-between gap-3">
-          <Quantity handleQuantity={handleCantidad} quantity={product?.quantity} />
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white px-3 py-2">
+        <Quantity handleQuantity={handleCantidad} quantity={product?.quantity} />
+        <div className="ml-auto flex items-center gap-3">
           <div className="min-w-0 text-right">
             <p className="text-[11px] uppercase tracking-wide text-gray-500">Total</p>
             <p className="text-sm font-semibold text-gray-900">
               ${new Intl.NumberFormat("es-AR").format(product?.precioEfectivo * product?.quantity)}
             </p>
           </div>
+          <button
+            type="button"
+            className="shrink-0 text-xs font-medium text-red-600 hover:text-red-500"
+            onClick={() => handleCart()}
+          >
+            Quitar
+          </button>
         </div>
-      </div>
-
-      <div className="flex items-center justify-end gap-3 text-sm">
-        <button
-          type="button"
-          className="shrink-0 text-xs font-medium text-red-600 hover:text-red-500"
-          onClick={() => handleCart()}
-        >
-          Quitar
-        </button>
       </div>
     </div>
   );
