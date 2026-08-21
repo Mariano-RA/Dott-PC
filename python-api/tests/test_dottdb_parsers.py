@@ -1,12 +1,15 @@
 import os
 import io
+import json
 import unittest
+from unittest import mock
+
 # Requerido por módulos que leen env al importar
 os.environ.setdefault("RABBITMQ_URL", "localhost")
 os.environ.setdefault("RABBITMQ_QUEUE", "q_out")
 os.environ.setdefault("RABBITMQ_PYTHON_QUEUE", "q_in")
 
-from parsers import air, nb, mega, extraer_payload
+from parsers import air, nb, mega, elit, invid, extraer_payload
 
 
 class TestAirParser(unittest.TestCase):
@@ -23,6 +26,38 @@ class TestAirParser(unittest.TestCase):
         self.assertEqual(data[0]["categoria"], "CategoriaRaw")
         self.assertEqual(data[0]["precio"], 121)
         self.assertIsNone(data[0]["imagenUrl"])
+        self.assertIsNone(data[0]["descripcion"])
+
+    def test_enrich_descripciones_usa_mas_info(self):
+        registros = [
+            {
+                "proveedor": "air",
+                "codigo": "CX62682",
+                "producto": "PC",
+                "categoriaRaw": "cat",
+                "categoria": "cat",
+                "precio": 100,
+                "imagenUrl": None,
+                "descripcion": None,
+            }
+        ]
+
+        class FakeResp:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"codiart": "CX62682", "texto": "Panel IPS\n8GB RAM"}
+
+        fake_session = mock.Mock()
+        fake_session.get.return_value = FakeResp()
+
+        out = air.enrich_descripciones(registros, session=fake_session, max_workers=1)
+        self.assertEqual(out[0]["descripcion"], "Panel IPS\n8GB RAM")
+        fake_session.get.assert_called()
+        args, kwargs = fake_session.get.call_args
+        self.assertIn("mas_info.php", args[0])
+        self.assertEqual(kwargs.get("params", {}).get("codiart"), "CX62682")
 
 
 class TestNbParser(unittest.TestCase):
@@ -38,6 +73,16 @@ class TestNbParser(unittest.TestCase):
         self.assertEqual(data[0]["categoriaRaw"], "CategoriaNB")
         self.assertEqual(data[0]["categoria"], "CategoriaNB")
         self.assertEqual(data[0]["precio"], 150)
+        self.assertIsNone(data[0].get("descripcion"))
+
+    def test_tabla_nb_lee_columna_atributos(self):
+        csv_text = (
+            "CODIGO;X;CATEGORIA;PRODUCTO;IMAGEN;A;B;C;D;E;PRECIO;ATRIBUTOS\n"
+            "sku1;x;CatNB;Producto NB;img;x;x;x;x;x;150;RAM 16GB / SSD 512\n"
+        )
+        data = nb.parse(io.BytesIO(csv_text.encode("utf-8")))
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["descripcion"], "RAM 16GB / SSD 512")
 
 
 class TestMegaParser(unittest.TestCase):
@@ -53,6 +98,78 @@ class TestMegaParser(unittest.TestCase):
         self.assertEqual(data[0]["categoriaRaw"], "Componentes")
         self.assertEqual(data[0]["categoria"], "Componentes")
         self.assertEqual(data[0]["precio"], 121)
+
+
+class TestElitParser(unittest.TestCase):
+    def test_producto_to_registro_incluye_atributos(self):
+        item = {
+            "codigo_producto": "ABC",
+            "nombre": "Notebook",
+            "sub_categoria": "Notebooks",
+            "precio": 100,
+            "iva": 0.21,
+            "stock_total": 2,
+            "stock_deposito_cliente": 0,
+            "stock_deposito_cd": 0,
+            "imagenes": ["https://example.com/a.jpg"],
+            "atributos": [
+                {"nombre": "RAM", "valor": "16GB"},
+                {"nombre": "SSD", "valor": "512GB"},
+            ],
+        }
+        reg = elit.producto_to_registro(item)
+        self.assertIsNotNone(reg)
+        self.assertEqual(reg["codigo"], "ABC")
+        self.assertEqual(
+            reg["atributos"],
+            [{"nombre": "RAM", "valor": "16GB"}, {"nombre": "SSD", "valor": "512GB"}],
+        )
+
+    def test_parse_json_con_atributos(self):
+        payload = {
+            "resultado": [
+                {
+                    "codigo_producto": "SKU1",
+                    "nombre": "Prod Elit",
+                    "categoria": "Cat",
+                    "precio": 50,
+                    "iva": 21,
+                    "stock_total": 1,
+                    "stock_deposito_cliente": 0,
+                    "stock_deposito_cd": 0,
+                    "atributos": [{"nombre": "Color", "valor": "Negro"}],
+                }
+            ]
+        }
+        data = elit.parse(io.BytesIO(json.dumps(payload).encode("utf-8")))
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["atributos"], [{"nombre": "Color", "valor": "Negro"}])
+
+
+class TestInvidParser(unittest.TestCase):
+    def test_articulo_to_registro_long_description(self):
+        item = {
+            "ID": "123",
+            "TITLE": "Mouse USB",
+            "FINAL_PRICE": "10",
+            "CATEGORY": "Perifericos",
+            "IMAGE_URL": "https://example.com/m.jpg",
+            "LONG_DESCRIPTION": "  Sensor óptico 1600 DPI  ",
+        }
+        reg = invid.articulo_to_registro(item)
+        self.assertIsNotNone(reg)
+        self.assertEqual(reg["descripcion"], "Sensor óptico 1600 DPI")
+
+    def test_articulo_sin_long_description(self):
+        item = {
+            "ID": "124",
+            "TITLE": "Teclado",
+            "PRICE": "20",
+            "CATEGORY": "Perifericos",
+        }
+        reg = invid.articulo_to_registro(item)
+        self.assertIsNotNone(reg)
+        self.assertIsNone(reg["descripcion"])
 
 
 class TestExtraerPayload(unittest.TestCase):

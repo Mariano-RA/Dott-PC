@@ -31,6 +31,21 @@ import {
   sqlPrecioEfectivoSortExpr,
 } from "./helpers/precio-cuota.helper";
 
+type AtributoItem = { nombre: string; valor: string };
+
+function normalizeAtributos(raw: unknown): AtributoItem[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const out: AtributoItem[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const nombre = String((item as any).nombre ?? "").trim();
+    const valor = String((item as any).valor ?? "").trim();
+    if (!nombre && !valor) continue;
+    out.push({ nombre, valor });
+  }
+  return out.length > 0 ? out : null;
+}
+
 @Injectable()
 export class ProductosService {
   @Inject(DolaresService) private readonly dolaresService: DolaresService;
@@ -162,6 +177,8 @@ export class ProductosService {
         precio: number;
         codigo: string | null;
         imagenUrl: string | null;
+        descripcion: string | null;
+        atributos: Array<{ nombre: string; valor: string }> | null;
       }> = [];
       const gallerySources: Array<{ codigo: string; urls: string[] }> = [];
       const persistListingGallery = LISTING_GALLERY_PROVIDERS.has(providerCode);
@@ -184,6 +201,9 @@ export class ProductosService {
         }
         const codigo = item.codigo != null ? String(item.codigo).trim() || null : null;
         const imagenUrl = item.imagenUrl != null ? String(item.imagenUrl).trim() || null : null;
+        const descripcion =
+          item.descripcion != null ? String(item.descripcion).trim() || null : null;
+        const atributos = normalizeAtributos((item as any).atributos);
         normalizedProducts.push({
           proveedorId: proveedor.id,
           producto: item.producto,
@@ -191,6 +211,8 @@ export class ProductosService {
           precio: item.precio,
           codigo,
           imagenUrl,
+          descripcion,
+          atributos,
         });
         if (persistListingGallery && codigo) {
           const fromList = normalizeImageUrls((item as any).imagenes);
@@ -426,7 +448,9 @@ export class ProductosService {
       dto.proveedor = prod.proveedor?.nombre ?? "Desconocido";
       dto.producto = prod.producto;
       dto.categoria = prod.categoria;
-      dto.codigo = (prod as any).codigo ?? undefined;
+      dto.codigo = prod.codigo ?? undefined;
+      dto.descripcion = prod.descripcion ?? null;
+      dto.atributos = prod.atributos ?? null;
       const precioDolar = getPrecioDolarOrDefault(arrayDolar, prod.proveedorId);
       dto.precioEfectivo = obtenerPrecioEfectivo(
         prod.precio,

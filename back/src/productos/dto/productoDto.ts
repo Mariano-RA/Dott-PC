@@ -1,4 +1,3 @@
-import { Double } from "typeorm";
 import { valorCuotaDto } from "./valorCuotaDto";
 
 export class ProductoDto {
@@ -15,4 +14,8 @@ export class ProductoDto {
   precioCuotas: valorCuotaDto[];
 
   codigo?: string;
+
+  descripcion?: string | null;
+
+  atributos?: Array<{ nombre: string; valor: string }> | null;
 }

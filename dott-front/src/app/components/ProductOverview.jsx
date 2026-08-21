@@ -26,6 +26,26 @@ export default function ProductOverview({ action, close, product }) {
     return getCuotaDesdeText(cuotas, { emptyText: "Sin cuotas disponibles" });
   }, [cuotas]);
 
+  const descripcion = useMemo(() => {
+    const raw = product?.descripcion;
+    if (raw == null) return "";
+    const s = String(raw).trim();
+    return s;
+  }, [product?.descripcion]);
+
+  const atributos = useMemo(() => {
+    const raw = product?.atributos;
+    if (!Array.isArray(raw) || raw.length === 0) return [];
+    return raw
+      .map((item) => ({
+        nombre: String(item?.nombre ?? "").trim(),
+        valor: String(item?.valor ?? "").trim(),
+      }))
+      .filter((item) => item.nombre || item.valor);
+  }, [product?.atributos]);
+
+  const hasSpecs = Boolean(descripcion) || atributos.length > 0;
+
   const fallback = "/img/product-placeholder.svg";
   const galleryProviders = ["elit", "air"];
 
@@ -274,6 +294,30 @@ export default function ProductOverview({ action, close, product }) {
                         </ul>
                       )}
                     </div>
+
+                    {hasSpecs ? (
+                      <div className="rounded-lg border border-red-100 bg-white p-4">
+                        <p className="text-sm font-semibold text-neutral-900">Descripción y atributos</p>
+                        {descripcion ? (
+                          <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{descripcion}</p>
+                        ) : null}
+                        {atributos.length > 0 ? (
+                          <dl className={`mt-3 space-y-2 ${descripcion ? "border-t border-red-100 pt-3" : ""}`}>
+                            {atributos.map((attr, idx) => (
+                              <div
+                                key={`${attr.nombre}-${idx}`}
+                                className="grid gap-0.5 sm:grid-cols-[minmax(8rem,12rem)_1fr] sm:gap-3"
+                              >
+                                <dt className="text-xs font-medium uppercase tracking-wide text-red-800">
+                                  {attr.nombre || "Atributo"}
+                                </dt>
+                                <dd className="text-sm text-neutral-800">{attr.valor || "—"}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     <div className="flex items-center justify-end gap-2 border-t border-red-100 pt-4">
                       <button

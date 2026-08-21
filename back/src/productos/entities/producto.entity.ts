@@ -35,4 +35,11 @@ export class Producto {
 
   @Column("text", { nullable: true })
   imagenUrl: string | null;
+
+  @Column("text", { nullable: true })
+  descripcion: string | null;
+
+  /** Specs clave-valor, tipicamente [{nombre, valor}] (Elit). */
+  @Column({ type: "json", nullable: true })
+  atributos: Array<{ nombre: string; valor: string }> | null;
 }

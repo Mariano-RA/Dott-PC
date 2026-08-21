@@ -1,5 +1,6 @@
 """
-Fetcher AIR: descarga CSV de precios desde descargas.php.
+Fetcher AIR: descarga CSV de precios desde descargas.php y enriquece
+descripciones vía mas_info.php?codiart=.
 
 Requiere sesión: POST de login a /2025/ar/ (urbid/urbpass) y luego
 GET https://www.air-intra.com/2025/consultas/descargas.php?type=csv&q={...}
@@ -7,14 +8,18 @@ GET https://www.air-intra.com/2025/consultas/descargas.php?type=csv&q={...}
 Config vía env:
 - SUPPLIER_AIR_URL: URL base de descargas (por defecto descargas.php).
 - SUPPLIER_AIR_USER / SUPPLIER_AIR_PASSWORD: credenciales de la intranet.
+
+Devuelve list[dict] listos para carga_tabla (con descripcion cuando mas_info responde).
 """
 import json
 import logging
 import os
-from typing import Optional
+from typing import List, Optional
 from urllib.parse import urljoin
 
 import requests
+
+from parsers.air import enrich_descripciones, parse_csv_bytes
 
 from .base import get_supplier_credentials
 
@@ -70,10 +75,10 @@ def _is_session_error(resp: requests.Response) -> bool:
     return b"SESION FINALIZADA" in head or b"SESI\xc3\x93N FINALIZADA" in head
 
 
-def fetch_air() -> Optional[bytes]:
+def fetch_air() -> Optional[List[dict]]:
     """
-    Login a la intranet AIR y descarga el CSV con la sesión.
-    Devuelve el cuerpo en bytes o None si falla.
+    Login a la intranet AIR, descarga el CSV, parsea y enriquece descripciones.
+    Devuelve list[dict] o None si falla.
     """
     creds = get_supplier_credentials("air")
     url = (creds.get("url") or "").strip() or DEFAULT_AIR_URL
@@ -156,7 +161,17 @@ def fetch_air() -> Optional[bytes]:
 
         size_kb = round(len(resp.content) / 1024, 1)
         logger.info("AIR: descarga ok, %s KB", size_kb)
-        return resp.content
+        try:
+            registros = parse_csv_bytes(resp.content)
+        except Exception as ex:
+            logger.exception("AIR: error parseando CSV: %s", ex)
+            return None
+        if not registros:
+            logger.warning("AIR: CSV sin productos mapeables.")
+            return None
+        return enrich_descripciones(registros, session=session)
     except requests.RequestException as exc:
         logger.exception("Error descargando listado AIR: %s", exc)
         return None
+    finally:
+        session.close()

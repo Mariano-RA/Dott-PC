@@ -3,7 +3,7 @@ import csv
 import io
 import json
 import logging
-from typing import List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -44,6 +44,77 @@ def _to_int(v, default: int = 0) -> int:
         return default
 
 
+def normalize_atributos(raw: Any) -> Optional[List[Dict[str, str]]]:
+    """Normaliza atributos Elit a [{nombre, valor}]."""
+    if not isinstance(raw, list) or not raw:
+        return None
+    out: List[Dict[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        nombre = str(item.get("nombre") or "").strip()
+        valor = str(item.get("valor") or "").strip()
+        if not nombre and not valor:
+            continue
+        out.append({"nombre": nombre, "valor": valor})
+    return out or None
+
+
+def producto_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Mapea un producto de la API Elit JSON al formato carga_tabla."""
+    if not isinstance(item, dict):
+        return None
+    codigo = str(
+        item.get("codigo_producto") or item.get("codigo_alfa") or item.get("codigo") or ""
+    ).strip()
+    nombre = str(item.get("nombre") or item.get("producto") or "").strip()
+    if not nombre:
+        return None
+
+    stock_total = _to_int(item.get("stock_total"))
+    stock_deposito_cliente = _to_int(item.get("stock_deposito_cliente"))
+    stock_deposito_cd = _to_int(item.get("stock_deposito_cd"))
+    if stock_total == 0 and stock_deposito_cliente == 0 and stock_deposito_cd == 0:
+        return None
+
+    cat = str(item.get("sub_categoria") or item.get("categoria") or "").strip()
+    precio = item.get("precio")
+    if precio is None:
+        precio = item.get("pvp_ars") or item.get("pvp")
+    if precio is None:
+        return None
+    iva_pct = _iva_a_porcentaje_para_calcular(item.get("iva")) + _iva_a_porcentaje_para_calcular(
+        item.get("impuesto_interno")
+    )
+    imagenes = item.get("imagenes")
+    if isinstance(imagenes, list):
+        imagenes = [str(x).strip() for x in imagenes if str(x).strip()]
+    else:
+        imagenes = None
+    imagen_url = imagenes[0] if imagenes else None
+    return {
+        "proveedor": "elit",
+        "codigo": codigo,
+        "producto": nombre,
+        "categoriaRaw": cat,
+        "categoria": cat,
+        "precio": calcular_precio(precio, iva_pct),
+        "imagenUrl": imagen_url,
+        "imagenes": imagenes,
+        "atributos": normalize_atributos(item.get("atributos")),
+    }
+
+
+def registros_from_productos(productos: List[Dict[str, Any]]) -> List[dict]:
+    """Convierte lista de productos API Elit en registros carga_tabla."""
+    data: List[dict] = []
+    for item in productos:
+        reg = producto_to_registro(item)
+        if reg:
+            data.append(reg)
+    return data
+
+
 def parse(archivo_bytesio) -> List[dict]:
     """Envía categoriaRaw para que el backend resuelva con el maestro."""
     try:
@@ -69,51 +140,9 @@ def parse(archivo_bytesio) -> List[dict]:
                     productos = payload
                 if not isinstance(productos, list):
                     productos = []
-                data = []
-                for item in productos:
-                    if not isinstance(item, dict):
-                        continue
-                    codigo = str(
-                        item.get("codigo_producto") or item.get("codigo_alfa") or item.get("codigo") or ""
-                    ).strip()
-                    nombre = str(item.get("nombre") or item.get("producto") or "").strip()
-                    if not nombre:
-                        continue
-
-                    stock_total = _to_int(item.get("stock_total"))
-                    stock_deposito_cliente = _to_int(item.get("stock_deposito_cliente"))
-                    stock_deposito_cd = _to_int(item.get("stock_deposito_cd"))
-                    if (stock_total == 0
-                        and stock_deposito_cliente == 0
-                        and stock_deposito_cd == 0
-                    ):
-                        continue
-                    cat = str(item.get("sub_categoria") or item.get("categoria") or "").strip()
-                    precio = item.get("precio")
-                    if precio is None:
-                        precio = item.get("pvp_ars") or item.get("pvp")
-                    if precio is None:
-                        continue
-                    iva_pct = _iva_a_porcentaje_para_calcular(
-                        item.get("iva")
-                    ) + _iva_a_porcentaje_para_calcular(item.get("impuesto_interno"))
-                    imagenes = item.get("imagenes")
-                    if isinstance(imagenes, list):
-                        imagenes = [str(x).strip() for x in imagenes if str(x).strip()]
-                    else:
-                        imagenes = None
-                    imagen_url = imagenes[0] if imagenes else None
-                    registro = {
-                        "proveedor": "elit",
-                        "codigo": codigo,
-                        "producto": nombre,
-                        "categoriaRaw": cat,
-                        "categoria": cat,
-                        "precio": calcular_precio(precio, iva_pct),
-                        "imagenUrl": imagen_url,
-                        "imagenes": imagenes,
-                    }
-                    data.append(registro)
+                data = registros_from_productos(
+                    [p for p in productos if isinstance(p, dict)]
+                )
                 if data:
                     return data
             except Exception:

@@ -24,7 +24,7 @@ python-api/
 ├── fetchers/                # Descarga de listados por proveedor
 │   ├── registry.py, base.py
 │   ├── fetch_air.py, fetch_elit.py, fetch_generic.py, fetch_invid.py, fetch_mega.py, fetch_nb.py
-│   ├── invid_api.py  # cliente JWT APIv1 Invid (catálogo + IMAGE_URL)
+│   ├── invid_api.py  # cliente JWT APIv1 Invid (catálogo + IMAGE_URL + LONG_DESCRIPTION)
 │   └── __init__.py
 ├── data/
 │   └── categories/          # Diccionario unificado (diccionarios.json) para carga inicial en MySQL. Configurable con DOTT_CATEGORIES_DIR.
@@ -50,6 +50,19 @@ Al disparar **“Todos”** desde el admin, Nest resuelve los proveedores con `a
 - Baja lógica: `UPDATE Proveedores SET activo = 0 WHERE nombre = 'mega'` (ver `back/scripts/deactivate-mega-proveedor.sql`).
 - Descarga individual por nombre sigue funcionando aunque el proveedor esté inactivo.
 - Si el mensaje no trae `proveedores` ni `proveedor`, el consumer Python usa el fallback `list_proveedores()` del registry.
+
+## Descripción y atributos
+
+Los registros `carga_tabla` pueden incluir `descripcion` (texto) y/o `atributos` (`[{nombre, valor}]`):
+
+| Proveedor | Campo | Origen |
+|-----------|--------|--------|
+| **elit** | `atributos` | Preferido: `POST /v1/api/productos` (paginado). Fallback CSV/XLSX sin atributos. |
+| **invid** | `descripcion` | `LONG_DESCRIPTION` de la APIv1 |
+| **nb** | `descripcion` | Columna CSV `ATRIBUTOS` |
+| **air** | `descripcion` | Tras el CSV: `GET …/mas_info.php?codiart={codigo}` → JSON `texto` |
+| eikon / mega / hdc | — | Quedan vacíos |
+
 ## Categorías (flujo actual)
 
 La API de Python **solo procesa archivos y envía las categorías en formato raw** (`categoriaRaw`). El **backend** (NestJS) es el encargado de:

@@ -10,4 +10,14 @@ export class createProductoDto {
   categoria: string;
 
   precio: number;
+
+  codigo?: string | null;
+
+  imagenUrl?: string | null;
+
+  /** Texto libre (Invid LONG_DESCRIPTION, AIR mas_info.texto, NB ATRIBUTOS). */
+  descripcion?: string | null;
+
+  /** Specs [{nombre, valor}] (Elit atributos). */
+  atributos?: Array<{ nombre: string; valor: string }> | null;
 }

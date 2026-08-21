@@ -18,6 +18,7 @@ from config.settings import (
 )
 from messaging import publish_carga_tabla
 from parsers import get_parser, extraer_payload
+from parsers.air import enrich_descripciones
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,8 @@ def procesar_proveedor(nombre_proveedor: str, archivo_base64: str) -> bool:
         if not parser:
             raise ValueError(f"Proveedor no soportado: {nombre_proveedor}")
         data = parser(archivo_bytesio)
+        if str(nombre_proveedor).strip().lower() == "air":
+            data = enrich_descripciones(data)
         publish_carga_tabla(nombre_proveedor, data)
         return True
     except Exception as ex:

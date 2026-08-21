@@ -41,6 +41,11 @@ def articulo_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if imagen_url == "":
         imagen_url = None
 
+    long_desc = item.get("LONG_DESCRIPTION")
+    descripcion = str(long_desc).strip() if long_desc is not None else ""
+    if not descripcion:
+        descripcion = None
+
     return {
         "proveedor": "invid",
         "codigo": codigo,
@@ -49,6 +54,7 @@ def articulo_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "categoria": categoria,
         "precio": precio,
         "imagenUrl": imagen_url,
+        "descripcion": descripcion,
     }
 
 
