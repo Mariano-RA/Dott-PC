@@ -13,6 +13,6 @@ describe("proveedor.capabilities", () => {
 
   it("marks image-cache providers", () => {
     expect(hasImageCache("elit")).toBe(true);
-    expect(hasImageCache("invid")).toBe(false);
+    expect(hasImageCache("invid")).toBe(true);
   });
 });

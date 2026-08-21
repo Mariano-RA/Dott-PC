@@ -24,6 +24,7 @@ python-api/
 ├── fetchers/                # Descarga de listados por proveedor
 │   ├── registry.py, base.py
 │   ├── fetch_air.py, fetch_elit.py, fetch_generic.py, fetch_invid.py, fetch_mega.py, fetch_nb.py
+│   ├── invid_api.py  # cliente JWT APIv1 Invid (catálogo + IMAGE_URL)
 │   └── __init__.py
 ├── data/
 │   └── categories/          # Diccionario unificado (diccionarios.json) para carga inicial en MySQL. Configurable con DOTT_CATEGORIES_DIR.

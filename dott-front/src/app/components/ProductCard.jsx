@@ -27,7 +27,7 @@ const ProductCard = ({ product }) => {
         : "";
     const codigo =
       typeof product?.codigo === "string" ? product.codigo.trim() : "";
-    if (prov && codigo && ["elit", "nb", "eikon", "mega", "air"].includes(prov)) {
+    if (prov && codigo && ["elit", "nb", "eikon", "mega", "air", "invid"].includes(prov)) {
       return `/api/nest/imagenes/${encodeURIComponent(prov)}/${encodeURIComponent(codigo)}`;
     }
     return fallback;

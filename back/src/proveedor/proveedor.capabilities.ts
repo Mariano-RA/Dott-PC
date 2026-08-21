@@ -5,7 +5,7 @@
  */
 export const FETCHER_PROVIDERS = ["air", "elit", "invid", "mega", "nb"] as const;
 export const MANUAL_UPLOAD_PROVIDERS = ["eikon", "hdc"] as const;
-export const IMAGE_CACHE_PROVIDERS = ["elit", "nb", "eikon", "mega", "air"] as const;
+export const IMAGE_CACHE_PROVIDERS = ["elit", "nb", "eikon", "mega", "air", "invid"] as const;
 
 const fetcherSet = new Set<string>(FETCHER_PROVIDERS);
 const manualSet = new Set<string>(MANUAL_UPLOAD_PROVIDERS);
