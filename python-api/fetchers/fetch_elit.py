@@ -40,20 +40,50 @@ def _extract_product_list(payload: Any) -> List[Dict[str, Any]]:
     return []
 
 
+def _elit_api_params(offset: int) -> Dict[str, int]:
+    """Query params. No enviar offset=0: la API lo trata como inválido (HTTP 400)."""
+    params: Dict[str, int] = {"limit": PAGE_LIMIT}
+    if offset > 0:
+        params["offset"] = offset
+    return params
+
+
+def _raise_for_status_with_body(r: requests.Response) -> None:
+    try:
+        r.raise_for_status()
+    except requests.HTTPError:
+        logger.error("Elit API HTTP %s: %s", r.status_code, (r.text or "")[:500])
+        raise
+
+
+def _paginador_total(payload: Any) -> Optional[int]:
+    if not isinstance(payload, dict):
+        return None
+    pag = payload.get("paginador")
+    if not isinstance(pag, dict):
+        return None
+    raw = pag.get("total")
+    try:
+        return int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _fetch_elit_json_api(user_id: int, token: str) -> Optional[List[dict]]:
     """Paginación POST /v1/api/productos → registros carga_tabla."""
     all_items: List[Dict[str, Any]] = []
     offset = 0
     while True:
+        params = _elit_api_params(offset)
         logger.info("Elit: POST API offset=%s limit=%s", offset, PAGE_LIMIT)
         r = requests.post(
             DEFAULT_ELIT_API_URL,
-            params={"limit": PAGE_LIMIT, "offset": offset},
+            params=params,
             json={"user_id": user_id, "token": token},
-            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            headers={"Content-Type": "application/json"},
             timeout=REQUEST_TIMEOUT_S,
         )
-        r.raise_for_status()
+        _raise_for_status_with_body(r)
         try:
             payload = r.json()
         except ValueError:
@@ -63,9 +93,12 @@ def _fetch_elit_json_api(user_id: int, token: str) -> Optional[List[dict]]:
         if not page:
             break
         all_items.extend(page)
-        if len(page) < PAGE_LIMIT:
-            break
         offset += PAGE_LIMIT
+        total = _paginador_total(payload)
+        if total is not None and offset >= total:
+            break
+        if total is None and len(page) < PAGE_LIMIT:
+            break
 
     if not all_items:
         logger.warning("Elit API JSON: sin productos.")

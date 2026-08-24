@@ -3,6 +3,7 @@ Cliente de la APIv1 de Invid Computers (JWT + catálogo de artículos).
 
 POST /api/v1/auth.php → access_token (24h)
 GET  /api/v1/articulo.php → páginas de hasta 100 artículos (límite 50 req/h)
+Filtros: exclude_zero_price=1, exclude_zero_stock=1
 """
 from __future__ import annotations
 
@@ -88,7 +89,10 @@ def _get_articulos_page(
 ) -> Optional[Dict[str, Any]]:
     """GET una página de artículos. Devuelve el JSON o None si falla sin retry."""
     url = urljoin(_api_base_url() + "/", ARTICULO_PATH.lstrip("/"))
-    params: Dict[str, Any] = {"exclude_zero_price": 1}
+    params: Dict[str, Any] = {
+        "exclude_zero_price": 1,
+        "exclude_zero_stock": 1,
+    }
     if offset:
         params["offset"] = offset
 

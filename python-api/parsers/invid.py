@@ -12,6 +12,72 @@ from domain import calcular_precio
 
 logger = logging.getLogger(__name__)
 
+# El Excel de Invid arma la ruta con " /" (espacio + slash, sin espacio después).
+_CATEGORY_SEP = " /"
+
+
+def _category_path(node: Dict[str, Any], all_cats: List[Dict[str, Any]]) -> str:
+    """Reconstruye Padre /Hija /Nieta a partir de CATEGORIES + PARENT."""
+    by_id = {str(c.get("ID")): c for c in all_cats if c.get("ID") is not None}
+    by_name: Dict[str, Dict[str, Any]] = {}
+    for cat in all_cats:
+        name = str(cat.get("NAME") or "").strip()
+        if name and name not in by_name:
+            by_name[name] = cat
+
+    names: List[str] = []
+    seen = set()
+    current: Optional[Dict[str, Any]] = node
+    while current is not None:
+        ident = current.get("ID") if current.get("ID") is not None else current.get("NAME")
+        if ident in seen:
+            break
+        seen.add(ident)
+        name = str(current.get("NAME") or "").strip()
+        if name:
+            names.append(name)
+
+        parent = current.get("PARENT")
+        if not isinstance(parent, dict):
+            break
+        parent_id = parent.get("ID")
+        parent_name = str(parent.get("NAME") or "").strip()
+        nxt: Optional[Dict[str, Any]] = None
+        if parent_id is not None and str(parent_id) in by_id:
+            nxt = by_id[str(parent_id)]
+        elif parent_name and parent_name in by_name:
+            nxt = by_name[parent_name]
+        else:
+            if parent_name:
+                names.append(parent_name)
+            break
+        current = nxt
+
+    names.reverse()
+    return _CATEGORY_SEP.join(names)
+
+
+def categoria_from_articulo(item: Dict[str, Any]) -> str:
+    """Ruta de categoría estilo Excel; fallback a CATEGORY."""
+    categories = item.get("CATEGORIES")
+    if isinstance(categories, list):
+        dicts = [c for c in categories if isinstance(c, dict)]
+        if dicts:
+            primary = next((c for c in dicts if c.get("IS_PRIMARY") is True), None)
+            if primary is None:
+                leaf = str(item.get("CATEGORY") or "").strip()
+                if leaf:
+                    primary = next(
+                        (c for c in dicts if str(c.get("NAME") or "").strip() == leaf),
+                        dicts[0],
+                    )
+                else:
+                    primary = dicts[0]
+            path = _category_path(primary, dicts)
+            if path:
+                return path
+    return str(item.get("CATEGORY") or "").strip()
+
 
 def articulo_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Mapea un artículo de la API Invid al formato carga_tabla."""
@@ -35,7 +101,7 @@ def articulo_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         logger.warning("INVID: precio inválido para %s: %r", codigo, precio_raw)
         return None
 
-    categoria = str(item.get("CATEGORY") or "").strip()
+    categoria = categoria_from_articulo(item)
     imagen = item.get("IMAGE_URL")
     imagen_url = str(imagen).strip() if imagen else None
     if imagen_url == "":

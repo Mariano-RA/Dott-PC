@@ -146,7 +146,109 @@ class TestElitParser(unittest.TestCase):
         self.assertEqual(data[0]["atributos"], [{"nombre": "Color", "valor": "Negro"}])
 
 
+class TestElitFetcher(unittest.TestCase):
+    def test_primera_pagina_no_envia_offset_cero(self):
+        from fetchers.fetch_elit import _elit_api_params
+
+        self.assertEqual(_elit_api_params(0), {"limit": 100})
+        self.assertEqual(_elit_api_params(100), {"limit": 100, "offset": 100})
+
+    def test_json_api_pagina_con_paginador(self):
+        from fetchers import fetch_elit
+
+        payload = {
+            "codigo": 200,
+            "paginador": {"total": 2, "limit": 100, "offset": 0},
+            "resultado": [
+                {
+                    "codigo_producto": "A",
+                    "nombre": "Prod A",
+                    "categoria": "Cat",
+                    "precio": 10,
+                    "iva": 21,
+                    "stock_total": 1,
+                }
+            ],
+        }
+
+        class FakeResp:
+            def __init__(self, body):
+                self._payload = body
+                self.status_code = 200
+                self.text = json.dumps(body)
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self._payload
+
+        with mock.patch("fetchers.fetch_elit.requests.post") as post:
+            post.return_value = FakeResp(payload)
+            data = fetch_elit._fetch_elit_json_api(1, "tok")
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["codigo"], "A")
+        _, kwargs = post.call_args
+        self.assertEqual(kwargs["params"], {"limit": 100})
+        self.assertNotIn("offset", kwargs["params"])
+        self.assertEqual(kwargs["json"], {"user_id": 1, "token": "tok"})
+
+
 class TestInvidParser(unittest.TestCase):
+    def test_categoria_desde_categories_con_padre(self):
+        item = {
+            "ID": "0415879",
+            "TITLE": "Pen Drive",
+            "PRICE": "10",
+            "CATEGORY": "Pen Drive",
+            "CATEGORIES": [
+                {
+                    "ID": "20",
+                    "NAME": "Pen Drive",
+                    "IS_PRIMARY": True,
+                    "PARENT": {"ID": "2", "NAME": "Almacenamiento"},
+                }
+            ],
+        }
+        reg = invid.articulo_to_registro(item)
+        self.assertEqual(reg["categoriaRaw"], "Almacenamiento /Pen Drive")
+        self.assertEqual(reg["categoria"], "Almacenamiento /Pen Drive")
+
+    def test_categoria_tres_niveles_desde_categories(self):
+        item = {
+            "ID": "1",
+            "TITLE": "Cable UTP",
+            "PRICE": "10",
+            "CATEGORY": "De red",
+            "CATEGORIES": [
+                {
+                    "ID": "3",
+                    "NAME": "De red",
+                    "IS_PRIMARY": True,
+                    "PARENT": {"ID": "2", "NAME": "Cables"},
+                },
+                {
+                    "ID": "2",
+                    "NAME": "Cables",
+                    "IS_PRIMARY": False,
+                    "PARENT": {"ID": "1", "NAME": "Conectividad"},
+                },
+            ],
+        }
+        self.assertEqual(
+            invid.categoria_from_articulo(item),
+            "Conectividad /Cables /De red",
+        )
+
+    def test_categoria_fallback_category_si_no_hay_categories(self):
+        item = {
+            "ID": "2",
+            "TITLE": "Proyector",
+            "PRICE": "10",
+            "CATEGORY": "Proyectores",
+        }
+        self.assertEqual(invid.categoria_from_articulo(item), "Proyectores")
+
     def test_articulo_to_registro_long_description(self):
         item = {
             "ID": "123",
