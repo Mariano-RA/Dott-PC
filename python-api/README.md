@@ -58,7 +58,7 @@ Los registros `carga_tabla` pueden incluir `descripcion` (texto) y/o `atributos`
 | Proveedor | Campo | Origen |
 |-----------|--------|--------|
 | **elit** | `atributos` | Preferido: `POST /v1/api/productos` (paginado). Fallback CSV/XLSX sin atributos. |
-| **invid** | `descripcion` | `LONG_DESCRIPTION` de la APIv1 |
+| **invid** | `descripcion` + `atributos` | `LONG_DESCRIPTION` APIv1: tabla HTML → atributos; fila «Descripción» → texto; resto HTML → texto plano |
 | **nb** | `descripcion` | Columna CSV `ATRIBUTOS` |
 | **air** | `descripcion` | Tras el CSV: `GET …/mas_info.php?codiart={codigo}` → JSON `texto` |
 | eikon / mega / hdc | — | Quedan vacíos |

@@ -1,10 +1,12 @@
 """Parser para proveedor NB (CSV o Excel con delimitador ;)."""
+import csv
+import io
 import logging
 from typing import List, Optional
 
 from domain import calcular_precio
 
-from .base import rows_from_csv_or_excel
+from .base import is_excel_binary, read_excel_to_rows
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +20,19 @@ def _header_index(header: List[str], *names: str) -> Optional[int]:
     return None
 
 
+def _rows_from_nb_file(file_data: bytes) -> List[List[str]]:
+    """Lee CSV/Excel de NB. En CSV preserva \\n dentro de campos entrecomillados (ATRIBUTOS)."""
+    if is_excel_binary(file_data):
+        return read_excel_to_rows(file_data)
+    decoded = file_data.decode("utf-8", errors="replace")
+    return list(csv.reader(io.StringIO(decoded, newline=""), delimiter=";"))
+
+
 def parse(archivo_bytesio) -> List[dict]:
     """Envía categoriaRaw para que el backend resuelva con el maestro."""
     try:
         file_data = archivo_bytesio.read()
-        csv_data = rows_from_csv_or_excel(
-            file_data, csv_delimiter=";", csv_encoding="utf-8"
-        )
+        csv_data = _rows_from_nb_file(file_data)
         data = []
         if not csv_data:
             return []

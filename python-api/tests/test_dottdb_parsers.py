@@ -261,6 +261,71 @@ class TestInvidParser(unittest.TestCase):
         reg = invid.articulo_to_registro(item)
         self.assertIsNotNone(reg)
         self.assertEqual(reg["descripcion"], "Sensor óptico 1600 DPI")
+        self.assertIsNone(reg["atributos"])
+
+    def test_articulo_to_registro_strips_html_long_description(self):
+        item = {
+            "ID": "125",
+            "TITLE": "Mouse USB",
+            "FINAL_PRICE": "10",
+            "CATEGORY": "Perifericos",
+            "LONG_DESCRIPTION": (
+                "<p>Sensor &oacute;ptico <b>1600 DPI</b></p>"
+                "<ul><li>USB</li><li>Negro</li></ul>"
+            ),
+        }
+        reg = invid.articulo_to_registro(item)
+        self.assertIsNotNone(reg)
+        self.assertEqual(reg["descripcion"], "Sensor óptico 1600 DPI\nUSB\nNegro")
+        self.assertNotIn("<", reg["descripcion"])
+        self.assertIsNone(reg["atributos"])
+
+    def test_articulo_to_registro_tabla_html_a_atributos(self):
+        html = """
+<table style="height: 341px; width: 610px;" border="0" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td width="296" height="20"><strong>Descripci&oacute;n</strong></td>
+<td width="268">Brazo articulado cl&aacute;sico</td>
+</tr>
+<tr>
+<td height="20"><strong>Recomendado para</strong></td>
+<td>Configuraciones con varios monitores</td>
+</tr>
+<tr>
+<td height="20"><strong>Colores</strong></td>
+<td>Negro</td>
+</tr>
+<tr>
+<td height="20"><strong>Alcance horizontal</strong></td>
+<td>78 cm&nbsp; 95 cm</td>
+</tr>
+<tr>
+<td height="20"><strong>Capacidad de carga</strong></td>
+<td>250&ndash;1000 g</td>
+</tr>
+</tbody>
+</table>
+"""
+        item = {
+            "ID": "126",
+            "TITLE": "Brazo monitor",
+            "FINAL_PRICE": "50",
+            "CATEGORY": "Soportes",
+            "LONG_DESCRIPTION": html,
+        }
+        reg = invid.articulo_to_registro(item)
+        self.assertIsNotNone(reg)
+        self.assertEqual(reg["descripcion"], "Brazo articulado clásico")
+        self.assertEqual(
+            reg["atributos"],
+            [
+                {"nombre": "Recomendado para", "valor": "Configuraciones con varios monitores"},
+                {"nombre": "Colores", "valor": "Negro"},
+                {"nombre": "Alcance horizontal", "valor": "78 cm 95 cm"},
+                {"nombre": "Capacidad de carga", "valor": "250–1000 g"},
+            ],
+        )
 
     def test_articulo_sin_long_description(self):
         item = {
@@ -272,7 +337,7 @@ class TestInvidParser(unittest.TestCase):
         reg = invid.articulo_to_registro(item)
         self.assertIsNotNone(reg)
         self.assertIsNone(reg["descripcion"])
-
+        self.assertIsNone(reg["atributos"])
 
 class TestExtraerPayload(unittest.TestCase):
     def test_extraer_payload_valido(self):
