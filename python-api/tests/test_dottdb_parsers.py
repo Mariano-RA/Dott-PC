@@ -83,6 +83,20 @@ class TestNbParser(unittest.TestCase):
         data = nb.parse(io.BytesIO(csv_text.encode("utf-8")))
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["descripcion"], "RAM 16GB / SSD 512")
+        self.assertIsNone(data[0].get("atributos"))
+
+    def test_tabla_nb_lineas_kv_a_atributos(self):
+        csv_text = (
+            "CODIGO;X;CATEGORIA;PRODUCTO;IMAGEN;A;B;C;D;E;PRECIO;ATRIBUTOS\n"
+            'sku1;x;CatNB;Producto NB;img;x;x;x;x;x;150;"RAM: 16GB\nSSD: 512GB"\n'
+        )
+        data = nb.parse(io.BytesIO(csv_text.encode("utf-8")))
+        self.assertEqual(len(data), 1)
+        self.assertIsNone(data[0]["descripcion"])
+        self.assertEqual(
+            data[0]["atributos"],
+            [{"nombre": "RAM", "valor": "16GB"}, {"nombre": "SSD", "valor": "512GB"}],
+        )
 
 
 class TestMegaParser(unittest.TestCase):
@@ -123,6 +137,52 @@ class TestElitParser(unittest.TestCase):
         self.assertEqual(
             reg["atributos"],
             [{"nombre": "RAM", "valor": "16GB"}, {"nombre": "SSD", "valor": "512GB"}],
+        )
+        self.assertIsNone(reg["descripcion"])
+
+    def test_producto_to_registro_mapea_clave_atributo_de_api(self):
+        """La API Elit usa {atributo, valor}, no {nombre, valor}."""
+        item = {
+            "codigo_producto": "RR-212",
+            "nombre": "Cooler",
+            "sub_categoria": "Coolers",
+            "precio": 100,
+            "iva": 0.21,
+            "stock_total": 1,
+            "stock_deposito_cliente": 0,
+            "stock_deposito_cd": 0,
+            "descripcion": "Tipo: Aire. Color: Negro",
+            "atributos": [
+                {"atributo": "Tipo", "valor": "Aire"},
+                {"atributo": "Color", "valor": "Negro"},
+            ],
+        }
+        reg = elit.producto_to_registro(item)
+        self.assertEqual(
+            reg["atributos"],
+            [{"nombre": "Tipo", "valor": "Aire"}, {"nombre": "Color", "valor": "Negro"}],
+        )
+        # No duplicar el flatten de la API en descripcion.
+        self.assertIsNone(reg["descripcion"])
+
+    def test_producto_to_registro_fallback_descripcion_aplanada(self):
+        item = {
+            "codigo_producto": "X1",
+            "nombre": "Prod",
+            "categoria": "Cat",
+            "precio": 10,
+            "iva": 21,
+            "stock_total": 1,
+            "stock_deposito_cliente": 0,
+            "stock_deposito_cd": 0,
+            "atributos": [],
+            "descripcion": "Tipo: Aire. Color: Negro",
+        }
+        reg = elit.producto_to_registro(item)
+        self.assertIsNone(reg["descripcion"])
+        self.assertEqual(
+            reg["atributos"],
+            [{"nombre": "Tipo", "valor": "Aire"}, {"nombre": "Color", "valor": "Negro"}],
         )
 
     def test_parse_json_con_atributos(self):

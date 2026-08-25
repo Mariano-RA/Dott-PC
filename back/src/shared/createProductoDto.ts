@@ -15,9 +15,9 @@ export class createProductoDto {
 
   imagenUrl?: string | null;
 
-  /** Texto libre (Invid fila Descripción / HTML plano, AIR mas_info.texto, NB ATRIBUTOS). */
+  /** Texto libre (AIR mas_info.texto, Invid prosa / fila Descripción, NB sin pares clave:valor). */
   descripcion?: string | null;
 
-  /** Specs [{nombre, valor}] (Elit atributos, Invid tabla LONG_DESCRIPTION). */
+  /** Specs [{nombre, valor}] (Elit atributos, Invid tabla, NB líneas «Nombre: Valor»). */
   atributos?: Array<{ nombre: string; valor: string }> | null;
 }

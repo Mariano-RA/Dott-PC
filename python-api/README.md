@@ -14,6 +14,7 @@ python-api/
 │   └── price.py             # Cálculo de precio con IVA (categorías se resuelven en el backend)
 ├── parsers/                 # Parsers por proveedor (un archivo por proveedor)
 │   ├── base.py              # Utilidades Excel/CSV (lectura, conversión, desencriptado)
+│   ├── description.py       # Normalización de descripcion / atributos
 │   ├── air.py, eikon.py, elit.py, hdc.py, invid.py, nb.py, mega.py
 │   └── __init__.py          # Registro PROVEEDORES_PARSERS, get_parser, extraer_payload
 ├── messaging/               # Publicación a RabbitMQ (carga_tabla)
@@ -53,14 +54,15 @@ Al disparar **“Todos”** desde el admin, Nest resuelve los proveedores con `a
 
 ## Descripción y atributos
 
-Los registros `carga_tabla` pueden incluir `descripcion` (texto) y/o `atributos` (`[{nombre, valor}]`):
+Los registros `carga_tabla` pueden incluir `descripcion` (texto) y/o `atributos` (`[{nombre, valor}]`).
+El estilo se normaliza en `parsers/description.py` (texto plano + pares clave/valor).
 
 | Proveedor | Campo | Origen |
 |-----------|--------|--------|
-| **elit** | `atributos` | Preferido: `POST /v1/api/productos` (paginado). Fallback CSV/XLSX sin atributos. |
+| **elit** | `atributos` | API JSON: lista `[{atributo, valor}]` → `[{nombre, valor}]`. El campo `descripcion` de Elit es el mismo contenido aplanado; se ignora si hay atributos. Fallback: parsear ese string. |
 | **invid** | `descripcion` + `atributos` | `LONG_DESCRIPTION` APIv1: tabla HTML → atributos; fila «Descripción» → texto; resto HTML → texto plano |
-| **nb** | `descripcion` | Columna CSV `ATRIBUTOS` |
-| **air** | `descripcion` | Tras el CSV: `GET …/mas_info.php?codiart={codigo}` → JSON `texto` |
+| **nb** | `descripcion` y/o `atributos` | Columna CSV `ATRIBUTOS`: líneas `Nombre: Valor` → atributos; si no, texto limpio |
+| **air** | `descripcion` | Tras el CSV: `GET …/mas_info.php?codiart={codigo}` → JSON `texto` (normalizado) |
 | eikon / mega / hdc | — | Quedan vacíos |
 
 ## Categorías (flujo actual)

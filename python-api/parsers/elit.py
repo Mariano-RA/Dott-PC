@@ -10,6 +10,10 @@ import pandas as pd
 from domain import calcular_precio
 
 from .base import is_excel_binary
+from .description import (
+    normalize_atributos_list,
+    split_text_to_descripcion_atributos,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,23 +49,17 @@ def _to_int(v, default: int = 0) -> int:
 
 
 def normalize_atributos(raw: Any) -> Optional[List[Dict[str, str]]]:
-    """Normaliza atributos Elit a [{nombre, valor}]."""
-    if not isinstance(raw, list) or not raw:
-        return None
-    out: List[Dict[str, str]] = []
-    for item in raw:
-        if not isinstance(item, dict):
-            continue
-        nombre = str(item.get("nombre") or "").strip()
-        valor = str(item.get("valor") or "").strip()
-        if not nombre and not valor:
-            continue
-        out.append({"nombre": nombre, "valor": valor})
-    return out or None
+    """Normaliza atributos Elit a [{nombre, valor}] (API usa clave ``atributo``)."""
+    return normalize_atributos_list(raw)
 
 
 def producto_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Mapea un producto de la API Elit JSON al formato carga_tabla."""
+    """Mapea un producto de la API Elit JSON al formato carga_tabla.
+
+    La API trae ``atributos`` como ``[{atributo, valor}]`` y ``descripcion`` como
+    el mismo contenido aplanado (\"Tipo: Aire. Color: Negro\"). Preferimos
+    atributos estructurados; si la lista viene vacía, parseamos ``descripcion``.
+    """
     if not isinstance(item, dict):
         return None
     codigo = str(
@@ -92,6 +90,14 @@ def producto_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     else:
         imagenes = None
     imagen_url = imagenes[0] if imagenes else None
+
+    atributos = normalize_atributos(item.get("atributos"))
+    descripcion = None
+    if not atributos:
+        # Fallback: parsear el string aplanado o usarlo como texto libre.
+        descripcion, atributos = split_text_to_descripcion_atributos(item.get("descripcion"))
+    # Si hay atributos, no guardamos el flatten duplicado en descripcion.
+
     return {
         "proveedor": "elit",
         "codigo": codigo,
@@ -101,7 +107,8 @@ def producto_to_registro(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "precio": calcular_precio(precio, iva_pct),
         "imagenUrl": imagen_url,
         "imagenes": imagenes,
-        "atributos": normalize_atributos(item.get("atributos")),
+        "descripcion": descripcion,
+        "atributos": atributos,
     }
 
 

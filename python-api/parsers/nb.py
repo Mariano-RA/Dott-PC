@@ -7,6 +7,7 @@ from typing import List, Optional
 from domain import calcular_precio
 
 from .base import is_excel_binary, read_excel_to_rows
+from .description import split_text_to_descripcion_atributos
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +47,9 @@ def parse(archivo_bytesio) -> List[dict]:
             cat_raw = str(row[2]).strip() if len(row) > 2 else ""
             imagen_url = str(row[4]).strip() if len(row) > 4 else ""
             descripcion = None
+            atributos = None
             if atributos_i is not None and atributos_i < len(row):
-                raw_desc = str(row[atributos_i]).strip()
-                descripcion = raw_desc or None
+                descripcion, atributos = split_text_to_descripcion_atributos(row[atributos_i])
             registro = {
                 "proveedor": "nb",
                 "codigo": codigo,
@@ -58,6 +59,7 @@ def parse(archivo_bytesio) -> List[dict]:
                 "precio": calcular_precio(row[10]),
                 "imagenUrl": imagen_url or None,
                 "descripcion": descripcion,
+                "atributos": atributos,
             }
             data.append(registro)
         return data

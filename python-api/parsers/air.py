@@ -10,6 +10,8 @@ import requests
 
 from domain import calcular_precio
 
+from .description import clean_plain_text
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAS_INFO_URL = "https://air-intra.com.ar/2025/ar/mas_info.php"
@@ -77,8 +79,7 @@ def _fetch_mas_info_texto(
         texto = payload.get("texto") if isinstance(payload, dict) else None
         if texto is None:
             return None
-        s = str(texto).strip()
-        return s or None
+        return clean_plain_text(texto)
     except Exception as ex:
         logger.debug("AIR mas_info falló para %s: %s", codigo, ex)
         return None

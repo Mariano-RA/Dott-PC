@@ -3,7 +3,6 @@
 Camino principal: artículos de la APIv1 → registros carga_tabla.
 Legacy: Excel con filas de categoría (upload manual, sin imágenes).
 """
-import html
 import logging
 import re
 from html.parser import HTMLParser
@@ -12,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from domain import calcular_precio
+
+from .description import clean_plain_text
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +46,7 @@ _DESC_ROW_NAMES = frozenset({"descripcion", "descripción", "description"})
 
 
 def _clean_cell_text(raw: str) -> str:
-    text = html.unescape(raw or "")
-    text = text.replace("\xa0", " ")
-    text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r"\s*\n\s*", "\n", text)
-    return text.strip()
+    return clean_plain_text(raw) or ""
 
 
 class _HTMLToText(HTMLParser):

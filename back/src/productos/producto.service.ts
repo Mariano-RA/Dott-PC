@@ -38,7 +38,9 @@ function normalizeAtributos(raw: unknown): AtributoItem[] | null {
   const out: AtributoItem[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
-    const nombre = String((item as any).nombre ?? "").trim();
+    const nombre = String(
+      (item as any).nombre ?? (item as any).atributo ?? ""
+    ).trim();
     const valor = String((item as any).valor ?? "").trim();
     if (!nombre && !valor) continue;
     out.push({ nombre, valor });
