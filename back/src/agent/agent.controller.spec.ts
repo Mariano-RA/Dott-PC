@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import * as request from "supertest";
+import { AgentArmadoService } from "./agent-armado.service";
 import { AgentAuthGuard } from "./agent-auth.guard";
 import { AgentCategoriasService } from "./agent-categorias.service";
 import { AgentDolarService } from "./agent-dolar.service";
@@ -33,6 +34,11 @@ describe("AgentController (HTTP)", () => {
     estado: jest.fn().mockReturnValue({ enCurso: false, resumen: "Sin cacheos todavía." }),
   };
 
+  const armadoService = {
+    buscar: jest.fn().mockResolvedValue({ total: 0, proveedores: [] }),
+    cotizar: jest.fn().mockResolvedValue({ resumen: "x" }),
+  };
+
   async function boot(env: Record<string, string>) {
     const moduleRef = await Test.createTestingModule({
       controllers: [AgentController],
@@ -42,6 +48,7 @@ describe("AgentController (HTTP)", () => {
         { provide: AgentDolarService, useValue: dolarService },
         { provide: AgentCategoriasService, useValue: categoriasService },
         { provide: AgentImagenesService, useValue: imagenesService },
+        { provide: AgentArmadoService, useValue: armadoService },
         { provide: ConfigService, useValue: { get: (k: string) => env[k] } },
       ],
     }).compile();
@@ -126,6 +133,58 @@ describe("AgentController (HTTP)", () => {
       it("GET /agent/imagenes/estado con clave -> 200 y sin clave -> 401", async () => {
         await http().get("/agent/imagenes/estado").set("x-agent-key", KEY).expect(200);
         await http().get("/agent/imagenes/estado").expect(401);
+      });
+    });
+
+    describe("armado", () => {
+      const lineasOk = { lineas: [{ nombre: "CPU", opciones: [1, 2] }] };
+
+      it("GET /agent/armado/buscar sin clave -> 401 y no busca", async () => {
+        await http().get("/agent/armado/buscar?q=ryzen").expect(401);
+        expect(armadoService.buscar).not.toHaveBeenCalled();
+      });
+
+      it("GET con clave pasa los filtros y convierte porProveedor a número", async () => {
+        await http()
+          .get("/agent/armado/buscar?q=ryzen%205&categoria=Procesadores&proveedor=%20AIR%20&porProveedor=4")
+          .set("x-agent-key", KEY)
+          .expect(200);
+        expect(armadoService.buscar).toHaveBeenCalledWith(
+          expect.objectContaining({ q: "ryzen 5", categoria: "Procesadores", proveedor: "air", porProveedor: 4 }),
+        );
+      });
+
+      it("GET rechaza porProveedor fuera de rango, un proveedor raro y parámetros desconocidos -> 400", async () => {
+        const get = (qs: string) => http().get(`/agent/armado/buscar?${qs}`).set("x-agent-key", KEY);
+        await get("q=x&porProveedor=50").expect(400);
+        await get("q=x&porProveedor=0").expect(400);
+        await get("q=x&proveedor=../x").expect(400);
+        await get("q=x&limit=1000").expect(400);
+        expect(armadoService.buscar).not.toHaveBeenCalled();
+      });
+
+      it("POST /agent/armado/cotizar sin clave -> 401", async () => {
+        await http().post("/agent/armado/cotizar").send(lineasOk).expect(401);
+        expect(armadoService.cotizar).not.toHaveBeenCalled();
+      });
+
+      it("POST con clave y líneas válidas -> 200", async () => {
+        await post("/agent/armado/cotizar", lineasOk).expect(200);
+        expect(armadoService.cotizar).toHaveBeenCalledTimes(1);
+      });
+
+      it("POST rechaza cuerpos inválidos -> 400 (sin líneas, ids que no son enteros, campos extra, demasiadas líneas)", async () => {
+        await post("/agent/armado/cotizar", {}).expect(400);
+        await post("/agent/armado/cotizar", { lineas: [] }).expect(400);
+        await post("/agent/armado/cotizar", { lineas: [{ nombre: "CPU", opciones: [] }] }).expect(400);
+        await post("/agent/armado/cotizar", { lineas: [{ nombre: "CPU", opciones: ["1; DROP TABLE"] }] }).expect(400);
+        await post("/agent/armado/cotizar", { lineas: [{ nombre: "CPU", opciones: [-3] }] }).expect(400);
+        await post("/agent/armado/cotizar", { lineas: [{ nombre: "CPU", opciones: [1], cantidad: 99 }] }).expect(400);
+        await post("/agent/armado/cotizar", { lineas: [{ nombre: "CPU", opciones: [1], precio: 1 }] }).expect(400);
+        await post("/agent/armado/cotizar", { ...lineasOk, minimoEnvio: 0 }).expect(400);
+        const demasiadas = Array.from({ length: 13 }, (_, i) => ({ nombre: `P${i}`, opciones: [1] }));
+        await post("/agent/armado/cotizar", { lineas: demasiadas }).expect(400);
+        expect(armadoService.cotizar).not.toHaveBeenCalled();
       });
     });
 

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from "@nestjs/common";
+import { AgentArmadoService } from "./agent-armado.service";
 import { AgentAuthGuard } from "./agent-auth.guard";
 import { AgentCategoriasService } from "./agent-categorias.service";
 import { AgentDolarService } from "./agent-dolar.service";
@@ -6,6 +7,7 @@ import { AgentImagenesService } from "./agent-imagenes.service";
 import { AgentService } from "./agent.service";
 import { ActualizarDolarDto } from "./dto/actualizar-dolar.dto";
 import { ActualizarProveedoresDto } from "./dto/actualizar-proveedores.dto";
+import { BuscarComponentesDto, CotizarArmadoDto } from "./dto/armado.dto";
 import { CachearImagenesDto } from "./dto/cachear-imagenes.dto";
 import { DescartarCategoriasDto, MapearCategoriasDto } from "./dto/categorias.dto";
 
@@ -21,6 +23,7 @@ export class AgentController {
     private readonly dolarService: AgentDolarService,
     private readonly categoriasService: AgentCategoriasService,
     private readonly imagenesService: AgentImagenesService,
+    private readonly armadoService: AgentArmadoService,
   ) {}
 
   // ---------------------------------------------------------------- proveedores
@@ -35,6 +38,21 @@ export class AgentController {
   @Get("proveedores/estado")
   estado() {
     return this.agentService.estado();
+  }
+
+  // --------------------------------------------------------------------- armado
+
+  /** Los componentes más baratos de cada proveedor para una búsqueda (solo lectura). */
+  @Get("armado/buscar")
+  buscarComponentes(@Query() dto: BuscarComponentesDto) {
+    return this.armadoService.buscar(dto);
+  }
+
+  /** Cuenta de un armado: totales por proveedor, mínimos de envío y mejor combinación (solo lectura). */
+  @Post("armado/cotizar")
+  @HttpCode(HttpStatus.OK)
+  cotizarArmado(@Body() dto: CotizarArmadoDto) {
+    return this.armadoService.cotizar(dto);
   }
 
   // ------------------------------------------------------------------- imágenes

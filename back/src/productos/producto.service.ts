@@ -4,6 +4,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DolaresService } from "src/dolar/dolar.service";
 import { Repository, SelectQueryBuilder } from "typeorm";
 import { ProductoDto } from "./dto/productoDto";
+import { ProductoParaAgente } from "./producto-para-agente";
 import { Producto } from "./entities/producto.entity";
 import { CuotasService } from "src/cuota/cuota.service";
 import { CalculatorSettingsService } from "src/calculator-settings/calculator-settings.service";
@@ -483,6 +484,66 @@ export class ProductosService {
       }
     }
     return listDto;
+  }
+
+  /**
+   * Búsqueda de solo lectura para el agente: los más baratos de cada proveedor activo, con el precio en USD
+   * (lo que paga Nano) y el precio final al cliente. La categoría puede ser una maestra o su padre.
+   */
+  async buscarParaAgente(options: {
+    proveedores: string[];
+    keywords?: string;
+    category?: string;
+    takePorProveedor: number;
+  }): Promise<Record<string, ProductoParaAgente[]>> {
+    const [arrayDolar, categoryFilter] = await Promise.all([
+      this.dolaresService.findAll(),
+      this.resolveCategoryFilter(options.category),
+    ]);
+    const resultado: Record<string, ProductoParaAgente[]> = {};
+    for (const proveedor of options.proveedores) {
+      const qb = this.productoRepository
+        .createQueryBuilder("p")
+        .leftJoinAndSelect("p.proveedor", "prov");
+      qb.andWhere("prov.activo = :provActivo", { provActivo: true });
+      qb.andWhere(`${this.normSql("prov", "nombre")} = :provExacto`, { provExacto: this.normField(proveedor) });
+      qb.andWhere("p.precio > 0");
+      this.applyProductListFilters(qb, { keywords: options.keywords }, categoryFilter);
+      qb.orderBy("p.precio", "ASC").addOrderBy("p.id", "ASC").take(options.takePorProveedor);
+      const productos = await qb.getMany();
+      resultado[proveedor] = productos.map((p) => this.paraAgente(p, arrayDolar));
+    }
+    return resultado;
+  }
+
+  /** Productos por id (solo de proveedores activos y con precio), para cotizar un armado. */
+  async findParaAgentePorIds(ids: number[]): Promise<ProductoParaAgente[]> {
+    if (ids.length === 0) return [];
+    const arrayDolar = await this.dolaresService.findAll();
+    const productos = await this.productoRepository
+      .createQueryBuilder("p")
+      .leftJoinAndSelect("p.proveedor", "prov")
+      .where("p.id IN (:...ids)", { ids })
+      .andWhere("prov.activo = :provActivo", { provActivo: true })
+      .andWhere("p.precio > 0")
+      .getMany();
+    return productos.map((p) => this.paraAgente(p, arrayDolar));
+  }
+
+  private paraAgente(
+    prod: Producto,
+    arrayDolar: Parameters<typeof getPrecioDolarOrDefault>[0],
+  ): ProductoParaAgente {
+    const categoria = prod.categoria ?? "";
+    return {
+      id: prod.id,
+      proveedor: this.normField(prod.proveedor?.nombre),
+      codigo: prod.codigo ?? null,
+      producto: prod.producto,
+      categoria,
+      precioUsd: prod.precio,
+      precioCliente: obtenerPrecioEfectivo(prod.precio, getPrecioDolarOrDefault(arrayDolar, prod.proveedorId), categoria),
+    };
   }
 
   async findAll(
