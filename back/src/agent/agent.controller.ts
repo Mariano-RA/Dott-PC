@@ -1,7 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { AgentAuthGuard } from "./agent-auth.guard";
+import { AgentCategoriasService } from "./agent-categorias.service";
+import { AgentDolarService } from "./agent-dolar.service";
 import { AgentService } from "./agent.service";
+import { ActualizarDolarDto } from "./dto/actualizar-dolar.dto";
 import { ActualizarProveedoresDto } from "./dto/actualizar-proveedores.dto";
+import { DescartarCategoriasDto, MapearCategoriasDto } from "./dto/categorias.dto";
 
 /**
  * Rutas para el agente (Hermes). No son para el frontend ni se publican por el
@@ -10,7 +14,13 @@ import { ActualizarProveedoresDto } from "./dto/actualizar-proveedores.dto";
 @Controller("agent")
 @UseGuards(AgentAuthGuard)
 export class AgentController {
-  constructor(private readonly agentService: AgentService) {}
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly dolarService: AgentDolarService,
+    private readonly categoriasService: AgentCategoriasService,
+  ) {}
+
+  // ---------------------------------------------------------------- proveedores
 
   /** Dispara la descarga de listados. Responde 202: el trabajo sigue en segundo plano. */
   @Post("proveedores/actualizar")
@@ -22,5 +32,42 @@ export class AgentController {
   @Get("proveedores/estado")
   estado() {
     return this.agentService.estado();
+  }
+
+  // --------------------------------------------------------------------- dólar
+
+  @Get("dolar")
+  dolar() {
+    return this.dolarService.listar();
+  }
+
+  @Post("dolar/actualizar")
+  @HttpCode(HttpStatus.OK)
+  actualizarDolar(@Body() dto: ActualizarDolarDto) {
+    return this.dolarService.actualizar(dto);
+  }
+
+  // ----------------------------------------------------------------- categorías
+
+  @Get("categorias/nuevas")
+  categoriasNuevas() {
+    return this.categoriasService.nuevas();
+  }
+
+  @Get("categorias/maestras")
+  categoriasMaestras() {
+    return this.categoriasService.maestras();
+  }
+
+  @Post("categorias/mapear")
+  @HttpCode(HttpStatus.OK)
+  mapearCategorias(@Body() dto: MapearCategoriasDto) {
+    return this.categoriasService.mapear(dto.items);
+  }
+
+  @Post("categorias/descartar")
+  @HttpCode(HttpStatus.OK)
+  descartarCategorias(@Body() dto: DescartarCategoriasDto) {
+    return this.categoriasService.descartar(dto.items);
   }
 }
