@@ -25,6 +25,7 @@ import { ImagenesModule } from "./imagenes/imagenes.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { SharedModule } from "./shared/shared.module";
 import { AdminModule } from "./admin/admin.module";
+import { AgentModule } from "./agent/agent.module";
 import { EventLog } from "./shared/entities/event-log.entity";
 
 const dbPort = Number(process.env.DB_PORT || 3306);
@@ -86,6 +87,7 @@ const isProd = (process.env.NODE_ENV || "").toLowerCase() === "production";
     CategoriesModule,
     ImagenesModule,
     AdminModule,
+    AgentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

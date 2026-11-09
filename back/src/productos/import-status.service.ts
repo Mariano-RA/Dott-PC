@@ -36,6 +36,11 @@ export class ImportStatusService {
     );
   }
 
+  /** Estado de todos los proveedores que tuvieron actividad desde que arrancó el backend. */
+  list(): ImportStatus[] {
+    return Array.from(this.byProveedor.values());
+  }
+
   markQueued(proveedor: string) {
     const key = normProveedor(proveedor);
     if (!key) return;

@@ -18,6 +18,10 @@ export const EnvKeys = {
   NODE_ENV: 'NODE_ENV',
   LOCAL_DEV_AUTH_BYPASS: 'LOCAL_DEV_AUTH_BYPASS',
 
+  // Agente (Hermes): rutas /agent/...
+  AGENT_API_KEY: 'AGENT_API_KEY',
+  AGENT_ALLOWED_IPS: 'AGENT_ALLOWED_IPS',
+
   // Database
   DB_HOST: 'DB_HOST',
   DB_PORT: 'DB_PORT',

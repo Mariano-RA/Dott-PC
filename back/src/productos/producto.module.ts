@@ -24,5 +24,7 @@ import { ImagenesModule } from "src/imagenes/imagenes.module";
   ],
   controllers: [ProductosController],
   providers: [ProductosService, FetchPricesTriggerService, ImportStatusService],
+  // Los usa AgentModule (rutas /agent) para disparar y consultar la descarga.
+  exports: [FetchPricesTriggerService, ImportStatusService],
 })
 export class ProductosModule {}
