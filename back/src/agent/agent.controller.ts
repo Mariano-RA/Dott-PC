@@ -2,9 +2,11 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from "@n
 import { AgentAuthGuard } from "./agent-auth.guard";
 import { AgentCategoriasService } from "./agent-categorias.service";
 import { AgentDolarService } from "./agent-dolar.service";
+import { AgentImagenesService } from "./agent-imagenes.service";
 import { AgentService } from "./agent.service";
 import { ActualizarDolarDto } from "./dto/actualizar-dolar.dto";
 import { ActualizarProveedoresDto } from "./dto/actualizar-proveedores.dto";
+import { CachearImagenesDto } from "./dto/cachear-imagenes.dto";
 import { DescartarCategoriasDto, MapearCategoriasDto } from "./dto/categorias.dto";
 
 /**
@@ -18,6 +20,7 @@ export class AgentController {
     private readonly agentService: AgentService,
     private readonly dolarService: AgentDolarService,
     private readonly categoriasService: AgentCategoriasService,
+    private readonly imagenesService: AgentImagenesService,
   ) {}
 
   // ---------------------------------------------------------------- proveedores
@@ -32,6 +35,20 @@ export class AgentController {
   @Get("proveedores/estado")
   estado() {
     return this.agentService.estado();
+  }
+
+  // ------------------------------------------------------------------- imágenes
+
+  /** Cachea las imágenes que todavía no tienen cache. Responde 202: sigue en segundo plano. */
+  @Post("imagenes/cachear")
+  @HttpCode(HttpStatus.ACCEPTED)
+  cachearImagenes(@Body() dto: CachearImagenesDto) {
+    return this.imagenesService.iniciar(dto.proveedor);
+  }
+
+  @Get("imagenes/estado")
+  estadoImagenes() {
+    return this.imagenesService.estado();
   }
 
   // --------------------------------------------------------------------- dólar

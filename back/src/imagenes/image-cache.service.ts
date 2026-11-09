@@ -194,6 +194,11 @@ export class ImageCacheService {
     ttlHours?: number;
     concurrency?: number;
     processAll?: boolean;
+    /**
+     * Solo cachea lo que todavía no tiene cache: saltea todo código que ya tenga sus imágenes, sin
+     * importar cuándo se bajaron (no aplica el TTL ni re-descarga). Tiene prioridad sobre `force`.
+     */
+    onlyMissing?: boolean;
   }) {
     const proveedorId = await this.getProveedorId(options.proveedor);
     if (!proveedorId) {
@@ -212,6 +217,7 @@ export class ImageCacheService {
         ? (options.ttlHours as number)
         : DEFAULT_TTL_HOURS;
     const force = Boolean(options.force);
+    const onlyMissing = Boolean(options.onlyMissing);
     const concurrency = Number.isFinite(options.concurrency) && (options.concurrency as number) > 0
       ? Math.min((options.concurrency as number), 20)
       : DEFAULT_CONCURRENCY;
@@ -308,7 +314,12 @@ export class ImageCacheService {
       const existing = existingByCodigo.get(codigo) ?? [];
       const primary = pickPrimary(existing);
       const expectedCount = isAir ? null : urls.length;
-      if (!force && primary?.lastFetchedAt) {
+      if (onlyMissing) {
+        if (existing.length >= (expectedCount ?? 1)) {
+          skipped++;
+          continue;
+        }
+      } else if (!force && primary?.lastFetchedAt) {
         const age = Date.now() - new Date(primary.lastFetchedAt).getTime();
         const enough = expectedCount == null || existing.length >= expectedCount;
         if (age >= 0 && age < ttlMs && enough) {

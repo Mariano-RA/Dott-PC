@@ -5,6 +5,7 @@ import * as request from "supertest";
 import { AgentAuthGuard } from "./agent-auth.guard";
 import { AgentCategoriasService } from "./agent-categorias.service";
 import { AgentDolarService } from "./agent-dolar.service";
+import { AgentImagenesService } from "./agent-imagenes.service";
 import { AgentController } from "./agent.controller";
 import { AgentService } from "./agent.service";
 
@@ -27,6 +28,11 @@ describe("AgentController (HTTP)", () => {
     descartar: jest.fn().mockResolvedValue({ ok: true }),
   };
 
+  const imagenesService = {
+    iniciar: jest.fn().mockResolvedValue({ ok: true }),
+    estado: jest.fn().mockReturnValue({ enCurso: false, resumen: "Sin cacheos todavía." }),
+  };
+
   async function boot(env: Record<string, string>) {
     const moduleRef = await Test.createTestingModule({
       controllers: [AgentController],
@@ -35,6 +41,7 @@ describe("AgentController (HTTP)", () => {
         { provide: AgentService, useValue: agentService },
         { provide: AgentDolarService, useValue: dolarService },
         { provide: AgentCategoriasService, useValue: categoriasService },
+        { provide: AgentImagenesService, useValue: imagenesService },
         { provide: ConfigService, useValue: { get: (k: string) => env[k] } },
       ],
     }).compile();
@@ -85,6 +92,40 @@ describe("AgentController (HTTP)", () => {
 
       it("GET /agent/proveedores/estado con clave incorrecta -> 401", async () => {
         await http().get("/agent/proveedores/estado").set("x-agent-key", "x".repeat(40)).expect(401);
+      });
+    });
+
+    describe("imágenes", () => {
+      it("POST /agent/imagenes/cachear sin clave -> 401 y no dispara nada", async () => {
+        await http().post("/agent/imagenes/cachear").send({}).expect(401);
+        expect(imagenesService.iniciar).not.toHaveBeenCalled();
+      });
+
+      it("POST con clave y sin cuerpo -> 202 y pide todos", async () => {
+        await post("/agent/imagenes/cachear", {}).expect(202);
+        expect(imagenesService.iniciar).toHaveBeenCalledWith(undefined);
+      });
+
+      it("POST normaliza el proveedor", async () => {
+        await post("/agent/imagenes/cachear", { proveedor: "  ELIT " }).expect(202);
+        expect(imagenesService.iniciar).toHaveBeenCalledWith("elit");
+      });
+
+      it("POST rechaza un proveedor con caracteres raros -> 400", async () => {
+        await post("/agent/imagenes/cachear", { proveedor: "../x" }).expect(400);
+        expect(imagenesService.iniciar).not.toHaveBeenCalled();
+      });
+
+      it("POST no deja que el agente cambie la concurrencia, el force ni nada fuera del DTO -> 400", async () => {
+        await post("/agent/imagenes/cachear", { concurrency: 50 }).expect(400);
+        await post("/agent/imagenes/cachear", { force: true }).expect(400);
+        await post("/agent/imagenes/cachear", { onlyMissing: false }).expect(400);
+        expect(imagenesService.iniciar).not.toHaveBeenCalled();
+      });
+
+      it("GET /agent/imagenes/estado con clave -> 200 y sin clave -> 401", async () => {
+        await http().get("/agent/imagenes/estado").set("x-agent-key", KEY).expect(200);
+        await http().get("/agent/imagenes/estado").expect(401);
       });
     });
 
